@@ -1,0 +1,51 @@
+[
+    {
+        "exists": false,
+        "varcharField": "bogusValue",
+        "integerField": 1245359,
+        "simpleArray": [
+            1,
+            2,
+            3
+        ],
+        "multiDimArray": [
+            [
+                1,
+                2,
+                3
+            ],
+            [
+                4,
+                5,
+                6
+            ]
+        ],
+        "mapField": {
+            "mySecondRow": {
+                "firstfield": "row2FieldValue1",
+                "secondfield": "row2FieldValue2"
+            },
+            "myFirstRow": {
+                "firstfield": "row1FieldValue1",
+                "secondfield": "row1FieldValue2"
+            }
+        },
+        "jsonField": {
+            "jsonkey1": "foo",
+            "jsonkey2": "bar",
+            "jsonkey3": "baz"
+        },
+        "datasetAlleleResponses": [
+            {
+                "datasetid": "ExampleDataset",
+                "exists": true,
+                "info": [
+                    {
+                        "key": "Sample",
+                        "value": "Info"
+                    }
+                ]
+            }
+        ]
+    }
+]

@@ -1,0 +1,85 @@
+{
+  "$id": "phs001554.v1.pht007609.v1.GECCO_CRC_Susceptibility_Subject_Phenotypes",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "description": "Scrambled version of subject data for phs001554 Colorectal cancer susceptibility study.",
+  "properties": {
+    "affection_status": {
+      "description": "Case control status of the subject for colorectal cancer",
+      "oneOf": [
+        {
+          "const": "Case"
+        },
+        {
+          "const": "Control"
+        }
+      ],
+      "type": "string"
+    },
+    "age": {
+      "$comment": "UNIT 'Years'",
+      "description": "Participant reference age",
+      "maximum": 98.0,
+      "minimum": 37.0,
+      "type": "number"
+    },
+    "ethnicity": {
+      "description": "Ethnicity of participant",
+      "oneOf": [
+        {
+          "const": "Unknown"
+        }
+      ],
+      "type": "string"
+    },
+    "race": {
+      "description": "Race of participant",
+      "oneOf": [
+        {
+          "const": "White"
+        }
+      ],
+      "type": "string"
+    },
+    "sex": {
+      "description": "Sex of participant",
+      "oneOf": [
+        {
+          "const": "Female"
+        },
+        {
+          "const": "Male"
+        }
+      ],
+      "type": "string"
+    },
+    "study": {
+      "description": "Study acronym",
+      "oneOf": [
+        {
+          "const": "CPS-II"
+        },
+        {
+          "const": "DACHS"
+        },
+        {
+          "const": "HPFS"
+        },
+        {
+          "const": "NHS"
+        },
+        {
+          "const": "PLCO"
+        },
+        {
+          "const": "WHI"
+        }
+      ],
+      "type": "string"
+    },
+    "subject_id": {
+      "description": "De-identified subject ID",
+      "type": "string"
+    }
+  },
+  "type": "object"
+}

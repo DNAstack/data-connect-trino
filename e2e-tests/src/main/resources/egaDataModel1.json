@@ -1,0 +1,97 @@
+{
+  "$id": "scr_EGApancreatic_sample.data_dict.xml.scr_EGApancreatic_sample",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "description": null,
+  "properties": {
+    "bam_file": {
+      "description": "Relative path for alignment file",
+      "type": "string"
+    },
+    "disease_site": {
+      "description": "body site sample was taken from",
+      "oneOf": [
+        {
+          "const": "Liver_Metastasis"
+        },
+        {
+          "const": "Lung_Metastasis"
+        },
+        {
+          "const": "Lung_Normal"
+        },
+        {
+          "const": "Lymph_Node_Metastasis"
+        },
+        {
+          "const": "Muscle_Normal"
+        },
+        {
+          "const": "Normal Pancreas"
+        },
+        {
+          "const": "Pancreas_Primary_Tumor"
+        },
+        {
+          "const": "Peritoneal_Metastasis"
+        },
+        {
+          "const": "Skin_Normal"
+        },
+        {
+          "const": "Spleen_Normal"
+        }
+      ],
+      "type": "string"
+    },
+    "ena-checklist": {
+      "description": "Minimal information checklist used in this study",
+      "type": "string"
+    },
+    "gender": {
+      "description": "Sex of participant",
+      "oneOf": [
+        {
+          "const": "female"
+        },
+        {
+          "const": "male"
+        }
+      ],
+      "type": "string"
+    },
+    "phenotype": {
+      "description": "Site independent tissue type",
+      "oneOf": [
+        {
+          "const": "lung tissue"
+        },
+        {
+          "const": "muscle tissue"
+        },
+        {
+          "const": "pancreatic adenocarcinoma"
+        },
+        {
+          "const": "skin tissue"
+        },
+        {
+          "const": "spleen tissue"
+        }
+      ],
+      "type": "string"
+    },
+    "sample_primary_id": {
+      "description": "De-identified sample ID",
+      "type": "string"
+    },
+    "sample_submitter_id": {
+      "description": "Sample id used locally by submitter",
+      "type": "string"
+    },
+    "subject_id": {
+      "description": "Subject Id used locally by submitter",
+      "type": "string"
+    }
+  },
+  "type": "object"
+}

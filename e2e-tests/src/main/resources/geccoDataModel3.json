@@ -1,0 +1,46 @@
+{
+  "$id": "phs001554.v1.pht007607.v1.GECCO_CRC_Susceptibility_Subject",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "description": "Scrambled version of subject crossreference data for phs001554 Colorectal cancer susceptibility study.",
+  "properties": {
+    "consent": {
+      "description": "Consent group as determined by DAC",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "General Research Use (GRU)"
+        },
+        {
+          "const": "2",
+          "title": "Health/Medical/Biomedical (IRB) (HMB-IRB)"
+        },
+        {
+          "const": "3",
+          "title": "Health/Medical/Biomedical (IRB, NPU) (HMB-IRB-NPU)"
+        },
+        {
+          "const": "4",
+          "title": "Disease-Specific (Colorectal Cancer, NPU, GSO) (DS-CC-NPU-GSO)"
+        },
+        {
+          "const": "5",
+          "title": "Cancer in all age groups, other diseases in adults only, and methods (CADM)"
+        }
+      ],
+      "type": "string"
+    },
+    "source_subject_id": {
+      "description": "Subject ID used in the Source Repository",
+      "type": "string"
+    },
+    "subject_id": {
+      "description": "Subject ID",
+      "type": "string"
+    },
+    "subject_source": {
+      "description": "Source repository where subjects originate",
+      "type": "string"
+    }
+  },
+  "type": "object"
+}

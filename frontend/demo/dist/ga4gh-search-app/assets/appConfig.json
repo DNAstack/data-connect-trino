@@ -1,0 +1,6 @@
+{
+  "apiUrl": "http://localhost:8080/api",
+  "wesUrl": "http://localhost:8080/api/wes",
+  "developerMode" : true,
+  "sitename" : "Personal Genomes Project Canada"
+}

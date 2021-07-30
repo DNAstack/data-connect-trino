@@ -1,0 +1,114 @@
+{
+    "description": "Automatically generated schema",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "properties": {
+        "exists": {
+            "format": "boolean",
+            "type": "boolean",
+            "$comment": "boolean"
+        },
+        "varcharField": {
+            "format": "varchar",
+            "type": "string",
+            "$comment": "varchar"
+        },
+        "integerField": {
+            "format": "integer",
+            "type": "int",
+            "$comment": "integer"
+        },
+        "simpleArray": {
+            "items": {
+                "format": "integer",
+                "type": "int",
+                "$comment": "integer"
+            },
+            "type": "array",
+            "$comment": "array[int]"
+        },
+        "multiDimArray": {
+            "items": {
+                "items": {
+                    "format": "integer",
+                    "type": "int",
+                    "$comment": "integer"
+                },
+                "type": "array",
+                "$comment": "array[int]"
+            },
+            "type": "array",
+            "$comment": "array[array]"
+        },
+        "mapField": {
+            "type": "object",
+            "$comment": "map(string, object)",
+            "properties": {
+                "key": {
+                    "format": "varchar",
+                    "type": "string",
+                    "$comment": "varchar"
+                },
+                "value": {
+                    "type": "object",
+                    "$comment": "row(string,string)",
+                    "properties": {
+                        "firstfield": {
+                            "format": "varchar",
+                            "type": "string",
+                            "$comment": "varchar"
+                        },
+                        "secondfield": {
+                            "format": "varchar",
+                            "type": "string",
+                            "$comment": "varchar"
+                        }
+                    }
+                }
+            }
+        },
+        "jsonField": {
+            "type": "object",
+            "$comment": "json"
+        },
+        "datasetAlleleResponses": {
+            "items": {
+                "type": "object",
+                "$comment": "row(string,boolean,array)",
+                "properties": {
+                    "datasetid": {
+                        "format": "varchar",
+                        "type": "string",
+                        "$comment": "varchar"
+                    },
+                    "exists": {
+                        "format": "boolean",
+                        "type": "boolean",
+                        "$comment": "boolean"
+                    },
+                    "info": {
+                        "items": {
+                            "type": "object",
+                            "$comment": "row(string,string)",
+                            "properties": {
+                                "key": {
+                                    "format": "varchar",
+                                    "type": "string",
+                                    "$comment": "varchar"
+                                },
+                                "value": {
+                                    "format": "varchar",
+                                    "type": "string",
+                                    "$comment": "varchar"
+                                }
+                            }
+                        },
+                        "type": "array",
+                        "$comment": "array[object]"
+                    }
+                }
+            },
+            "type": "array",
+            "$comment": "array[object]"
+        }
+    }
+}

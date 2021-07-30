@@ -1,0 +1,39 @@
+{
+  "$id": "phs001554.v1.pht007608.v1.GECCO_CRC_Susceptibility_Sample",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "description": "Scrambled version of sample crossreference data for phs001554 Colorectal cancer susceptibility study.",
+  "properties": {
+    "sample_id": {
+      "description": "Sample ID",
+      "type": "string"
+    },
+    "sample_source": {
+      "description": "Source repository (study) where samples originate",
+      "oneOf": [
+        {
+          "const": "WHI"
+        }
+      ],
+      "type": "string"
+    },
+    "sample_use": {
+      "description": "Sample Use",
+      "oneOf": [
+        {
+          "const": "Seq_DNA_SNP",
+          "title": "SNP genotypes derived from sequence data"
+        }
+      ],
+      "type": "string"
+    },
+    "source_sample_id": {
+      "description": "Subject ID used in the Source Repository",
+      "type": "string"
+    },
+    "subject_id": {
+      "description": "Subject ID",
+      "type": "string"
+    }
+  },
+  "type": "object"
+}

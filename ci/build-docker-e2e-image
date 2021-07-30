@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -e
+set -x
+
+# This script packages the end-to-end test module into a Docker image that runs the tests against
+# an arbitrary deployment of this service, specified by the E2E_TEST_URI environment variable.
+# The contents of /target are captured by the CI system after the tests have run, which makes
+# report generation possible.
+
+# The Docker image we build is tagged with the string passed in as the first argument to this script.
+
+# This script is invoked during CI build with the following arguments:
+target_image_name=$1
+app_name=$2
+app_version=$3
+
+
+# This script does all its staging in a directory called target for easy cleanup and effective .gitignore.
+docker_context_dir=ci/e2e-tests/target
+rm -rf ${docker_context_dir}
+mkdir -p ${docker_context_dir}
+# Allows us to pass settings.xml configured on local machine or CI server to access private Nexus repo
+mkdir -p ${docker_context_dir}/.m2
+cp ~/.m2/*.xml ${docker_context_dir}/.m2
+
+cp -rp \
+  e2e-tests/pom.xml \
+  e2e-tests/src \
+  ci/e2e-tests/e2e-exec-pom.xml \
+  .mvn \
+  mvnw \
+  ${docker_context_dir}
+
+docker build \
+  --build-arg APP_NAME=${app_name} \
+  --build-arg APP_VERSION=${app_version} \
+  -t ${target_image_name} \
+  ci/e2e-tests

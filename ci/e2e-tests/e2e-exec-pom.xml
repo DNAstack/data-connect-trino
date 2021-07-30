@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.dnastack</groupId>
+    <artifactId>test-runner</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <description>
+        Allows us to run `mvn test` against an arbitrary fat jar inside a Docker image with no additional
+        dependencies required.
+    </description>
+
+    <dependencies>
+
+        <!-- The e2e-tests.jar is a fat jar built into the Docker image that also contains this POM. -->
+        <dependency>
+            <groupId>com.dnastack</groupId>
+            <artifactId>local-e2e-tests</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/e2e-tests.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.25</version>
+        </dependency>
+
+        <!-- Surefire guesses at which JUnit version to use based on project dependencies -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <!-- This version fixes a path issue when trying to fork a surefire test VM
+                     https://stackoverflow.com/a/53016532 -->
+                <version>3.0.0-M1</version>
+                <configuration>
+
+                    <!-- Tells surefire to run the tests in our fat jar -->
+                    <dependenciesToScan>
+                        <dependency>com.dnastack:local-e2e-tests</dependency>
+                    </dependenciesToScan>
+
+                    <!-- Only run the tests we wrote: the fat jar tends to contain other JUnit @Test annotated methods. -->
+                    <includes>
+                        <include>%regex[com.dnastack.*\.class]</include>
+                    </includes>
+
+                    <!-- Forking doesn't work when we use dependenciesToScan (child VM dies with ClassNotFoundError) -->
+                    <forkCount>0</forkCount>
+
+                    <trimStackTrace>false</trimStackTrace>
+
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>de.qaware.maven</groupId>
+                <artifactId>go-offline-maven-plugin</artifactId>
+                <version>1.1.0</version>
+                <configuration>
+                    <downloadSources>false</downloadSources>
+                    <downloadJavadoc>false</downloadJavadoc>
+                    <dynamicDependencies>
+                        <DynamicDependency>
+                            <groupId>org.apache.maven.surefire</groupId>
+                            <artifactId>surefire-junit4</artifactId>
+                            <version>3.0.0-M1</version>
+                            <repositoryType>PLUGIN</repositoryType>
+                        </DynamicDependency>
+                    </dynamicDependencies>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

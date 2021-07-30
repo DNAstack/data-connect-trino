@@ -1,0 +1,82 @@
+{
+  "$id": "phs001554.v1.pht007610.v1.GECCO_CRC_Susceptibility_Sample_Attributes",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "description": "Scrambled version of sample data for phs001554 Colorectal cancer susceptibility study.",
+  "properties": {
+    "analyte_type": {
+      "description": "Analyte Type",
+      "oneOf": [
+        {
+          "const": "DNA"
+        }
+      ],
+      "type": "string"
+    },
+    "batch": {
+      "description": "Sequencing batch",
+      "type": "string"
+    },
+    "body_site": {
+      "description": "Body site where sample was collected",
+      "oneOf": [
+        {
+          "const": "Blood"
+        }
+      ],
+      "type": "string"
+    },
+    "dna_source": {
+      "description": "DNA origin",
+      "oneOf": [
+        {
+          "const": "Blood"
+        },
+        {
+          "const": "Buffy coat"
+        },
+        {
+          "const": "Unknown"
+        },
+        {
+          "const": "Whole blood"
+        }
+      ],
+      "type": "string"
+    },
+    "is_tumor": {
+      "description": "Tumor status",
+      "oneOf": [
+        {
+          "const": "No"
+        }
+      ],
+      "type": "string"
+    },
+    "read_depth": {
+      "$comment": "UNIT 'fold coverage'",
+      "description": "Sequencing coverage",
+      "maximum": 43.82,
+      "minimum": 3.83,
+      "type": "number"
+    },
+    "sample_id": {
+      "description": "De-identified Sample ID",
+      "type": "string"
+    },
+    "sequencing_center": {
+      "description": "Name of the center that conducted sequencing",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "University of Washington Sequencing Center (Seattle, WA, USA)"
+        },
+        {
+          "const": "2",
+          "title": "Macrogen USA"
+        }
+      ],
+      "type": "string"
+    }
+  },
+  "type": "object"
+}
