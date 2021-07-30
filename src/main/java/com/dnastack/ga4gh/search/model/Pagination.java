@@ -21,7 +21,7 @@ public class Pagination {
     private URI nextPageUrl;
 
     @JsonIgnore
-    private URI prestoNextPageUrl;
+    private URI trinoNextPageUrl;
 
     public URI getNextPageUrl() {
         if (queryJobId != null && nextPageUrl != null) {

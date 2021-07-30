@@ -16,7 +16,7 @@ import java.util.List;
 public class AuthConfig {
 
 
-    OauthClientConfig prestoOauthClient = null;
+    OauthClientConfig trinoOauthClient = null;
 
     List<IssuerConfig> tokenIssuers = new ArrayList<>();
 

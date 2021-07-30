@@ -1,7 +1,7 @@
 package com.dnastack.ga4gh.search.controller;
 
-import com.dnastack.ga4gh.search.adapter.presto.PrestoSearchAdapter;
-import com.dnastack.ga4gh.search.adapter.presto.exception.TableApiErrorException;
+import com.dnastack.ga4gh.search.adapter.trino.TrinoSearchAdapter;
+import com.dnastack.ga4gh.search.adapter.trino.exception.TableApiErrorException;
 import com.dnastack.ga4gh.search.model.TableData;
 
 import java.util.LinkedList;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TablesController {
 
     @Autowired
-    private PrestoSearchAdapter prestoSearchAdapter;
+    private TrinoSearchAdapter trinoSearchAdapter;
 
     @PreAuthorize("hasAuthority('SCOPE_search:info') && @accessEvaluator.canAccessResource('/tables', 'search:info', 'search:info')")
     @RequestMapping(value = "/tables", method = RequestMethod.GET)
@@ -36,7 +36,7 @@ public class TablesController {
         TablesList tablesList = null;
 
         try {
-            tablesList = prestoSearchAdapter
+            tablesList = trinoSearchAdapter
                 .getTables(request, SearchController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -55,7 +55,7 @@ public class TablesController {
         TablesList tablesList = null;
 
         try {
-            tablesList = prestoSearchAdapter
+            tablesList = trinoSearchAdapter
                 .getTablesInCatalog(catalogName, request, SearchController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -75,7 +75,7 @@ public class TablesController {
         TableInfo tableInfo = null;
 
         try {
-            tableInfo = prestoSearchAdapter
+            tableInfo = trinoSearchAdapter
                 .getTableInfo(tableName, request, SearchController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableInfo::errorInstance);
@@ -93,7 +93,7 @@ public class TablesController {
         TableData tableData = null;
 
         try {
-            tableData = prestoSearchAdapter
+            tableData = trinoSearchAdapter
                 .getTableData(tableName, request, SearchController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
             ex.printStackTrace();

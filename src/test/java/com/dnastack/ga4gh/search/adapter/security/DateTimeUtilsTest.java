@@ -1,7 +1,6 @@
 package com.dnastack.ga4gh.search.adapter.security;
 
-import com.dnastack.ga4gh.search.adapter.presto.DateTimeUtils;
-import org.checkerframework.common.value.qual.StaticallyExecutable;
+import com.dnastack.ga4gh.search.adapter.trino.DateTimeUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

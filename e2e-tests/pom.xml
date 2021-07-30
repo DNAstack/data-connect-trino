@@ -18,8 +18,8 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>io.prestosql</groupId>
-			<artifactId>presto-jdbc</artifactId>
+			<groupId>io.trino</groupId>
+			<artifactId>trino-jdbc</artifactId>
 			<version>339</version>
 		</dependency>
 		<dependency>

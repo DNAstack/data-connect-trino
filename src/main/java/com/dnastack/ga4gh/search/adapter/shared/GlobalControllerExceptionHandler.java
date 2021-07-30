@@ -1,22 +1,16 @@
 package com.dnastack.ga4gh.search.adapter.shared;
 
 import brave.Tracer;
-import com.dnastack.ga4gh.search.adapter.presto.ThrowableTransformer;
-import com.dnastack.ga4gh.search.adapter.presto.exception.*;
-import com.dnastack.ga4gh.search.model.TableData;
+import com.dnastack.ga4gh.search.adapter.trino.ThrowableTransformer;
+import com.dnastack.ga4gh.search.adapter.trino.exception.*;
 import com.dnastack.ga4gh.search.model.TableError;
-import com.dnastack.ga4gh.search.model.TableInfo;
-import com.dnastack.ga4gh.search.model.TablesList;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.io.UncheckedIOException;
-import java.util.List;
 import java.util.Map;
 
 @RestControllerAdvice

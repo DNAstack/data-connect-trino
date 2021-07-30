@@ -17,8 +17,8 @@ import static org.junit.Assume.assumeTrue;
 
 public class TablesRegistrySchemaTest extends BaseE2eTest {
 
-    private static String SEARCH_PRESTO_PUBLIC_APP_NAME = "search-presto-public";
-    private static String SEARCH_PRESTO_PUBLIC_TEST_VALIDATION_MESSAGE = "This test is run for 'search-presto-public' ONLY";
+    private static String SEARCH_TRINO_PUBLIC_APP_NAME = "search-trino-public";
+    private static String SEARCH_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE = "This test is run for 'search-trino-public' ONLY";
 
     private static String egaTable1 = "dbgap_demo.scr_ega.scr_egapancreatic_sample_multi";
     private static String geccoTable1 = "dbgap_demo.scr_gecco_susceptibility.sample_attributes_multi";
@@ -28,9 +28,9 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
 
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForEgaTable1() throws Exception {
-        // Run this test for 'search-presto-public' only
-        assumeTrue(SEARCH_PRESTO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                SEARCH_PRESTO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
+        // Run this test for 'search-trino-public' only
+        assumeTrue(SEARCH_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
+                SEARCH_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("egaDataModel1.json");
 
@@ -40,9 +40,9 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
 
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable1() throws Exception {
-        // Run this test for 'search-presto-public' only
-        assumeTrue(SEARCH_PRESTO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                SEARCH_PRESTO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
+        // Run this test for 'search-trino-public' only
+        assumeTrue(SEARCH_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
+                SEARCH_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("geccoDataModel1.json");
 
@@ -52,9 +52,9 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
 
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable2() throws Exception {
-        // Run this test for 'search-presto-public' only
-        assumeTrue(SEARCH_PRESTO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                SEARCH_PRESTO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
+        // Run this test for 'search-trino-public' only
+        assumeTrue(SEARCH_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
+                SEARCH_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("geccoDataModel2.json");
 
@@ -64,9 +64,9 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
 
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable3() throws Exception {
-        // Run this test for 'search-presto-public' only
-        assumeTrue(SEARCH_PRESTO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                SEARCH_PRESTO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));;
+        // Run this test for 'search-trino-public' only
+        assumeTrue(SEARCH_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
+                SEARCH_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));;
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("geccoDataModel3.json");
 
@@ -76,9 +76,9 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
 
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable4() throws Exception {
-        // Run this test for 'search-presto-public' only
-        assumeTrue(SEARCH_PRESTO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                SEARCH_PRESTO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
+        // Run this test for 'search-trino-public' only
+        assumeTrue(SEARCH_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
+                SEARCH_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("geccoDataModel4.json");
 

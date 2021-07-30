@@ -1,8 +1,8 @@
 package com.dnastack.ga4gh.search.controller;
 
-import com.dnastack.ga4gh.search.adapter.presto.PrestoSearchAdapter;
-import com.dnastack.ga4gh.search.adapter.presto.SearchRequest;
-import com.dnastack.ga4gh.search.adapter.presto.exception.TableApiErrorException;
+import com.dnastack.ga4gh.search.adapter.trino.TrinoSearchAdapter;
+import com.dnastack.ga4gh.search.adapter.trino.SearchRequest;
+import com.dnastack.ga4gh.search.adapter.trino.exception.TableApiErrorException;
 import com.dnastack.ga4gh.search.model.TableData;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +28,7 @@ public class SearchController {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
-    private PrestoSearchAdapter prestoSearchAdapter;
+    private TrinoSearchAdapter trinoSearchAdapter;
 
     @PreAuthorize("hasAuthority('SCOPE_search:query') && hasAuthority('SCOPE_search:data') && @accessEvaluator.canAccessResource('/search', {'search:query', 'search:data'}, {'search:query', 'search:data'})")
     @RequestMapping(value = "/search", method = RequestMethod.POST)
@@ -38,7 +38,7 @@ public class SearchController {
         TableData tableData = null;
 
         try {
-            tableData = prestoSearchAdapter
+            tableData = trinoSearchAdapter
                 .search(searchRequest.getSqlQuery(), request, parseCredentialsHeader(clientSuppliedCredentials), null);
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableData::errorInstance);
@@ -57,7 +57,7 @@ public class SearchController {
         TableData tableData = null;
 
         try {
-            tableData = prestoSearchAdapter
+            tableData = trinoSearchAdapter
                 .getNextSearchPage(page, queryJobId, request, parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableData::errorInstance);
@@ -70,26 +70,26 @@ public class SearchController {
             }
 
             String nextURL = "NULL";
-            String prestoNextURL = "NULL";
+            String trinoNextURL = "NULL";
             if (tableData.getPagination() != null) {
                 nextURL = (tableData.getPagination().getNextPageUrl() == null)
                           ? "null"
                           : tableData.getPagination().getNextPageUrl().toString();
-                prestoNextURL = (tableData.getPagination().getPrestoNextPageUrl() == null)
+                trinoNextURL = (tableData.getPagination().getTrinoNextPageUrl() == null)
                                 ? "null"
-                                : tableData.getPagination().getPrestoNextPageUrl().toString();
+                                : tableData.getPagination().getTrinoNextPageUrl().toString();
             }
 
             if(log.isTraceEnabled()) {
                 try {
 
                     String json = objectMapper.writeValueAsString(tableData);
-                    log.debug("Returning " + tableDataLength + " rows with nextURL=" + nextURL + " and prestoNextURL=" + prestoNextURL + " json: " + json);
+                    log.debug("Returning " + tableDataLength + " rows with nextURL=" + nextURL + " and trinoNextURL=" + trinoNextURL + " json: " + json);
                 } catch (JsonProcessingException e) {
                     log.error("Error producing debug log output ", e);
                 }
             }else{
-                log.debug("Returning " + tableDataLength + " rows with nextURL=" + nextURL + " and prestoNextURL=" + prestoNextURL);
+                log.debug("Returning " + tableDataLength + " rows with nextURL=" + nextURL + " and trinoNextURL=" + trinoNextURL);
             }
         }
         return tableData;

@@ -1,13 +1,11 @@
 package com.dnastack.ga4gh.search.adapter.shared;
 
-import com.dnastack.ga4gh.search.adapter.presto.PrestoError;
+import com.dnastack.ga4gh.search.adapter.trino.TrinoError;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Value;
 import lombok.AllArgsConstructor;
-import org.slf4j.MDC;
 
 @Deprecated
 @Data
@@ -30,11 +28,11 @@ class UserFacingError {
     @JsonProperty("trace_id")
     private String traceId;
 
-    public UserFacingError(PrestoError prestoError, String traceId) {
-        this.message = prestoError.getMessage();
-        this.errorCode = prestoError.getErrorCode();
-        this.errorName = prestoError.getErrorName();
-        this.errorType = prestoError.getErrorType();
+    public UserFacingError(TrinoError trinoError, String traceId) {
+        this.message = trinoError.getMessage();
+        this.errorCode = trinoError.getErrorCode();
+        this.errorName = trinoError.getErrorName();
+        this.errorType = trinoError.getErrorType();
         this.traceId = traceId;
     }
 

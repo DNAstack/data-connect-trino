@@ -7,14 +7,14 @@ import com.dnastack.auth.PermissionCheckerFactory;
 import com.dnastack.auth.keyresolver.CachingIssuerPubKeyJwksResolver;
 import com.dnastack.auth.keyresolver.IssuerPubKeyStaticResolver;
 import com.dnastack.auth.model.IssuerInfo;
-import com.dnastack.ga4gh.search.adapter.presto.PrestoClient;
-import com.dnastack.ga4gh.search.adapter.presto.PrestoHttpClient;
+import com.dnastack.ga4gh.search.adapter.trino.TrinoClient;
+import com.dnastack.ga4gh.search.adapter.trino.TrinoHttpClient;
 import com.dnastack.ga4gh.search.adapter.security.AuthConfig;
 import com.dnastack.ga4gh.search.adapter.security.AuthConfig.OauthClientConfig;
 import com.dnastack.ga4gh.search.adapter.security.DelegatingJwtDecoder;
 import com.dnastack.ga4gh.search.adapter.security.ServiceAccountAuthenticator;
 import com.dnastack.ga4gh.search.adapter.telemetry.Monitor;
-import com.dnastack.ga4gh.search.adapter.telemetry.PrestoTelemetryClient;
+import com.dnastack.ga4gh.search.adapter.telemetry.TrinoTelemetryClient;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -22,7 +22,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -46,7 +45,7 @@ import java.util.stream.Collectors;
 @Configuration
 public class ApplicationConfig {
 
-    private final String prestoDatasourceUrl;
+    private final String trinoDatasourceUrl;
 
     @Getter
     private final Set<String> hiddenCatalogs;
@@ -64,19 +63,19 @@ public class ApplicationConfig {
             Monitor monitor,
             Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter,
             @Value("${cors.urls}") String corsUrls,
-            @Value("${presto.hidden-catalogs}") Set<String> hiddenCatalogs,
-            @Value("${presto.datasource.url}") String prestoDatasourceUrl
+            @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs,
+            @Value("${trino.datasource.url}") String trinoDatasourceUrl
     ) {
         this.monitor = monitor;
         this.jwtScopesConverter = jwtScopesConverter;
         this.corsUrls = corsUrls;
         this.hiddenCatalogs = hiddenCatalogs;
-        this.prestoDatasourceUrl = prestoDatasourceUrl;
+        this.trinoDatasourceUrl = trinoDatasourceUrl;
     }
 
     @Bean
     public ServiceAccountAuthenticator getServiceAccountAuthenticator(AuthConfig authConfig) {
-        OauthClientConfig clientConfig = authConfig.getPrestoOauthClient();
+        OauthClientConfig clientConfig = authConfig.getTrinoOauthClient();
         if (clientConfig == null) {
             return new ServiceAccountAuthenticator();
         } else {
@@ -90,8 +89,8 @@ public class ApplicationConfig {
     }
 
     @Bean
-    public PrestoClient getPrestoClient(OkHttpClient httpClient,Tracer tracer, ServiceAccountAuthenticator accountAuthenticator) {
-        return new PrestoTelemetryClient(new PrestoHttpClient(tracer,httpClient,prestoDatasourceUrl, accountAuthenticator));
+    public TrinoClient getTrinoClient(OkHttpClient httpClient, Tracer tracer, ServiceAccountAuthenticator accountAuthenticator) {
+        return new TrinoTelemetryClient(new TrinoHttpClient(tracer,httpClient, trinoDatasourceUrl, accountAuthenticator));
     }
 
     @Bean

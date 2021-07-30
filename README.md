@@ -1,7 +1,7 @@
 # Intro
 
 An implementation of the [GA4GH Discovery Search API](https://github.com/ga4gh-discovery/ga4gh-discovery-search), on top of
-[PrestoSQL](https://prestosql.io). This software enables users to enumerate and query data surfaced by an instance of PrestoSQL
+[Trino](https://trino.io/). This software enables users to enumerate and query data surfaced by an instance of Trino
 in a manner compliant with the GA4GH Discovery Search specification, and receive responses compliant with the 
 [Table](https://github.com/ga4gh-discovery/ga4gh-discovery-search/blob/develop/TABLE.md) specification.  
 
@@ -13,7 +13,7 @@ Any structural changes to this README should be checked against the README_TEMPL
 Get started in 30s.
 ### Prerequisites
 - Java 11+
-- A presto server you can access anonymously over HTTP(S).
+- A trino server you can access anonymously over HTTP(S).
 
 ### Build
 
@@ -25,7 +25,7 @@ mvn clean package
  
 Set these two environment variables.
 ```$xslt
-PRESTO_DATASOURCE_URL=https://<your-presto-server>
+TRINO_DATASOURCE_URL=https://<your-trino-server>
 SPRING_PROFILES_ACTIVE=no-auth
 ```
 
@@ -107,30 +107,30 @@ SPRING_SECURITY_USER_PASSWORD={some-password}
 ```
 
 ## Postgres Configuration
-The search adapter uses presto to save queries, so that it can reparse them during pagination to re-evaluate functions
-that need to be processed prior to submitting queries to presto.
+The search adapter uses trino to save queries, so that it can reparse them during pagination to re-evaluate functions
+that need to be processed prior to submitting queries to trino.
 
 The following is a quick start for local development:
 ```
 docker pull postgres:latest
 docker run -p 5432:5432 --rm --name ga4ghsearchadapterpresto -e POSTGRES_USER=ga4ghsearchadapterpresto -e POSTGRES_DB=ga4ghsearchadapterpresto -e POSTGRES_PASSWORD=ga4ghsearchadapterpresto postgres
 ``` 
-## Presto Source Configuration
+## Trino Source Configuration
 
-There are a number of required configuration properties that need to be set in order to communicate with a presto deployment. 
+There are a number of required configuration properties that need to be set in order to communicate with a trino deployment. 
 ### Connectivity
-Point the service to a presto server by setting the following environment variable:
->PRESTO_DATASOURCE_URL
+Point the service to a trino server by setting the following environment variable:
+>TRINO_DATASOURCE_URL
 ### Authentication
-If your presto instance is also protected, this adapter supports performing OAuth 2.0 Client Credential grants in order 
-to retrieve access tokens for its configured Presto instance.
+If your trino instance is also protected, this adapter supports performing OAuth 2.0 Client Credential grants in order 
+to retrieve access tokens for its configured Trino instance.
 
-Configuration of the presto auth setup is quite easy and can be done directly through the following environment variables.
+Configuration of the trino auth setup is quite easy and can be done directly through the following environment variables.
 
 ```bash
-APP_AUTH_PRESTOOAUTHCLIENT_TOKENURI="https://your.sts/oauth/token"
-APP_AUTH_PRESTOOAUTHCLIENT_CLIENTID="your-client-id"
-APP_AUTH_PRESTOOAUTHCLIENT_CLIENTSECRET="your-client-secret"
-APP_AUTH_PRESTOOAUTHCLIENT_AUDIENCE="your-requested-audience"
-APP_AUTH_PRESTOOAUTHCLIENT_SCOPES="your space delimited requested scopes"
+APP_AUTH_TRINOOAUTHCLIENT_TOKENURI="https://your.sts/oauth/token"
+APP_AUTH_TRINOOAUTHCLIENT_CLIENTID="your-client-id"
+APP_AUTH_TRINOOAUTHCLIENT_CLIENTSECRET="your-client-secret"
+APP_AUTH_TRINOOAUTHCLIENT_AUDIENCE="your-requested-audience"
+APP_AUTH_TRINOOAUTHCLIENT_SCOPES="your space delimited requested scopes"
 ```

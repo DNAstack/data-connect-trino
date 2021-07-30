@@ -128,11 +128,11 @@ public class SearchE2eTest extends BaseE2eTest {
 
     private static final int MAX_REAUTH_ATTEMPTS = 10;
 
-    private static String prestoTestUri = optionalEnv("E2E_PRESTO_JDBCURI", "jdbc:presto://localhost:8091");;  // MUST be in format jdbc:presto://host:port
-    private static String prestoTestUser = optionalEnv("E2E_PRESTO_USERNAME", null);; // optional
-    private static String prestoTestPass = optionalEnv("E2E_PRESTO_PASSWORD", null);; // optional
-    private static String prestoAudience = optionalEnv("E2E_PRESTO_AUDIENCE", null);; // optional
-    private static String prestoScopes = optionalEnv("E2E_PRESTO_SCOPES", "full_access");;   // optional
+    private static String trinoTestUri = optionalEnv("E2E_TRINO_JDBCURI", "jdbc:trino://localhost:8091");;  // MUST be in format jdbc:trino://host:port
+    private static String trinoTestUser = optionalEnv("E2E_TRINO_USERNAME", null);; // optional
+    private static String trinoTestPass = optionalEnv("E2E_TRINO_PASSWORD", null);; // optional
+    private static String trinoAudience = optionalEnv("E2E_TRINO_AUDIENCE", null);; // optional
+    private static String trinoScopes = optionalEnv("E2E_TRINO_SCOPES", "full_access");;   // optional
 
     // test catalog name
     private static String inMemoryCatalog = optionalEnv("E2E_INMEMORY_TESTCATALOG", "memory"); //memory;
@@ -167,11 +167,11 @@ public class SearchE2eTest extends BaseE2eTest {
     }
 
     static Connection getTestDatabaseConnection() throws SQLException {
-        log.info("Logging in to {} with user {} and pass {}", prestoTestUri, prestoTestUser, prestoTestPass);
+        log.info("Logging in to {} with user {} and pass {}", trinoTestUri, trinoTestUser, trinoTestPass);
         log.info("Driver dump:");
 
         try {
-            Class.forName("io.prestosql.jdbc.PrestoDriver");
+            Class.forName("io.trino.jdbc.TrinoDriver");
             //Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException ce) {
             throw new RuntimeException("Class not found", ce);
@@ -180,39 +180,39 @@ public class SearchE2eTest extends BaseE2eTest {
         DriverManager.drivers().forEach(driver -> log.info("Got driver " + driver.toString()));
 
         Properties properties = new Properties();
-        properties.setProperty("user", prestoTestUser != null ? prestoTestUser : "e2etestuser");
-        properties.setProperty("SSL", prestoTestUri.contains("localhost") ? "false" : "true");
+        properties.setProperty("user", trinoTestUser != null ? trinoTestUser : "e2etestuser");
+        properties.setProperty("SSL", trinoTestUri.contains("localhost") ? "false" : "true");
 
-        if (prestoTestPass != null) {
-            properties.setProperty("password", prestoTestPass);
+        if (trinoTestPass != null) {
+            properties.setProperty("password", trinoTestPass);
         }
 
-        if (prestoAudience != null) {
-            properties.setProperty("accessToken", getToken(prestoAudience, prestoScopes));
+        if (trinoAudience != null) {
+            properties.setProperty("accessToken", getToken(trinoAudience, trinoScopes));
         }
 
-        Connection conn = DriverManager.getConnection(prestoTestUri, properties);
+        Connection conn = DriverManager.getConnection(trinoTestUri, properties);
         return conn;
     }
 
     private static void assertTestDatabaseConnection() {
         try (Connection conn = getTestDatabaseConnection()) {
             if (conn != null) {
-                log.info("Test database connection is valid for " + prestoTestUri);
+                log.info("Test database connection is valid for " + trinoTestUri);
             } else {
-                throw new RuntimeException("Couldn't connect to test database with URI " + prestoTestUri);
+                throw new RuntimeException("Couldn't connect to test database with URI " + trinoTestUri);
             }
         } catch (SQLException e) {
             log.error("Error connecting to test database.  SQL State: {}", e.getSQLState(), e.getMessage());
-            throw new RuntimeException("Couldn't connect to test database with URI " + prestoTestUri, e);
+            throw new RuntimeException("Couldn't connect to test database with URI " + trinoTestUri, e);
         } catch (Exception e) {
-            throw new RuntimeException("Couldn't connect to test database with URI " + prestoTestUri, e);
+            throw new RuntimeException("Couldn't connect to test database with URI " + trinoTestUri, e);
         }
     }
 
-    private static String prestoDateTimeTestTable;
-    private static String prestoPaginationTestTable;
-    private static String prestoJsonTestTable;
+    private static String trinoDateTimeTestTable;
+    private static String trinoPaginationTestTable;
+    private static String trinoJsonTestTable;
     private static String unqualifiedPaginationTestTable; //just the table name (no catalog or schema)
 
     private static void setupTestTables() {
@@ -220,16 +220,16 @@ public class SearchE2eTest extends BaseE2eTest {
         List<String> queries = new LinkedList<>();
 
         // Create a test table for JSON support tests.
-        prestoJsonTestTable = getFullyQualifiedTestTableName("jsonTest_" + randomFactor);
-        queries.add(String.format(CREATE_JSON_TEST_TABLE_TEMPLATE, prestoJsonTestTable));
-        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, prestoJsonTestTable));
+        trinoJsonTestTable = getFullyQualifiedTestTableName("jsonTest_" + randomFactor);
+        queries.add(String.format(CREATE_JSON_TEST_TABLE_TEMPLATE, trinoJsonTestTable));
+        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable));
 
         // Create a test table for datetime tests.
-        prestoDateTimeTestTable = getFullyQualifiedTestTableName("dateTimeTest_" + randomFactor);
-        queries.add(String.format(CREATE_DATETIME_TEST_TABLE_TEMPLATE, prestoDateTimeTestTable));
+        trinoDateTimeTestTable = getFullyQualifiedTestTableName("dateTimeTest_" + randomFactor);
+        queries.add(String.format(CREATE_DATETIME_TEST_TABLE_TEMPLATE, trinoDateTimeTestTable));
         queries.add(String.format(
             INSERT_DATETIME_TEST_TABLE_ENTRY_TEMPLATE,
-            prestoDateTimeTestTable,
+                trinoDateTimeTestTable,
             "LosAngeles",
             TEST_DATE, TEST_TIME_LOS_ANGELES,
             TEST_DATE_TIME_LOS_ANGELES,
@@ -241,7 +241,7 @@ public class SearchE2eTest extends BaseE2eTest {
         ));
         queries.add(String.format(
             INSERT_DATETIME_TEST_TABLE_ENTRY_TEMPLATE,
-            prestoDateTimeTestTable,
+                trinoDateTimeTestTable,
             "UTC",
             TEST_DATE,
             TEST_TIME_UTC,
@@ -255,11 +255,11 @@ public class SearchE2eTest extends BaseE2eTest {
 
         // Create a test table with a bunch of bogus entries to test pagination.
         unqualifiedPaginationTestTable = "pagination_" + randomFactor;
-        prestoPaginationTestTable = getFullyQualifiedTestTableName(unqualifiedPaginationTestTable);
-        queries.add(String.format(CREATE_PAGINATION_TEST_TABLE_TEMPLATE, prestoPaginationTestTable));
+        trinoPaginationTestTable = getFullyQualifiedTestTableName(unqualifiedPaginationTestTable);
+        queries.add(String.format(CREATE_PAGINATION_TEST_TABLE_TEMPLATE, trinoPaginationTestTable));
         for (int i = 0; i < 120; ++i) {
             String testValue = "testValue_" + i;
-            queries.add(String.format(INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE, prestoPaginationTestTable, testValue));
+            queries.add(String.format(INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE, trinoPaginationTestTable, testValue));
         }
 
         try (Connection conn = getTestDatabaseConnection()) {
@@ -281,22 +281,22 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @AfterClass
     public static void removeTestTables() {
-        if (prestoDateTimeTestTable != null) {
-            log.info("Trying to remove datetime test table " + prestoDateTimeTestTable);
+        if (trinoDateTimeTestTable != null) {
+            log.info("Trying to remove datetime test table " + trinoDateTimeTestTable);
             try (Connection conn = getTestDatabaseConnection()) {
                 Statement statement = conn.createStatement();
 
-                statement.execute(String.format(DELETE_TEST_TABLE_TEMPLATE, prestoDateTimeTestTable));
-                log.info("Successfully removed datetime test table " + prestoDateTimeTestTable);
-                prestoDateTimeTestTable = null;
+                statement.execute(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoDateTimeTestTable));
+                log.info("Successfully removed datetime test table " + trinoDateTimeTestTable);
+                trinoDateTimeTestTable = null;
 
-                statement.execute(String.format(DELETE_TEST_TABLE_TEMPLATE, prestoPaginationTestTable));
-                log.info("Successfully removed pagination test table " + prestoPaginationTestTable);
-                prestoPaginationTestTable = null;
+                statement.execute(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoPaginationTestTable));
+                log.info("Successfully removed pagination test table " + trinoPaginationTestTable);
+                trinoPaginationTestTable = null;
 
-                statement.execute(String.format(DELETE_TEST_TABLE_TEMPLATE, prestoJsonTestTable));
-                log.info("Successfully removed json test table " + prestoJsonTestTable);
-                prestoJsonTestTable = null;
+                statement.execute(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoJsonTestTable));
+                log.info("Successfully removed json test table " + trinoJsonTestTable);
+                trinoJsonTestTable = null;
             } catch (SQLException se) {
                 log.error("Error setting up test tables.  SQL State: {}\n{}", se.getSQLState(), se.getMessage());
                 throw new RuntimeException("Unable to setup test tables: ", se);
@@ -327,7 +327,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void jsonFieldIsDeclaredAsObject() throws IOException {
-        String qualifiedTableName = prestoJsonTestTable;
+        String qualifiedTableName = trinoJsonTestTable;
         Table tableInfo = searchApiGetRequest(String.format("/table/%s/info", qualifiedTableName), 200, Table.class);
         assertThat(tableInfo, not(nullValue()));
         assertThat(tableInfo.getName(), equalTo(qualifiedTableName));
@@ -337,7 +337,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void jsonFieldIsRepresentedAsObject() throws IOException {
-        Table tableData = searchApiGetRequest("/table/" + prestoJsonTestTable + "/data", 200, Table.class);
+        Table tableData = searchApiGetRequest("/table/" + trinoJsonTestTable + "/data", 200, Table.class);
         assertThat(tableData, not(nullValue()));
         tableData = searchApiGetAllPages(tableData);
 
@@ -349,7 +349,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void datesAndTimesHaveCorrectTypes() throws IOException {
-        String qualifiedTableName = prestoDateTimeTestTable;
+        String qualifiedTableName = trinoDateTimeTestTable;
         TableInfo tableInfo = searchApiGetRequest("/table/" + qualifiedTableName + "/info", 200, TableInfo.class);
         assertThat(tableInfo, not(nullValue()));
         assertThat(tableInfo.getName(), equalTo(qualifiedTableName));
@@ -377,7 +377,7 @@ public class SearchE2eTest extends BaseE2eTest {
             .build();
 
         String json = objectMapper.writeValueAsString(columnSchema);
-        String q = String.format("SELECT ga4gh_type(bogusfield, '" + json + "') FROM %s", prestoPaginationTestTable);
+        String q = String.format("SELECT ga4gh_type(bogusfield, '" + json + "') FROM %s", trinoPaginationTestTable);
         SearchRequest query = new SearchRequest(q);
         Table result = searchApiRequest(Method.POST, "/search", query, 200, Table.class);
         result = searchApiGetAllPages(result);
@@ -394,7 +394,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void ga4ghTypeWithoutAliasWorksWithColumnNameAsFirstArgument() throws IOException {
-        SearchRequest query = new SearchRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') FROM %s", prestoPaginationTestTable));
+        SearchRequest query = new SearchRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') FROM %s", trinoPaginationTestTable));
         Table result = searchApiRequest(Method.POST, "/search", query, 200, Table.class);
         result = searchApiGetAllPages(result);
         if (result.getData() == null) {
@@ -409,7 +409,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void ga4ghTypeWithRefAndAliasWithAsGivesBackRef() throws IOException {
-        SearchRequest query = new SearchRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') as bf FROM %s", prestoPaginationTestTable));
+        SearchRequest query = new SearchRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') as bf FROM %s", trinoPaginationTestTable));
         Table result = searchApiRequest(Method.POST, "/search", query, 200, Table.class);
         result = searchApiGetAllPages(result);
         if (result.getData() == null) {
@@ -424,7 +424,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void ga4ghTypeWithRefAndAliasWithoutAsGivesBackRef() throws IOException {
-        SearchRequest query = new SearchRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') bf FROM %s", prestoPaginationTestTable));
+        SearchRequest query = new SearchRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') bf FROM %s", trinoPaginationTestTable));
         Table result = searchApiRequest(Method.POST, "/search", query, 200, Table.class);
         result = searchApiGetAllPages(result);
         if (result.getData() == null) {
@@ -439,7 +439,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void ga4ghTypeWithJsonRefAndAliasGivesBackJsonRef() throws IOException {
-        SearchRequest query = new SearchRequest(String.format("SELECT ga4gh_type(bogusfield, '{\"$ref\":\"http://path/to/whatever.com\"}') as bf FROM %s", prestoPaginationTestTable));
+        SearchRequest query = new SearchRequest(String.format("SELECT ga4gh_type(bogusfield, '{\"$ref\":\"http://path/to/whatever.com\"}') as bf FROM %s", trinoPaginationTestTable));
         Table result = searchApiRequest(Method.POST, "/search", query, 200, Table.class);
         result = searchApiGetAllPages(result);
         if (result.getData() == null) {
@@ -453,7 +453,7 @@ public class SearchE2eTest extends BaseE2eTest {
     }
 
     private void assertDatesAndTimesHaveCorrectValuesForZone(String zone, Map<String, String> expectedValues) throws IOException {
-        SearchRequest query = new SearchRequest(String.format("SELECT * FROM " + prestoDateTimeTestTable + " WHERE zone='%s'", zone));
+        SearchRequest query = new SearchRequest(String.format("SELECT * FROM " + trinoDateTimeTestTable + " WHERE zone='%s'", zone));
         log.info("Running query {}", query);
 
         Table result = searchApiRequest(Method.POST, "/search", query, 200, Table.class);
@@ -593,7 +593,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void sqlQueryWithBadColumnShouldReturn400AndMessageAndTraceId() throws Exception {
-        SearchRequest query = new SearchRequest("SELECT e2etest_olywolypolywoly FROM " + prestoPaginationTestTable + " LIMIT 10");
+        SearchRequest query = new SearchRequest("SELECT e2etest_olywolypolywoly FROM " + trinoPaginationTestTable + " LIMIT 10");
         Table data = searchUntilException(query, HttpStatus.SC_BAD_REQUEST);
         runBasicAssertionOnTableErrorList(data.getErrors());
         assertThat(data.getErrors().get(0).getStatus(), equalTo(400));
@@ -602,7 +602,7 @@ public class SearchE2eTest extends BaseE2eTest {
     @Test
     public void sqlQueryShouldFindSomething() throws Exception {
 
-        SearchRequest query = new SearchRequest("SELECT * FROM " + prestoPaginationTestTable + " LIMIT 10");
+        SearchRequest query = new SearchRequest("SELECT * FROM " + trinoPaginationTestTable + " LIMIT 10");
         log.info("Running query {}", query);
 
 
@@ -629,41 +629,41 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void getTableInfoWithUnknownCatalogGives404AndMessageAndTraceId() throws Exception {
-        final String prestoTableWithBadCatalog = "e2etest_olywlypolywoly.public." + unqualifiedPaginationTestTable;
-        TableInfo info = searchApiGetRequest("/table/" + prestoTableWithBadCatalog + "/info", 404, TableInfo.class);
+        final String trinoTableWithBadCatalog = "e2etest_olywlypolywoly.public." + unqualifiedPaginationTestTable;
+        TableInfo info = searchApiGetRequest("/table/" + trinoTableWithBadCatalog + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
         assertThat(info.getErrors().get(0).getStatus(), equalTo(404));
     }
 
     @Test
     public void getTableInfoWithUnknownSchemaGives404AndMessageAndTraceId() throws Exception {
-        final String prestoTableWithBadSchema = inMemoryCatalog + ".e2etest_olywolypolywoly." + unqualifiedPaginationTestTable;
-        TableInfo info = searchApiGetRequest("/table/" + prestoTableWithBadSchema + "/info", 404, TableInfo.class);
+        final String trinoTableWithBadSchema = inMemoryCatalog + ".e2etest_olywolypolywoly." + unqualifiedPaginationTestTable;
+        TableInfo info = searchApiGetRequest("/table/" + trinoTableWithBadSchema + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
         assertThat(info.getErrors().get(0).getStatus(), equalTo(404));
     }
 
     @Test
     public void getTableInfoWithUnknownTableGives404AndMessageAndTraceId() throws Exception {
-        final String prestoTableWithBadTable = inMemoryCatalog + "." + inMemorySchema + "." + "e2etest_olywolypolywoly";
-        TableInfo info = searchApiGetRequest("/table/" + prestoTableWithBadTable + "/info", 404, TableInfo.class);
+        final String trinoTableWithBadTable = inMemoryCatalog + "." + inMemorySchema + "." + "e2etest_olywolypolywoly";
+        TableInfo info = searchApiGetRequest("/table/" + trinoTableWithBadTable + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
         assertThat(info.getErrors().get(0).getStatus(), equalTo(404));
     }
 
     @Test
     public void getTableInfoWithBadlyQualifiedTableGives404AndMessageAndTraceId() throws Exception {
-        final String prestoTableWithBadTable = "e2etest_olywolypolywoly";
-        TableInfo info = searchApiGetRequest("/table/" + prestoTableWithBadTable + "/info", 404, TableInfo.class);
+        final String trinoTableWithBadTable = "e2etest_olywolypolywoly";
+        TableInfo info = searchApiGetRequest("/table/" + trinoTableWithBadTable + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
         assertThat(info.getErrors().get(0).getStatus(), equalTo(404));
     }
 
     @Test
     public void getTableInfo_should_returnTableAndSchema() throws Exception {
-        Table tableInfo = searchApiGetRequest("/table/" + prestoPaginationTestTable + "/info", 200, Table.class);
+        Table tableInfo = searchApiGetRequest("/table/" + trinoPaginationTestTable + "/info", 200, Table.class);
         assertThat(tableInfo, not(nullValue()));
-        assertThat(tableInfo.getName(), equalTo(prestoPaginationTestTable));
+        assertThat(tableInfo.getName(), equalTo(trinoPaginationTestTable));
         assertThat(tableInfo.getDataModel(), not(nullValue()));
         assertThat(tableInfo.getDataModel().getId(), not(nullValue()));
         assertThat(tableInfo.getDataModel().getSchema(), not(nullValue()));
@@ -673,7 +673,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
     @Test
     public void getTableData_should_returnDataAndDataModel() throws Exception {
-        Table tableData = searchApiGetRequest("/table/" + prestoPaginationTestTable + "/data", 200, Table.class);
+        Table tableData = searchApiGetRequest("/table/" + trinoPaginationTestTable + "/data", 200, Table.class);
         assertThat(tableData, not(nullValue()));
         tableData = searchApiGetAllPages(tableData);
         assertThat(tableData.getData(), not(nullValue()));
@@ -705,7 +705,7 @@ public class SearchE2eTest extends BaseE2eTest {
 
         givenAuthenticatedRequest("junk_scope")
             .when()
-            .get("/table/{tableName}/data", prestoPaginationTestTable)
+            .get("/table/{tableName}/data", trinoPaginationTestTable)
             .then()
             .log().ifValidationFails()
             .statusCode(403)

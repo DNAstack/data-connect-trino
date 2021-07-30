@@ -2,7 +2,7 @@ databaseChangeLog:
 # This is the logical path you get when you launch liquibase as part of spring boot startup.
 - logicalFilePath: "classpath:/db/changelog/db.changelog-master.yaml"
 - changeSet:
-    id: ga4gh-search-adapter-presto-initial
+    id: ga4gh-search-adapter-trino-initial
     author: jvlasblom
     changes:
     - createTable:
