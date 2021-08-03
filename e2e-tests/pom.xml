@@ -14,7 +14,7 @@
 	<groupId>com.dnastack.dataconnect</groupId>
 	<artifactId>dataconnect-e2e-tests</artifactId>
 	<version>0.1-SNAPSHOT</version>
-	<name>GA4GH Discovery Data Connect End-to-end tests</name>
+	<name>Data Connect End-to-end tests</name>
 
 	<dependencies>
 		<dependency>
