@@ -35,7 +35,7 @@ public class TrinoHttpClient implements TrinoClient {
     private static final TypeReference<Map<String, String>> MAP_TYPE_REFERENCE = new TypeReference<>() {
     };
 
-    private static final String DEFAULT_TRINO_USER_NAME = "ga4gh-search-adapter-trino";
+    private static final String DEFAULT_TRINO_USER_NAME = "data-connect-trino";
 
     private final String trinoServer;
     private final String trinoSearchEndpoint;

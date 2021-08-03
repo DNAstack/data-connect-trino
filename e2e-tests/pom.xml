@@ -11,8 +11,8 @@
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 
-	<groupId>com.dnastack.ga4gh.search.adapter</groupId>
-	<artifactId>ga4gh-discovery-search-e2e-tests</artifactId>
+	<groupId>com.dnastack.dataconnect</groupId>
+	<artifactId>dataconnect-e2e-tests</artifactId>
 	<version>0.1-SNAPSHOT</version>
 	<name>GA4GH Discovery Data Connect End-to-end tests</name>
 

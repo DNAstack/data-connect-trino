@@ -31,7 +31,7 @@ app:
     # url: https://ga4gh-tables-registry.staging.dnastack.com
     # auth:
       # authentication-uri: https://wallet.staging.dnastack.com/oauth/token
-      # client-id: search-trino-public-client-credentials
+      # client-id: data-connect-trino-public-client-credentials
       # client-secret: <kubernetes_secret>
       # audience: https://ga4gh-tables-registry.staging.dnastack.com
   indexing-service:
@@ -43,14 +43,14 @@ app:
 trino:
   datasource:
     url: "http://localhost:8091"
-    username: "ga4gh-search-adapter-trino"
+    username: "data-connect-trino"
   results:
     default-page-size: 100
   hidden-catalogs: "system"
 
 info:
   build:
-    name: "GA4GH Discovery Search API"
+    name: "Data Connect API"
     version: 1.0
 
 
@@ -67,14 +67,14 @@ auditing:
     batch-emit:
       cron: 0/10 * * ? * *
   access-log-enabled: true
-  service-client-id: ga4gh-search-adapter-trino
+  service-client-id: data-connect-trino
   publisher:
     events-uri: ${auditing.oauth-client.audience}/events
     events-batch-uri: ${auditing.oauth-client.audience}/events/batch
     give-up-after: 5
     delay-between-tries-in-millis: 250
   oauth-client:
-    client-id: ga4gh-search-adapter-trino
+    client-id: data-connect-trino
     client-secret: dev-secret-never-use-in-prod
     scopes: audit:create
     audience: http://localhost:8888
@@ -88,7 +88,7 @@ auditing:
 
 spring:
   application:
-    name: search-adapter
+    name: data-connect-trino
   jackson:
     default-property-inclusion: NON_NULL
   jpa:
@@ -101,9 +101,9 @@ spring:
       ddl-auto: none
     database-platform: org.hibernate.dialect.PostgreSQLDialect
   datasource:
-    url: jdbc:postgresql://127.0.0.1/ga4ghdataconnectadaptertrino
-    username: ga4ghdataconnectadaptertrino
-    password: ga4ghdataconnectadaptertrino
+    url: jdbc:postgresql://127.0.0.1/dataconnecttrino
+    username: dataconnecttrino
+    password: dataconnecttrino
     driver-class-name: org.postgresql.Driver
   # For sending samples to the server
   zipkin:
