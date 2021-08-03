@@ -1,8 +1,8 @@
 # Intro
 
-An implementation of the [GA4GH Discovery Search API](https://github.com/ga4gh-discovery/ga4gh-discovery-search), on top of
+An implementation of the [GA4GH Discovery Data Connect API](https://github.com/ga4gh-discovery/ga4gh-discovery-search), on top of
 [Trino](https://trino.io/). This software enables users to enumerate and query data surfaced by an instance of Trino
-in a manner compliant with the GA4GH Discovery Search specification, and receive responses compliant with the 
+in a manner compliant with the GA4GH Discovery Data Connect specification, and receive responses compliant with the 
 [Table](https://github.com/ga4gh-discovery/ga4gh-discovery-search/blob/develop/TABLE.md) specification.  
 
 # Updating This README
@@ -29,10 +29,10 @@ TRINO_DATASOURCE_URL=https://<your-trino-server>
 SPRING_PROFILES_ACTIVE=no-auth
 ```
 
-The search adapter requires a Postgres database. To start the app locally quickly with the default settings, you can 
+The data connect adapter requires a Postgres database. To start the app locally quickly with the default settings, you can 
 spin up the database with this docker command:
 ```
-docker run -d -p 5432:5432 --name ga4ghsearchadapterpresto -e POSTGRES_USER=ga4ghsearchadapterpresto -e POSTGRES_PASSWORD=ga4ghsearchadapterpresto postgres
+docker run -d -p 5432:5432 --name ga4ghdataconnectpresto -e POSTGRES_USER=ga4ghdataconnectpresto -e POSTGRES_PASSWORD=ga4ghsearchadapterpresto postgres
 ```
 
 ### Run
@@ -107,7 +107,7 @@ SPRING_SECURITY_USER_PASSWORD={some-password}
 ```
 
 ## Postgres Configuration
-The search adapter uses trino to save queries, so that it can reparse them during pagination to re-evaluate functions
+The data connect adapter uses trino to save queries, so that it can reparse them during pagination to re-evaluate functions
 that need to be processed prior to submitting queries to trino.
 
 The following is a quick start for local development:

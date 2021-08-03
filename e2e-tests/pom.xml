@@ -14,13 +14,13 @@
 	<groupId>com.dnastack.ga4gh.search.adapter</groupId>
 	<artifactId>ga4gh-discovery-search-e2e-tests</artifactId>
 	<version>0.1-SNAPSHOT</version>
-	<name>GA4GH Discovery Search End-to-end tests</name>
+	<name>GA4GH Discovery Data Connect End-to-end tests</name>
 
 	<dependencies>
 		<dependency>
 			<groupId>io.trino</groupId>
 			<artifactId>trino-jdbc</artifactId>
-			<version>339</version>
+			<version>359</version>
 		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
