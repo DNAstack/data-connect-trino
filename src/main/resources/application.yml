@@ -101,9 +101,9 @@ spring:
       ddl-auto: none
     database-platform: org.hibernate.dialect.PostgreSQLDialect
   datasource:
-    url: jdbc:postgresql://127.0.0.1/ga4ghsearchadaptertrino
-    username: ga4ghsearchadaptertrino
-    password: ga4ghsearchadaptertrino
+    url: jdbc:postgresql://127.0.0.1/ga4ghdataconnectadaptertrino
+    username: ga4ghdataconnectadaptertrino
+    password: ga4ghdataconnectadaptertrino
     driver-class-name: org.postgresql.Driver
   # For sending samples to the server
   zipkin:
