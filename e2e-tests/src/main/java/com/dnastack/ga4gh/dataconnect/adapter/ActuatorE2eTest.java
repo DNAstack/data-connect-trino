@@ -22,7 +22,7 @@ public class ActuatorE2eTest extends BaseE2eTest {
         .then()
             .log().ifValidationFails()
             .statusCode(200)
-            .body("build.name", equalTo("GA4GH Discovery Data Connect API"))
+            .body("build.name", equalTo("Data Connect API"))
             .body("build.version", notNullValue());
         // @formatter:on
     }
