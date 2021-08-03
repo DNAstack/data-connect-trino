@@ -12,7 +12,7 @@
 	</parent>
 
 	<groupId>com.dnastack.dataconnect</groupId>
-	<artifactId>dataconnect-e2e-tests</artifactId>
+	<artifactId>data-connect-trino-e2e-tests</artifactId>
 	<version>0.1-SNAPSHOT</version>
 	<name>Data Connect End-to-end tests</name>
 

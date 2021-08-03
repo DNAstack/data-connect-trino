@@ -40,7 +40,7 @@ WORKDIR /
 ADD target/e2e-exec-pom.xml /pom.xml
 ADD target/.mvn/ /.mvn/
 ADD target/mvnw /
-COPY --from=0 /build/target/ga4gh-discovery-search-e2e-tests-*.jar /e2e-tests.jar
+COPY --from=0 /build/target/data-connect-trino-e2e-tests-*.jar /e2e-tests.jar
 RUN ./mvnw -B de.qaware.maven:go-offline-maven-plugin:resolve-dependencies
 
 ENTRYPOINT ["./mvnw", "-o", "test"]
