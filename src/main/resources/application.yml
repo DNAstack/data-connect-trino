@@ -158,11 +158,11 @@ app:
     token-issuers:
       - issuer-uri: http://localhost:8081
         jwk-set-uri: http://localhost:8081/oauth/jwks
-        audiences: ["http://localhost:${server.port}", "http://search-trino.local"]
+        audiences: ["http://localhost:${server.port}", "http://data-connect-trino.local"]
 
     trino-oauth-client:
       token-uri: http://localhost:8081/oauth/token
-      client-id: ga4gh-search-adapter-trino
+      client-id: data-connect-trino
       client-secret: dev-secret-never-use-in-prod
       audience: http://trino.local
 ---

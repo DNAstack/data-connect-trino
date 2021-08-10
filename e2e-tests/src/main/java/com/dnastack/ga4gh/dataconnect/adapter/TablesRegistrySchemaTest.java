@@ -17,8 +17,8 @@ import static org.junit.Assume.assumeTrue;
 
 public class TablesRegistrySchemaTest extends BaseE2eTest {
 
-    private static String DATA_CONNECT_TRINO_PUBLIC_APP_NAME = "search-trino-public";
-    private static String DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE = "This test is run for 'search-trino-public' ONLY";
+    private static String DATA_CONNECT_TRINO_PUBLIC_APP_NAME = "data-connect-trino-public";
+    private static String DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE = "This test is run for 'data-connect-trino-public' ONLY";
 
     private static String egaTable1 = "dbgap_demo.scr_ega.scr_egapancreatic_sample_multi";
     private static String geccoTable1 = "dbgap_demo.scr_gecco_susceptibility.sample_attributes_multi";
