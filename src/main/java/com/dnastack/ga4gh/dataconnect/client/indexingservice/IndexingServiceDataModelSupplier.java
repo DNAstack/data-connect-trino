@@ -24,8 +24,12 @@ public class IndexingServiceDataModelSupplier implements DataModelSupplier {
         String jsonSchemaAsString;
         try {
             final LibraryItem libraryItem = client.get(tableName);
+            log.info("LibraryItem {}", libraryItem);
+
             jsonSchemaAsString = libraryItem.getJsonSchema();
+            log.info("jsonSchemaAsString {}", jsonSchemaAsString);
         } catch (FeignException.NotFound ignored) {
+            log.info("Item not found in library table");
             return null;
         }
         try {

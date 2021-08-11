@@ -824,6 +824,7 @@ public class TrinoDataConnectAdapter {
 
     private DataModel getDataModelFromSupplier(String tableName) {
         if (dataModelSupplier == null) {
+            log.info("Data model supplier is null");
             return null;
         }
 

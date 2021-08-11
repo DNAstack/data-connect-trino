@@ -75,6 +75,7 @@ public class TablesController {
         TableInfo tableInfo = null;
 
         try {
+            log.info("Getting info for table {}", tableName);
             tableInfo = trinoDataConnectAdapter
                 .getTableInfo(tableName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
