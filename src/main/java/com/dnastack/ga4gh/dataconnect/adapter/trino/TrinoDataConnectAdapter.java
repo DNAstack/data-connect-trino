@@ -403,6 +403,7 @@ public class TrinoDataConnectAdapter {
         // If the dataModel is not available from tables-registry, use the one from tableData
         // Fill in the id & comments if the data model is ready
         if (dataModel == null && tableData.getDataModel() != null) {
+            log.info("Data model is empty in tables registry.");
             dataModel = tableData.getDataModel();
             dataModel.setId(getDataModelId(tableName, request));
         }
