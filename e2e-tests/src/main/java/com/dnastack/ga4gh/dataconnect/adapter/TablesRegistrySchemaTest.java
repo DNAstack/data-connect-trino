@@ -5,6 +5,7 @@ import com.dnastack.ga4gh.dataconnect.adapter.test.model.Table;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.TableInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.assertj.core.api.Assertions;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -27,6 +28,7 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     private static String geccoTable4 = "dbgap_demo.scr_gecco_susceptibility.subject_phenotypes_multi";
 
     @Test
+    @Ignore()
     public void getTableInfo_should_returnDataModelFromTablesRegistryForEgaTable1() throws Exception {
         // Run this test for 'data-connect-trino-public' only
         assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
@@ -39,6 +41,7 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     }
 
     @Test
+    @Ignore()
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable1() throws Exception {
         // Run this test for 'data-connect-trino-public' only
         assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
@@ -51,6 +54,7 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     }
 
     @Test
+    @Ignore()
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable2() throws Exception {
         // Run this test for 'data-connect-trino-public' only
         assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
@@ -63,6 +67,7 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     }
 
     @Test
+    @Ignore()
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable3() throws Exception {
         // Run this test for 'data-connect-trino-public' only
         assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
@@ -75,6 +80,7 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     }
 
     @Test
+    @Ignore()
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable4() throws Exception {
         // Run this test for 'data-connect-trino-public' only
         assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
