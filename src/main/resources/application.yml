@@ -56,7 +56,7 @@ info:
 
 logging:
   level:
-    com.dnastack.ga4gh.search.adapter.trino.TrinoHttpClient: INFO # logs queries when search fails
+    com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient: INFO # logs queries when search fails
     # Reduced the log messages produced by p6spy by default.
     p6spy: WARN
 
