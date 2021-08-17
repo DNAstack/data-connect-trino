@@ -38,6 +38,7 @@ public class DataConnectController {
         TableData tableData = null;
 
         try {
+            log.info("/search query= {}", dataConnectRequest.getSqlQuery());
             tableData = trinoDataConnectAdapter
                 .search(dataConnectRequest.getSqlQuery(), request, parseCredentialsHeader(clientSuppliedCredentials), null);
         } catch (Exception ex) {
@@ -52,8 +53,10 @@ public class DataConnectController {
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
                                               HttpServletRequest request,
                                               @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
+        log.info("/search/** request= {}", request);
         String page = request.getRequestURI()
                              .split(request.getContextPath() + "/search/")[1];
+        log.info("/search/** page= {}", page);
         TableData tableData = null;
 
         try {

@@ -277,7 +277,9 @@ public class TrinoDataConnectAdapter {
             Map.of("page", Optional.ofNullable(page).orElse("(undefined)"))
         );
         JsonNode response = client.next(page, extraCredentials);
+        log.info("[getNextSearchPag]response = {}", response);
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJobId, request);
+        log.info("[getNextSearchPag]tableData = {}", tableData);
         populateTableSchemaIfAvailable(queryJobId, tableData);
         return tableData;
     }
