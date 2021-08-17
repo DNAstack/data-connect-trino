@@ -8,7 +8,7 @@ import com.dnastack.ga4gh.dataconnect.ApplicationConfig;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.*;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
-import com.dnastack.ga4gh.dataconnect.repository.QueryJobRepository;
+import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
 import com.dnastack.ga4gh.dataconnect.model.ColumnSchema;
 import com.dnastack.ga4gh.dataconnect.model.DataModel;
 import com.dnastack.ga4gh.dataconnect.model.PageIndexEntry;
@@ -28,7 +28,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.util.Strings;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.jdbi.v3.core.Jdbi;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -58,26 +58,29 @@ public class TrinoDataConnectAdapter {
     private static final Pattern qualifiedNameMatcher =
             Pattern.compile("^\"?[^\"]+\"?\\.\"?[^\"]+\"?\\.\"?[^\"]+\"?$");
 
-    @Autowired
-    private TrinoClient client;
+    private final TrinoClient client;
 
-    @Autowired
-    private ThrowableTransformer throwableTransformer;
+    private final Jdbi jdbi;
 
-    @Autowired
-    private QueryJobRepository queryJobRepository;
+    private final ThrowableTransformer throwableTransformer;
 
-    @Autowired
-    private ApplicationConfig applicationConfig;
+    private final ApplicationConfig applicationConfig;
 
-    @Autowired
-    private AuditEventLogger auditEventLogger;
+    private final AuditEventLogger auditEventLogger;
 
-    @Autowired(required = false)
-    private DataModelSupplier dataModelSupplier;
+    private final DataModelSupplier[] dataModelSuppliers;
 
-    @Autowired
-    private Tracer tracer;
+    private final Tracer tracer;
+
+    public TrinoDataConnectAdapter(TrinoClient client, Jdbi jdbi, ThrowableTransformer throwableTransformer, ApplicationConfig applicationConfig, AuditEventLogger auditEventLogger, DataModelSupplier[] dataModelSuppliers, Tracer tracer) {
+        this.client = client;
+        this.jdbi = jdbi;
+        this.throwableTransformer = throwableTransformer;
+        this.applicationConfig = applicationConfig;
+        this.auditEventLogger = auditEventLogger;
+        this.dataModelSuppliers = dataModelSuppliers;
+        this.tracer = tracer;
+    }
 
     private boolean hasMore(TableData tableData) {
         if (tableData.getPagination() != null && tableData.getPagination().getNextPageUrl() != null) {
@@ -253,9 +256,13 @@ public class TrinoDataConnectAdapter {
 
         log.info("Received query: " + query + ".");
         String rewrittenQuery = rewriteQuery(query, "ga4gh_type", 0);
-        logAuditEvent(request, "search", "query", Map.of(
-            "query", Optional.ofNullable(rewrittenQuery).orElse("(undefined)")
-        ));
+        logAuditEvent(
+            request,
+            "search",
+            "query",
+            Map.of(
+            "query", Optional.ofNullable(rewrittenQuery).orElse("(undefined)"))
+        );
         JsonNode response = client.query(rewrittenQuery, extraCredentials);
         QueryJob queryJob = createQueryJob(query, dataModel);
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob.getId(), request);
@@ -263,9 +270,12 @@ public class TrinoDataConnectAdapter {
     }
 
     public TableData getNextSearchPage(String page, String queryJobId, HttpServletRequest request, Map<String, String> extraCredentials) {
-        logAuditEvent(request, "search", "next-page", Map.of(
-            "page", Optional.ofNullable(page).orElse("(undefined)")
-        ));
+        logAuditEvent(
+            request,
+            "search",
+            "next-page",
+            Map.of("page", Optional.ofNullable(page).orElse("(undefined)"))
+        );
         JsonNode response = client.next(page, extraCredentials);
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJobId, request);
         populateTableSchemaIfAvailable(queryJobId, tableData);
@@ -288,7 +298,10 @@ public class TrinoDataConnectAdapter {
                 .id(UUID.randomUUID().toString())
                 .schema(tableSchema)
                 .build();
-        return queryJobRepository.save(queryJob);
+
+        jdbi.useExtension(QueryJobDao.class, dao -> dao.save(queryJob));
+
+        return queryJob;
     }
 
     private URI getLinkToCatalog(String catalog, HttpServletRequest request) {
@@ -530,9 +543,7 @@ public class TrinoDataConnectAdapter {
     // Parses the saved query identified by queryJobId, finds all functions that transform the response in some way,
     // and applies them to the response represented by tableData.
     private void applyResponseTransforms(String queryJobId, final TableData tableData) {
-        QueryJob queryJob = queryJobRepository
-                .findById(queryJobId)
-                .orElseThrow(()->new InvalidQueryJobException(queryJobId, "The query corresponding to this search could not be located."));
+        QueryJob queryJob = getQueryJobBy(queryJobId, "The query corresponding to this search could not be located.");
         String query = queryJob.getQuery();
         Stream<SQLFunction> responseTransformingFunctions = parseSQLBiFunctions(query);
 
@@ -654,7 +665,7 @@ public class TrinoDataConnectAdapter {
             return StreamSupport.stream(trinoDataArray.spliterator(), false)
                          .map(arrayValue->getData(itemSchema, arrayValue))
                          .collect(Collectors.toUnmodifiableList());
-        } else if (columnSchema.getRawType() == "json") { //json or primitive.
+        } else if (columnSchema.getRawType().equals("json")) { //json or primitive.
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
                 objectMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
@@ -824,12 +835,13 @@ public class TrinoDataConnectAdapter {
     }
 
     private DataModel getDataModelFromSupplier(String tableName) {
-        if (dataModelSupplier == null) {
-            log.info("Data model supplier is null");
-            return null;
+        for (DataModelSupplier dataModelSupplier: dataModelSuppliers) {
+            final var dataModel = dataModelSupplier.supply(tableName);
+            if (dataModel != null) {
+                return dataModel;
+            }
         }
-
-        return dataModelSupplier.supply(tableName);
+        return null;
     }
 
     private void populateTableSchemaIfAvailable(String queryJobId, TableData tableData) {
@@ -839,10 +851,7 @@ public class TrinoDataConnectAdapter {
             // Use this table schema to populate the dataModel
             DataModel dataModel = null;
             if (queryJobId != null) {
-                QueryJob queryJob = queryJobRepository
-                        .findById(queryJobId)
-                        .orElseThrow(() -> new InvalidQueryJobException(queryJobId,
-                                "The entry in query_job table corresponding to this search could not be located."));
+                QueryJob queryJob = getQueryJobBy(queryJobId, "The entry in query_job table corresponding to this search could not be located.");
 
                 try {
                     if (queryJob.getSchema() != null) {
@@ -877,5 +886,10 @@ public class TrinoDataConnectAdapter {
                 .extraArguments(extraArguments)
                 .build()
         );
+    }
+
+    private QueryJob getQueryJobBy(String id, String errorMessage) {
+        return jdbi.withExtension(QueryJobDao.class, dao -> dao.get(id))
+            .orElseThrow(() -> new InvalidQueryJobException(id, errorMessage));
     }
 }

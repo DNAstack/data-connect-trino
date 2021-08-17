@@ -13,7 +13,7 @@ cors:
 oauth-client-factory:
   default-config:
     token-uri: http://localhost:8081/oauth/token
-    client-id: ga4gh-search-adapter-trino
+    client-id: data-connect-trino
     client-secret: dev-secret-never-use-in-prod
 
 app:

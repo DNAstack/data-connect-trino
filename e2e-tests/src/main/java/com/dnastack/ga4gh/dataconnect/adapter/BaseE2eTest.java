@@ -66,7 +66,7 @@ public abstract class BaseE2eTest {
 
     @BeforeClass
     public static void setupRestAssured() {
-        RestAssured.baseURI = requiredEnv("E2E_BASE_URI");
+        RestAssured.baseURI = optionalEnv("E2E_BASE_URI", "http://localhost:8089");
         RestAssured.replaceFiltersWith(new TraceLoggingFilter());
         try {
             if (new URI(RestAssured.baseURI).getHost().equalsIgnoreCase("localhost")) {

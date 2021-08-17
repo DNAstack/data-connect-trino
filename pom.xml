@@ -4,20 +4,20 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.3.8.RELEASE</version>
+    <relativePath/> <!-- lookup parent from repository -->
+  </parent>
+
   <groupId>com.dnastack.dataconnect</groupId>
   <artifactId>data-connect-trino</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <name>Data Connect Backend</name>
+  <name>Data Connect Backend with Trino</name>
 
   <dependencyManagement>
     <dependencies>
-      <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-dependencies</artifactId>
-        <version>${version.spring.boot}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
       <dependency>
         <groupId>org.springframework.cloud</groupId>
         <artifactId>spring-cloud-dependencies</artifactId>
@@ -29,6 +29,13 @@
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
         <version>${version.joda}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jdbi</groupId>
+        <artifactId>jdbi3-bom</artifactId>
+        <type>pom</type>
+        <version>${jdbi.version}</version>
+        <scope>import</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -42,7 +49,7 @@
     <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
     <spring-cloud.version>Hoxton.SR10</spring-cloud.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <org.jdbi.version>3.6.0</org.jdbi.version>
+    <jdbi.version>3.21.0</jdbi.version>
     <version.okhttp>3.14.0</version.okhttp>
     <version.micrometer>1.4.1</version.micrometer>
     <version.trino>359</version.trino>
@@ -102,14 +109,12 @@
       <groupId>org.liquibase</groupId>
       <artifactId>liquibase-core</artifactId>
     </dependency>
+
 <!--    <dependency>-->
-<!--      <groupId>org.springframework.data</groupId>-->
-<!--      <artifactId>spring-data-jdbc</artifactId>-->
+<!--      <groupId>org.springframework.boot</groupId>-->
+<!--      <artifactId>spring-boot-starter-data-jpa</artifactId>-->
 <!--    </dependency>-->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-jpa</artifactId>
-    </dependency>
+
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
@@ -192,6 +197,24 @@
       <version>${feign.version}</version>
     </dependency>
 
+    <!-- JDBI -->
+    <dependency>
+      <groupId>org.jdbi</groupId>
+      <artifactId>jdbi3-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jdbi</groupId>
+      <artifactId>jdbi3-sqlobject</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jdbi</groupId>
+      <artifactId>jdbi3-postgres</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jdbi</groupId>
+      <artifactId>jdbi3-jackson2</artifactId>
+    </dependency>
+
     <!--Supporting-->
     <dependency>
       <groupId>com.dnastack</groupId>
@@ -237,14 +260,20 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>11</source>
-          <target>11</target>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
         </configuration>
       </plugin>
     </plugins>
   </build>
 
   <repositories>
+    <repository>
+      <id>spring-milestones</id>
+      <name>Spring Milestones</name>
+      <url>https://repo.spring.io/milestone</url>
+    </repository>
+
     <repository>
       <id>spring-milestones</id>
       <name>Spring Milestones</name>
