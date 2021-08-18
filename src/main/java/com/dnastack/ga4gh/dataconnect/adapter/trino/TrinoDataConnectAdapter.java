@@ -86,8 +86,6 @@ public class TrinoDataConnectAdapter {
         this.objectMapper = new ObjectMapper();
         objectMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        objectMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
-
     }
 
     private boolean hasMore(TableData tableData) {
@@ -677,9 +675,13 @@ public class TrinoDataConnectAdapter {
                          .collect(Collectors.toUnmodifiableList());
         } else if (columnSchema.getRawType().equals("json")) { //json or primitive.
             try {
-                return objectMapper.readValue(trinoDataArray.asText(), new TypeReference<List<Map<String, Object>>>() {});
+                if (trinoDataArray.asText() != "null" && objectMapper.readTree(trinoDataArray.asText()).isArray()) {
+                    return objectMapper.readValue(trinoDataArray.asText(), new TypeReference<List<Map<String, Object>>>() {});
+                } else {
+                    return objectMapper.readValue(trinoDataArray.asText(), new TypeReference<Map<String, Object>>() {});
+                }
             } catch (IOException e) {
-                throw new UnexpectedQueryResponseException("JSON came back badly formatted: trinoDataArray.asText() =" + trinoDataArray.asText() + "trinoDataArray=" + trinoDataArray);
+                throw new UnexpectedQueryResponseException("JSON came back badly formatted: trinoDataArray.asText() = " + trinoDataArray.asText() + ". Exception message=" + e.getMessage());
             }
         } else {
 
