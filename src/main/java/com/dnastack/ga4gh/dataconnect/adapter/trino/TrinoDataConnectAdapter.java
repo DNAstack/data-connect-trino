@@ -19,6 +19,7 @@ import com.dnastack.ga4gh.dataconnect.model.TablesList;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
@@ -84,6 +85,9 @@ public class TrinoDataConnectAdapter {
         this.tracer = tracer;
         this.objectMapper = new ObjectMapper();
         objectMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        objectMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+
     }
 
     private boolean hasMore(TableData tableData) {
@@ -673,8 +677,7 @@ public class TrinoDataConnectAdapter {
                          .collect(Collectors.toUnmodifiableList());
         } else if (columnSchema.getRawType().equals("json")) { //json or primitive.
             try {
-
-                return objectMapper.readValue(objectMapper.treeAsTokens(trinoDataArray), new TypeReference<Map<String, Object>>() {});
+                return objectMapper.readValue(trinoDataArray.asText(), new TypeReference<List<Map<String, Object>>>() {});
             } catch (IOException e) {
                 throw new UnexpectedQueryResponseException("JSON came back badly formatted: trinoDataArray.asText() =" + trinoDataArray.asText() + "trinoDataArray=" + trinoDataArray);
             }
