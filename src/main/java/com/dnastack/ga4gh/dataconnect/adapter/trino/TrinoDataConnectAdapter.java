@@ -72,6 +72,8 @@ public class TrinoDataConnectAdapter {
 
     private final Tracer tracer;
 
+    private final ObjectMapper objectMapper;
+
     public TrinoDataConnectAdapter(TrinoClient client, Jdbi jdbi, ThrowableTransformer throwableTransformer, ApplicationConfig applicationConfig, AuditEventLogger auditEventLogger, DataModelSupplier[] dataModelSuppliers, Tracer tracer) {
         this.client = client;
         this.jdbi = jdbi;
@@ -80,6 +82,8 @@ public class TrinoDataConnectAdapter {
         this.auditEventLogger = auditEventLogger;
         this.dataModelSuppliers = dataModelSuppliers;
         this.tracer = tracer;
+        this.objectMapper = new ObjectMapper();
+        objectMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
     }
 
     private boolean hasMore(TableData tableData) {
@@ -669,11 +673,10 @@ public class TrinoDataConnectAdapter {
                          .collect(Collectors.toUnmodifiableList());
         } else if (columnSchema.getRawType().equals("json")) { //json or primitive.
             try {
-                ObjectMapper objectMapper = new ObjectMapper();
-                objectMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
-                return objectMapper.readValue(trinoDataArray.asText(), new TypeReference<Map<String, Object>>() {});
+
+                return objectMapper.readValue(objectMapper.treeAsTokens(trinoDataArray), new TypeReference<Map<String, Object>>() {});
             } catch (IOException e) {
-                throw new UnexpectedQueryResponseException("JSON came back badly formatted: " + trinoDataArray.asText());
+                throw new UnexpectedQueryResponseException("JSON came back badly formatted: trinoDataArray.asText() =" + trinoDataArray.asText() + "trinoDataArray=" + trinoDataArray);
             }
         } else {
 
