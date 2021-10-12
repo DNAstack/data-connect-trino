@@ -42,7 +42,6 @@ public class ActuatorE2eTest extends BaseE2eTest {
                         "liquibase",
                         "metrics",
                         "mappings",
-                        "prometheus",
                         "scheduledtasks",
                         "sessions",
                         "shutdown",
