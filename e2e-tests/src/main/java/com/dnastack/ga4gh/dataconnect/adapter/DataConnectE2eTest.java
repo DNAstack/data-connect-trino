@@ -13,10 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.HttpStatus;
 import org.assertj.core.api.Assertions;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,10 +31,13 @@ import static io.restassured.http.Method.GET;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.junit.Assert.*;
-import static org.junit.Assume.assumeThat;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Slf4j
 public class DataConnectE2eTest extends BaseE2eTest {
@@ -150,7 +153,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
      */
     private static Map<String, String> extraCredentials = new HashMap<>();
 
-    @BeforeClass
+    @BeforeAll
     public static void beforeClass() throws Exception {
         globalMethodSecurityEnabled = Boolean.parseBoolean(optionalEnv("E2E_GLOBAL_METHOD_SECURITY_ENABLED", "false"));
         scopeCheckingEnabled = Boolean.parseBoolean(optionalEnv("E2E_SCOPE_CHECKING_ENABLED", "false"));
@@ -273,7 +276,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         }
     }
 
-    @AfterClass
+    @AfterAll
     public static void removeTestTables() {
         if (trinoDateTimeTestTable != null) {
             log.info("Trying to remove datetime test table " + trinoDateTimeTestTable);
@@ -298,7 +301,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         }
     }
 
-    @Before
+    @BeforeEach
     public final void beforeEachTest() {
         extraCredentials.clear();
     }
@@ -680,8 +683,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     public void getTables_should_require_searchInfo_scope() throws Exception {
-        assumeThat(globalMethodSecurityEnabled, is(true));
-        assumeThat(scopeCheckingEnabled, is(true));
+        assumeTrue(globalMethodSecurityEnabled);
+        assumeTrue(scopeCheckingEnabled);
 
         givenAuthenticatedRequest("junk_scope")
             .when()
@@ -694,8 +697,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     public void getTableData_should_require_searchData_scope() throws Exception {
-        assumeThat(globalMethodSecurityEnabled, is(true));
-        assumeThat(scopeCheckingEnabled, is(true));
+        assumeTrue(globalMethodSecurityEnabled);
+        assumeTrue(scopeCheckingEnabled);
 
         givenAuthenticatedRequest("junk_scope")
             .when()
@@ -708,8 +711,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     public void searchQuery_should_require_searchDataAndSearchQuery_scopes() throws Exception {
-        assumeThat(globalMethodSecurityEnabled, is(true));
-        assumeThat(scopeCheckingEnabled, is(true));
+        assumeTrue(globalMethodSecurityEnabled);
+        assumeTrue(scopeCheckingEnabled);
 
         DataConnectRequest testDataConnectRequest = new DataConnectRequest("SELECT * FROM E2ETEST LIMIT 10");
         givenAuthenticatedRequest("search:data") // but not search:query

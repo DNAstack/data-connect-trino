@@ -5,8 +5,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.restassured.http.ContentType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.sql.Connection;
@@ -18,19 +18,18 @@ import java.util.Map;
 import static com.dnastack.ga4gh.dataconnect.adapter.DataConnectE2eTest.getFullyQualifiedTestTableName;
 import static com.dnastack.ga4gh.dataconnect.adapter.DataConnectE2eTest.getTestDatabaseConnection;
 import static io.restassured.RestAssured.given;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assume.assumeThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Slf4j
 public class SchemaTestWithLibraryTest extends BaseE2eTest {
     private static final String INS_BASE_URI = optionalEnv("E2E_INS_BASE_URI", null);
 
-    @BeforeClass
+    @BeforeAll
     public static void preflightCheck() {
-        assumeThat("The base URI to the indexing service NOT DEFINED for this test", INS_BASE_URI, not(nullValue()));
+        assumeTrue(INS_BASE_URI != null, "The base URI to the indexing service NOT DEFINED for this test");
     }
 
     @Test

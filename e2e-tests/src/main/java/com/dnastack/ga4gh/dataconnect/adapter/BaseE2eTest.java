@@ -16,8 +16,9 @@ import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.After;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -28,7 +29,6 @@ import java.util.Random;
 
 import static io.restassured.RestAssured.given;
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.junit.Assert.fail;
 
 @Slf4j
 public abstract class BaseE2eTest {
@@ -41,7 +41,7 @@ public abstract class BaseE2eTest {
 
     protected List<Runnable> cleanupOperations = new LinkedList<>();
 
-    @After
+    @AfterEach
     public void runAdditionalCleanupOperations() {
         Collections.reverse(cleanupOperations);
         for (int i = 0, n = cleanupOperations.size(); i < n; i++) {
@@ -64,7 +64,7 @@ public abstract class BaseE2eTest {
         cleanupOperations.add(runnable);
     }
 
-    @BeforeClass
+    @BeforeAll
     public static void setupRestAssured() {
         RestAssured.baseURI = optionalEnv("E2E_BASE_URI", "http://localhost:8089");
         RestAssured.replaceFiltersWith(new TraceLoggingFilter());
@@ -111,7 +111,7 @@ public abstract class BaseE2eTest {
         }
     }
 
-    @BeforeClass
+    @BeforeAll
     public static void setupObjectMapper() {
         config = RestAssuredConfig.config()
             .objectMapperConfig(
@@ -124,7 +124,7 @@ public abstract class BaseE2eTest {
     protected static String requiredEnv(String name) {
         String val = System.getenv(name);
         if (val == null) {
-            fail("Environnment variable `" + name + "` is required");
+            Assertions.fail("Environnment variable `" + name + "` is required");
         }
         return val;
     }

@@ -5,16 +5,16 @@ import com.dnastack.ga4gh.dataconnect.adapter.test.model.Table;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.TableInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.assertj.core.api.Assertions;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
 
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assume.assumeTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public class TablesRegistrySchemaTest extends BaseE2eTest {
 
@@ -30,8 +30,8 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForEgaTable1() throws Exception {
         // Run this test for 'data-connect-trino-public' only
-        assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
+        assumeTrue(
+                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)), DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE);
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("egaDataModel1.json");
 
@@ -42,8 +42,8 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable1() throws Exception {
         // Run this test for 'data-connect-trino-public' only
-        assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
+        assumeTrue(
+                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)), DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE);
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("geccoDataModel1.json");
 
@@ -54,8 +54,8 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable2() throws Exception {
         // Run this test for 'data-connect-trino-public' only
-        assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
+        assumeTrue(
+                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)), DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE);
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("geccoDataModel2.json");
 
@@ -66,8 +66,8 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable3() throws Exception {
         // Run this test for 'data-connect-trino-public' only
-        assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));;
+        assumeTrue(
+                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)), DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE);;
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("geccoDataModel3.json");
 
@@ -78,8 +78,8 @@ public class TablesRegistrySchemaTest extends BaseE2eTest {
     @Test
     public void getTableInfo_should_returnDataModelFromTablesRegistryForGeccoTable4() throws Exception {
         // Run this test for 'data-connect-trino-public' only
-        assumeTrue(DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE,
-                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)));
+        assumeTrue(
+                DATA_CONNECT_TRINO_PUBLIC_APP_NAME.equals(optionalEnv("APP_NAME", null)), DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE);
 
         DataModel expectedDataModel = getExpectedDataModelFromTestResources("geccoDataModel4.json");
 
