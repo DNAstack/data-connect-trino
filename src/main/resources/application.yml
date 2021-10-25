@@ -120,8 +120,7 @@ management:
       environment: local
       stackdriver:
         enabled: false
-  endpoints:
-    web.exposure.include: info, health, prometheus
+        
 ---
 
 spring:
@@ -204,3 +203,12 @@ spring:
 
 auditing:
   enabled: true
+
+---
+
+spring:
+  profiles: metrics-enabled
+
+management:
+  endpoints:
+    web.exposure.include: info, health, prometheus
