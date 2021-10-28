@@ -24,7 +24,7 @@ public class ColumnSchema {
     private String format;
 
     @JsonProperty("type")
-    private String type;
+    private Object type;
 
     @JsonProperty("$comment")
     private String comment;
