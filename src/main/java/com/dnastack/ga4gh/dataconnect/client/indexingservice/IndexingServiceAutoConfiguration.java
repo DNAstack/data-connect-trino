@@ -21,9 +21,9 @@ public class IndexingServiceAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(IndexingServiceClient.class)
-    public DataModelSupplier indexingServiceDataModelSupplier(IndexingServiceClient client) {
+    public DataModelSupplier indexingServiceDataModelSupplier(IndexingServiceClient client,IndexingServiceConfiguration configuration) {
         log.info("Initializing the data model supplier with the indexing service API client...");
-        return new IndexingServiceDataModelSupplier(client);
+        return new IndexingServiceDataModelSupplier(client,configuration.getPublisherCatalogName());
     }
 
 }

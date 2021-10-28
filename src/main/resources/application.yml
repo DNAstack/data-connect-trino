@@ -39,6 +39,7 @@ app:
     base-uri: http://localhost:8094
     oauth-client:
       resource: "${app.indexing-service.base-uri}"
+    publisher-catalog-name: publisher_data
 
 trino:
   datasource:

@@ -7,15 +7,9 @@ import com.dnastack.audit.model.*;
 import com.dnastack.ga4gh.dataconnect.ApplicationConfig;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.*;
+import com.dnastack.ga4gh.dataconnect.model.*;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
-import com.dnastack.ga4gh.dataconnect.model.ColumnSchema;
-import com.dnastack.ga4gh.dataconnect.model.DataModel;
-import com.dnastack.ga4gh.dataconnect.model.PageIndexEntry;
-import com.dnastack.ga4gh.dataconnect.model.Pagination;
-import com.dnastack.ga4gh.dataconnect.model.TableData;
-import com.dnastack.ga4gh.dataconnect.model.TableInfo;
-import com.dnastack.ga4gh.dataconnect.model.TablesList;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -50,6 +44,7 @@ import java.util.stream.StreamSupport;
 @Slf4j
 @Configuration
 public class TrinoDataConnectAdapter {
+
     private static final String NEXT_PAGE_SEARCH_TEMPLATE = "/search/%s"; //todo: alternatives?
     private static final String NEXT_PAGE_CATALOG_TEMPLATE = "/tables/catalog/%s";
     private static final URI JSON_SCHEMA_DRAFT7_URI = URI.create("http://json-schema.org/draft-07/schema#");
@@ -57,7 +52,7 @@ public class TrinoDataConnectAdapter {
     //Matches the given name against the pattern <catalog>.<schema>.<table>, "<catalog>"."<schema>"."<table>", or
     //"<catalog>.<schema>.<table>".  Note this pattern is permissive and will often allow misquoted names through.
     private static final Pattern qualifiedNameMatcher =
-            Pattern.compile("^\"?[^\"]+\"?\\.\"?[^\"]+\"?\\.\"?[^\"]+\"?$");
+        Pattern.compile("^\"?[^\"]+\"?\\.\"?[^\"]+\"?\\.\"?[^\"]+\"?$");
 
     private final TrinoClient client;
 
@@ -75,7 +70,15 @@ public class TrinoDataConnectAdapter {
 
     private final ObjectMapper objectMapper;
 
-    public TrinoDataConnectAdapter(TrinoClient client, Jdbi jdbi, ThrowableTransformer throwableTransformer, ApplicationConfig applicationConfig, AuditEventLogger auditEventLogger, DataModelSupplier[] dataModelSuppliers, Tracer tracer) {
+    public TrinoDataConnectAdapter(
+        TrinoClient client,
+        Jdbi jdbi,
+        ThrowableTransformer throwableTransformer,
+        ApplicationConfig applicationConfig,
+        AuditEventLogger auditEventLogger,
+        DataModelSupplier[] dataModelSuppliers,
+        Tracer tracer
+    ) {
         this.client = client;
         this.jdbi = jdbi;
         this.throwableTransformer = throwableTransformer;
@@ -96,10 +99,12 @@ public class TrinoDataConnectAdapter {
     }
 
     // Pattern to match ga4gh_type two argument function
-    static final Pattern biFunctionPattern = Pattern.compile("((ga4gh_type)\\(\\s*([^,]+)\\s*,\\s*('[^']+')\\s*\\)((\\s+as)?\\s+((?!FROM\\s+)[A-Za-z0-9_]*))?)", Pattern.DOTALL|Pattern.CASE_INSENSITIVE);
+    static final Pattern biFunctionPattern = Pattern.compile("((ga4gh_type)\\(\\s*([^,]+)\\s*,\\s*('[^']+')\\s*\\)((\\s+as)?\\s+((?!FROM\\s+)[A-Za-z0-9_]*))?)",
+        Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
 
     @Getter
     static class SQLFunction {
+
         final String functionName;
         final List<String> args = new ArrayList<>();
         final String columnAlias;
@@ -107,19 +112,22 @@ public class TrinoDataConnectAdapter {
         public String getFunctionName() {
             return functionName;
         }
+
         public String getColumnAlias() {
             return columnAlias;
         }
+
         public List<String> getArgs() {
             return args;
         }
+
         public SQLFunction(MatchResult matchResult) {
             this.functionName = matchResult.group(2);
-            for(int i = 3; i < matchResult.groupCount()-2; ++i) {
+            for (int i = 3; i < matchResult.groupCount() - 2; ++i) {
                 this.args.add(matchResult.group(i));
             }
             this.columnAlias = matchResult.group(matchResult.groupCount());
-            log.debug("Extracted function "+this.functionName+" with alias "+((columnAlias!=null) ? columnAlias : "null"));
+            log.debug("Extracted function " + this.functionName + " with alias " + ((columnAlias != null) ? columnAlias : "null"));
         }
 
     }
@@ -128,15 +136,15 @@ public class TrinoDataConnectAdapter {
     //with a_argIndex
     private String rewriteQuery(String query, String functionName, int argIndex) {
         return biFunctionPattern.matcher(query)
-                                .replaceAll(matchResult-> {
-                           SQLFunction sf = new SQLFunction(matchResult);
-                           if (sf.getFunctionName().equals(functionName)) {
-                               String col = sf.getArgs().get(argIndex);
-                               String alias = sf.getColumnAlias();
-                               return (alias == null) ? col : col+" as "+alias;
-                           }
-                          return matchResult.group(1); //pass function through unchanged.
-                       });
+            .replaceAll(matchResult -> {
+                SQLFunction sf = new SQLFunction(matchResult);
+                if (sf.getFunctionName().equals(functionName)) {
+                    String col = sf.getArgs().get(argIndex);
+                    String alias = sf.getColumnAlias();
+                    return (alias == null) ? col : col + " as " + alias;
+                }
+                return matchResult.group(1); //pass function through unchanged.
+            });
     }
 
     // Extracts all two-argument SQL functions from a query.
@@ -151,8 +159,8 @@ public class TrinoDataConnectAdapter {
     private String getGa4ghType(SQLFunction ga4ghFunction) {
         String ga4ghType = ga4ghFunction.getArgs().get(1).strip();
         if ((ga4ghType.startsWith("'") && ga4ghType.endsWith("'")) ||
-           (ga4ghType.startsWith("\"") && ga4ghType.endsWith("\""))) {
-            return ga4ghType.substring(1, ga4ghType.length()-1);
+            (ga4ghType.startsWith("\"") && ga4ghType.endsWith("\""))) {
+            return ga4ghType.substring(1, ga4ghType.length() - 1);
         } else {
             throw new QueryParsingException("Couldn't parse query: second argument to ga4gh_type must be quoted.");
         }
@@ -163,7 +171,7 @@ public class TrinoDataConnectAdapter {
     private void applyGa4ghTypeSqlFunction(SQLFunction ga4ghTypeFunction, TableData tableData) {
         ObjectMapper objectMapper = new ObjectMapper();
         DataModel dataModel = tableData.getDataModel();
-        if (dataModel ==  null) {
+        if (dataModel == null) {
             return;
         }
 
@@ -179,25 +187,26 @@ public class TrinoDataConnectAdapter {
 
         ColumnSchema newColumnSchema;
         if (ga4ghType.startsWith("$ref:")) {
-            String[] parts = ga4ghType.split(":",2);
+            String[] parts = ga4ghType.split(":", 2);
             if (parts.length != 2) {
                 //This could have been detected earlier, but whatever.
                 throw new QueryParsingException("Unexpected second argument to ga4gh_type function, must be a valid JSON schema or the $ref:<URL> shorthand");
             }
             newColumnSchema = ColumnSchema.builder()
-                    .ref(parts[1])
-                    .build();
+                .ref(parts[1])
+                .build();
         } else {
             try {
                 newColumnSchema = objectMapper.readValue(ga4ghType, ColumnSchema.class);
             } catch (IOException e) {
-                throw new QueryParsingException("Unexpected second argument to ga4gh_type function, must be a valid JSON schema or the $ref:<URL> shorthand.", e);
+                throw new QueryParsingException("Unexpected second argument to ga4gh_type function, must be a valid JSON schema or the $ref:<URL> shorthand.",
+                    e);
             }
         }
 
         ColumnSchema columnSchema = columnSchemaMap.get(columnName);
         if (columnSchema == null) {
-            throw new QueryParsingException("ga4gh_type was applied to column "+columnName+", but this column was not found in response.");
+            throw new QueryParsingException("ga4gh_type was applied to column " + columnName + ", but this column was not found in response.");
         } else {
             columnSchemaMap.put(columnName, newColumnSchema);
         }
@@ -206,10 +215,12 @@ public class TrinoDataConnectAdapter {
 
     // Perform the given query and gather ALL results, by following Trino's nextUrl links
     // The query should NOT contain any functions that would not be recognized by Trino.
-    public TableData searchAll(String statement,
-                               HttpServletRequest request,
-                               Map<String, String> extraCredentials,
-                               DataModel dataModel) {
+    public TableData searchAll(
+        String statement,
+        HttpServletRequest request,
+        Map<String, String> extraCredentials,
+        DataModel dataModel
+    ) {
         log.debug("searchAll: Query: {}", statement);
         TableData tableData = search(statement, request, extraCredentials, dataModel);
         while (hasMore(tableData)) {
@@ -230,10 +241,12 @@ public class TrinoDataConnectAdapter {
 
     // Perform the given query and gather ALL results, by following Trino's nextUrl links
     // The query should NOT contain any functions that would not be recognized by Trino.
-    public TableData searchUntilHavingFirstRow(String statement,
-                                               HttpServletRequest request,
-                                               Map<String, String> extraCredentials,
-                                               DataModel dataModel) {
+    public TableData searchUntilHavingFirstRow(
+        String statement,
+        HttpServletRequest request,
+        Map<String, String> extraCredentials,
+        DataModel dataModel
+    ) {
         log.debug("searchUntilHavingFirstRow: Query: {}", statement);
         TableData tableData = search(statement, request, extraCredentials, dataModel);
         while (hasMore(tableData)) {
@@ -255,10 +268,12 @@ public class TrinoDataConnectAdapter {
         return tableData;
     }
 
-    public TableData search(String query,
-                            HttpServletRequest request,
-                            Map<String, String> extraCredentials,
-                            DataModel dataModel) {
+    public TableData search(
+        String query,
+        HttpServletRequest request,
+        Map<String, String> extraCredentials,
+        DataModel dataModel
+    ) {
 
         log.info("Received query: " + query + ".");
         String rewrittenQuery = rewriteQuery(query, "ga4gh_type", 0);
@@ -267,7 +282,7 @@ public class TrinoDataConnectAdapter {
             "search",
             "query",
             Map.of(
-            "query", Optional.ofNullable(rewrittenQuery).orElse("(undefined)"))
+                "query", Optional.ofNullable(rewrittenQuery).orElse("(undefined)"))
         );
         JsonNode response = client.query(rewrittenQuery, extraCredentials);
         QueryJob queryJob = createQueryJob(query, dataModel);
@@ -283,9 +298,9 @@ public class TrinoDataConnectAdapter {
             Map.of("page", Optional.ofNullable(page).orElse("(undefined)"))
         );
         JsonNode response = client.next(page, extraCredentials);
-        log.info("[getNextSearchPag]response = {}", response);
+        log.debug("[getNextSearchPage]response = {}", response);
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJobId, request);
-        log.info("[getNextSearchPag]tableData = {}", tableData);
+        log.debug("[getNextSearchPage]tableData = {}", tableData);
         populateTableSchemaIfAvailable(queryJobId, tableData);
         return tableData;
     }
@@ -302,10 +317,10 @@ public class TrinoDataConnectAdapter {
         }
 
         QueryJob queryJob = QueryJob.builder()
-                .query(query)
-                .id(UUID.randomUUID().toString())
-                .schema(tableSchema)
-                .build();
+            .query(query)
+            .id(UUID.randomUUID().toString())
+            .schema(tableSchema)
+            .build();
 
         jdbi.useExtension(QueryJobDao.class, dao -> dao.save(queryJob));
 
@@ -319,15 +334,15 @@ public class TrinoDataConnectAdapter {
     private PageIndexEntry getPageIndexEntryForCatalog(String catalog, int page, HttpServletRequest request) {
         URI uri = getLinkToCatalog(catalog, request);
         return PageIndexEntry.builder()
-                             .catalog(catalog)
-                             .url(uri)
-                             .page(page)
-                             .build();
+            .catalog(catalog)
+            .url(uri)
+            .page(page)
+            .build();
     }
 
     private List<PageIndexEntry> getPageIndex(Set<String> catalogs, HttpServletRequest request) {
-        final int[] page = {0};
-        return catalogs.stream().map(catalog->getPageIndexEntryForCatalog(catalog, page[0]++, request)).collect(Collectors.toList());
+        final int[] page = { 0 };
+        return catalogs.stream().map(catalog -> getPageIndexEntryForCatalog(catalog, page[0]++, request)).collect(Collectors.toList());
     }
 
     private TablesList getTables(String currentCatalog, String nextCatalog, HttpServletRequest request, Map<String, String> extraCredentials) {
@@ -402,28 +417,29 @@ public class TrinoDataConnectAdapter {
         return tableData;
     }
 
-    public TableInfo getTableInfo(String tableName,
-                                  HttpServletRequest request,
-                                  Map<String, String> extraCredentials) {
+    public TableInfo getTableInfo(
+        String tableName,
+        HttpServletRequest request,
+        Map<String, String> extraCredentials
+    ) {
         logAuditEvent(request, "table", "info", Map.of(
             "table", Optional.ofNullable(tableName).orElse("(undefined)")
         ));
         if (!isValidTrinoName(tableName)) {
             //triggers a 404.
-            throw new TrinoBadlyQualifiedNameException("Invalid tablename "+tableName+" -- expected name in format <catalog>.<schema>.<tableName>");
+            throw new TrinoBadlyQualifiedNameException("Invalid tablename " + tableName + " -- expected name in format <catalog>.<schema>.<tableName>");
         }
 
         // Get table JSON schema from tables registry if one exists for this table (for tables from trino-public)
         DataModel dataModel = getDataModelFromSupplier(tableName);
-
-        //Add quotes to tableName in the query. Table name can be of the format <catalog_name>.<datasource_name>.tableName
-        //So if the tableName has two dots in it, then everything after the third dot, should come within quotes.
-        String validTableName = getTableNameInCorrectFormat(tableName);
-        TableData tableData = searchAll("SELECT * FROM " + validTableName + " LIMIT 1", request, extraCredentials, dataModel);
-
-        // If the dataModel is not available from tables-registry, use the one from tableData
-        // Fill in the id & comments if the data model is ready
-        if (dataModel == null && tableData.getDataModel() != null) {
+        if (dataModel == null) {
+            log.info("Data model supplier returned null for table: '{}'. Falling back to trino query", tableName);
+            // since the data model was not found in the supplier, perform a more expensive query to fallback to trino and fetch a single
+            // row of data.
+            //Add quotes to tableName in the query. Table name can be of the format <catalog_name>.<datasource_name>.tableName
+            //So if the tableName has two dots in it, then everything after the third dot, should come within quotes.
+            String validTableName = getTableNameInCorrectFormat(tableName);
+            TableData tableData = searchAll("SELECT * FROM " + validTableName + " LIMIT 1", request, extraCredentials, dataModel);
             log.info("Data model is empty in tables registry for table {}.", tableName);
             dataModel = tableData.getDataModel();
             dataModel.setId(getDataModelId(tableName, request));
@@ -434,7 +450,7 @@ public class TrinoDataConnectAdapter {
 
     private String getTableNameInCorrectFormat(String tableName) {
         String validTableName = tableName;
-        if (StringUtils.countMatches(tableName, ".") >= 2 ) {
+        if (StringUtils.countMatches(tableName, ".") >= 2) {
 
             // If there are two or more dots, then quote the entire part after the second dot(assuming that this will be the table name).
             int secondIndex = StringUtils.ordinalIndexOf(tableName, ".", 2);
@@ -458,26 +474,14 @@ public class TrinoDataConnectAdapter {
         return qualifiedNameMatcher.matcher(tableName).matches();
     }
 
-    private TableData toTableData(String nextPageTemplate,
-                                  JsonNode trinoResponse,
-                                  String queryJobId,
-                                  HttpServletRequest request) {
-        List<Map<String, Object>> data = new ArrayList<>();
-        DataModel dataModel = null;
-        if (trinoResponse.hasNonNull("columns")) {
-            final JsonNode columns = trinoResponse.get("columns");
-            dataModel = generateDataModel(columns);
-            if (trinoResponse.hasNonNull("data")) {
-                for (JsonNode dataNode : trinoResponse.get("data")) { //for each row
-                    Map<String, Object> rowData = new LinkedHashMap<>();
-                    int i = 0;
-                    for (Map.Entry<String, ColumnSchema> entry : dataModel.getProperties().entrySet()) {
-                        rowData.put(entry.getKey(), getData(entry.getValue(), dataNode.get(i++)));
-                    }
-                    data.add(rowData);
-                }
-            }
-        } else if (trinoResponse.hasNonNull("error")) {
+    private TableData toTableData(
+        String nextPageTemplate,
+        JsonNode trinoResponse,
+        String queryJobId,
+        HttpServletRequest request
+    ) {
+
+        if (trinoResponse.hasNonNull("error")) {
             ObjectMapper objectMapper = new ObjectMapper();
             try {
                 TrinoError trinoError = objectMapper.readValue(trinoResponse.get("error").toString(), TrinoError.class);
@@ -491,7 +495,7 @@ public class TrinoDataConnectAdapter {
                 );
 
                 final var stack = new ArrayList<String>();
-                for (var it = trinoResponse.get("error").get("failureInfo").get("stack").iterator(); it.hasNext();) {
+                for (var it = trinoResponse.get("error").get("failureInfo").get("stack").iterator(); it.hasNext(); ) {
                     stack.add(it.next().asText());
                 }
 
@@ -524,8 +528,27 @@ public class TrinoDataConnectAdapter {
             } catch (IOException ex) {
                 throw new UncheckedTableDataConstructionException(ex);
             }
-
         }
+
+
+        List<Map<String, Object>> data = new ArrayList<>();
+        DataModel dataModel = null;
+        if (trinoResponse.hasNonNull("columns")) {
+            final JsonNode columns = trinoResponse.get("columns");
+            dataModel = generateDataModel(columns);
+            if (trinoResponse.hasNonNull("data")) {
+                for (JsonNode dataNode : trinoResponse.get("data")) { //for each row
+                    Map<String, Object> rowData = new LinkedHashMap<>();
+                    int i = 0;
+                    for (Map.Entry<String, ColumnSchema> entry : dataModel.getProperties().entrySet()) {
+                        rowData.put(entry.getKey(), getData(entry.getValue(), dataNode.get(i++)));
+                    }
+                    data.add(rowData);
+                }
+            }
+        }
+
+
 
         // Generate pagination
         Pagination pagination = generatePagination(nextPageTemplate, trinoResponse, queryJobId, request);
@@ -536,7 +559,7 @@ public class TrinoDataConnectAdapter {
         }
 
         if (tableData.getData().isEmpty()) {
-            log.warn("No data listed");
+            log.debug("No data in current trino response page");
         } else {
             if (tableData.getDataModel() == null) {
                 throw new DataModelNotDefinedException("The data model is null as it cannot be derived from Trino.");
@@ -556,8 +579,8 @@ public class TrinoDataConnectAdapter {
         Stream<SQLFunction> responseTransformingFunctions = parseSQLBiFunctions(query);
 
         responseTransformingFunctions
-                .filter(sqlFunction->sqlFunction.functionName.equals("ga4gh_type"))
-                .forEach(sqlFunction-> applyGa4ghTypeSqlFunction(sqlFunction, tableData));
+            .filter(sqlFunction -> sqlFunction.functionName.equals("ga4gh_type"))
+            .forEach(sqlFunction -> applyGa4ghTypeSqlFunction(sqlFunction, tableData));
     }
 
     @SneakyThrows
@@ -583,6 +606,7 @@ public class TrinoDataConnectAdapter {
      * It may or may not have a path (depending on X-Forwarded-Prefix) and it will never end with a slash.
      *
      * @param request
+     *
      * @return
      */
     private String callbackBaseUrl(HttpServletRequest request) {
@@ -614,7 +638,7 @@ public class TrinoDataConnectAdapter {
             // we need to eliminate the default port numbers because of Wallet pickiness
             String scheme = urlBuilder.build().getScheme();
             if ((scheme.equals("https") && !forwardedPort.equals("443")) ||
-                    (scheme.equals("http") && !forwardedPort.equals("80"))) {
+                (scheme.equals("http") && !forwardedPort.equals("80"))) {
                 urlBuilder.port(Integer.parseInt(forwardedPort));
             }
         }
@@ -634,12 +658,14 @@ public class TrinoDataConnectAdapter {
         return str;
     }
 
-    private static <T, K, U> Collector<T, ?, Map<K,U>> toSortedMap(Function<? super T, ? extends K> keyMapper,
-                                                                   Function<? super T, ? extends U> valueMapper) {
+    private static <T, K, U> Collector<T, ?, Map<K, U>> toSortedMap(
+        Function<? super T, ? extends K> keyMapper,
+        Function<? super T, ? extends U> valueMapper
+    ) {
         return Collectors.toMap(keyMapper,
-                         valueMapper,
-                         (k,v)->{ throw new UnexpectedQueryResponseException("Duplicate key "+k); },
-                         LinkedHashMap::new);
+            valueMapper,
+            (k, v) -> {throw new UnexpectedQueryResponseException("Duplicate key " + k);},
+            LinkedHashMap::new);
     }
 
 
@@ -647,13 +673,13 @@ public class TrinoDataConnectAdapter {
         if (columnSchema.getRawType().equals("map")) {
             LinkedHashMap<String, Object> map = new LinkedHashMap<>();
             if (trinoDataArray.getNodeType() != JsonNodeType.OBJECT) {
-                throw new UnexpectedQueryResponseException("Expected value for map was not of type object for schema "+columnSchema);
+                throw new UnexpectedQueryResponseException("Expected value for map was not of type object for schema " + columnSchema);
             }
 
             ColumnSchema mapEntryColumnSchema = columnSchema.getProperties().get("value");
             return Streams.stream(trinoDataArray.fields())
-                   .map(mapEntry-> Map.entry(mapEntry.getKey(), getData(mapEntryColumnSchema, mapEntry.getValue())))
-                   .collect(toSortedMap(deepMapEntry->deepMapEntry.getKey(), deepMapEntry->deepMapEntry.getValue()));
+                .map(mapEntry -> Map.entry(mapEntry.getKey(), getData(mapEntryColumnSchema, mapEntry.getValue())))
+                .collect(toSortedMap(deepMapEntry -> deepMapEntry.getKey(), deepMapEntry -> deepMapEntry.getValue()));
         } else if (columnSchema.getRawType().equals("row")) {
             if (trinoDataArray.getNodeType() != JsonNodeType.ARRAY) {
                 throw new UnexpectedQueryResponseException("Expected array of row values for schema " + columnSchema);
@@ -671,8 +697,8 @@ public class TrinoDataConnectAdapter {
             }
             ColumnSchema itemSchema = columnSchema.getItems();
             return StreamSupport.stream(trinoDataArray.spliterator(), false)
-                         .map(arrayValue->getData(itemSchema, arrayValue))
-                         .collect(Collectors.toUnmodifiableList());
+                .map(arrayValue -> getData(itemSchema, arrayValue))
+                .collect(Collectors.toUnmodifiableList());
         } else if (columnSchema.getRawType().equals("json")) { //json or primitive.
             try {
                 if (trinoDataArray.asText() != "null" && objectMapper.readTree(trinoDataArray.asText()).isArray()) {
@@ -681,16 +707,17 @@ public class TrinoDataConnectAdapter {
                     return objectMapper.readValue(trinoDataArray.asText(), new TypeReference<Map<String, Object>>() {});
                 }
             } catch (IOException e) {
-                throw new UnexpectedQueryResponseException("JSON came back badly formatted: trinoDataArray.asText() = " + trinoDataArray.asText() + ". Exception message=" + e.getMessage());
+                throw new UnexpectedQueryResponseException(
+                    "JSON came back badly formatted: trinoDataArray.asText() = " + trinoDataArray.asText() + ". Exception message=" + e.getMessage());
             }
         } else {
 
             if (trinoDataArray.isTextual()) {
                 //currently only textual types are transformed.
-                TrinoDataTransformer transformer =  JsonAdapter.getTrinoDataTransformer(columnSchema.getRawType());
+                TrinoDataTransformer transformer = JsonAdapter.getTrinoDataTransformer(columnSchema.getRawType());
                 if (transformer == null) {
                     return trinoDataArray.asText();
-                } else{
+                } else {
                     return transformer.transform(trinoDataArray.asText());
                 }
             } else if (trinoDataArray.isBoolean()) {
@@ -702,7 +729,7 @@ public class TrinoDataConnectAdapter {
             } else if (trinoDataArray.isNull()) {
                 return null;
             } else {
-                throw new UnexpectedQueryResponseException("Unexpected value type in data for schema "+columnSchema);
+                throw new UnexpectedQueryResponseException("Unexpected value type in data for schema " + columnSchema);
             }
         }
     }
@@ -713,58 +740,58 @@ public class TrinoDataConnectAdapter {
         if (rawType.equalsIgnoreCase("array")) {
             ColumnSchema columnSchema = getColumnSchema(trinoTypeDescription.get("arguments").get(0).get("value"));
             return ColumnSchema.builder()
-                    .type("array")
-                    .rawType(rawType)
-                    .comment("array["+columnSchema.getType()+"]")
-                    .items(columnSchema)
-                    .build();
+                .type("array")
+                .rawType(rawType)
+                .comment("array[" + columnSchema.getType() + "]")
+                .items(columnSchema)
+                .build();
         } else if (rawType.equalsIgnoreCase("row")) {
             JsonNode args = trinoTypeDescription.get("arguments");
 
             Map<String, ColumnSchema> m = StreamSupport.stream(args.spliterator(), false)
-                         .collect(
-                                 Collectors.toMap(rowArg->rowArg.get("value").get("fieldName").get("name").asText(),
-                                                  rowArg->getColumnSchema(rowArg.get("value").get("typeSignature")),
-                                                  (k,v)->{ throw new UnexpectedQueryResponseException("rows must have unique key names. Duplicate key "+k+", value="+v); },
-                                                  LinkedHashMap::new)); //maintain key order to generate better comment.
+                .collect(
+                    Collectors.toMap(rowArg -> rowArg.get("value").get("fieldName").get("name").asText(),
+                        rowArg -> getColumnSchema(rowArg.get("value").get("typeSignature")),
+                        (k, v) -> {throw new UnexpectedQueryResponseException("rows must have unique key names. Duplicate key " + k + ", value=" + v);},
+                        LinkedHashMap::new)); //maintain key order to generate better comment.
 
 
             return ColumnSchema.builder()
-                    .type("object")
-                    .rawType(rawType)
-                    .comment(String.format("row(%s)", Strings.join(
-                            m.values().stream()
-                             .map(cs->cs.getType())
-                             .collect(Collectors.toList()), ',')))
-                    .properties(m)
-                    .build();
+                .type("object")
+                .rawType(rawType)
+                .comment(String.format("row(%s)", Strings.join(
+                    m.values().stream()
+                        .map(cs -> cs.getType())
+                        .collect(Collectors.toList()), ',')))
+                .properties(m)
+                .build();
         } else if (rawType.equalsIgnoreCase("map")) {
 
             ColumnSchema keySchema = getColumnSchema(trinoTypeDescription.get("arguments").get(0).get("value"));
             ColumnSchema valueSchema = getColumnSchema(trinoTypeDescription.get("arguments").get(1).get("value"));
 
             return ColumnSchema.builder()
-                    .type("object")
-                    .rawType(rawType)
-                    .comment(String.format("map(%s, %s)", keySchema.getType(), valueSchema.getType()))
-                    .properties(Map.of("key", keySchema, "value", valueSchema))
-                    .build();
+                .type("object")
+                .rawType(rawType)
+                .comment(String.format("map(%s, %s)", keySchema.getType(), valueSchema.getType()))
+                .properties(Map.of("key", keySchema, "value", valueSchema))
+                .build();
 
         } else if (rawType.equalsIgnoreCase("json")) {
             return ColumnSchema.builder()
-                               .type("object")
-                               .rawType(rawType)
-                               .comment("json")
-                               .build();
+                .type("object")
+                .rawType(rawType)
+                .comment("json")
+                .build();
         } else {
             //must be a primitive.
             String type = JsonAdapter.toJsonType(rawType);
             return ColumnSchema.builder()
-                    .type(type)
-                    .rawType(rawType)
-                    .comment(rawType)
-                    .format(format)
-                    .build();
+                .type(type)
+                .rawType(rawType)
+                .comment(rawType)
+                .format(format)
+                .build();
         }
 
     }
@@ -772,9 +799,9 @@ public class TrinoDataConnectAdapter {
     private Map<String, ColumnSchema> getJsonSchemaProperties(JsonNode columns) {
 
         return StreamSupport.stream(columns.spliterator(), false)
-                     .map(column->{
-                         return Map.entry(column.get("name").asText(), getColumnSchema(column.get("typeSignature")));
-                     }).collect(toSortedMap(Map.Entry::getKey, Map.Entry::getValue));
+            .map(column -> {
+                return Map.entry(column.get("name").asText(), getColumnSchema(column.get("typeSignature")));
+            }).collect(toSortedMap(Map.Entry::getKey, Map.Entry::getValue));
 
     }
 
@@ -782,6 +809,7 @@ public class TrinoDataConnectAdapter {
      * Get a list of the catalogs served by the connected instance of Trino.
      *
      * @return A List of Strings, where each String is the name of the catalog.
+     *
      * @throws IOException If the query to enumerate the list of catalogs fails.
      */
     private Set<String> getTrinoCatalogs(HttpServletRequest request, Map<String, String> extraCredentials) {
@@ -796,7 +824,7 @@ public class TrinoDataConnectAdapter {
 
             log.trace("Found catalog {}", catalog);
             if (catalogSet.contains(catalog)) {
-                throw new AssertionError("Unexpected duplicate catalog "+catalog);
+                throw new AssertionError("Unexpected duplicate catalog " + catalog);
             }
             catalogSet.add(catalog);
         }
@@ -806,17 +834,19 @@ public class TrinoDataConnectAdapter {
     // DataModel related methods
     private DataModel generateDataModel(JsonNode columns) {
         return DataModel.builder()
-                .id(null)
-                .description("Automatically generated schema")
-                .schema(JSON_SCHEMA_DRAFT7_URI)
-                .properties(getJsonSchemaProperties(columns))
-                .build();
+            .id(null)
+            .description("Automatically generated schema")
+            .schema(JSON_SCHEMA_DRAFT7_URI)
+            .properties(getJsonSchemaProperties(columns))
+            .build();
     }
 
-    private void attachCommentsToDataModel(DataModel dataModel,
-                                           String tableName,
-                                           HttpServletRequest request,
-                                           Map<String, String> extraCredentials) {
+    private void attachCommentsToDataModel(
+        DataModel dataModel,
+        String tableName,
+        HttpServletRequest request,
+        Map<String, String> extraCredentials
+    ) {
         if (dataModel == null) {
             return;
         }
@@ -845,7 +875,7 @@ public class TrinoDataConnectAdapter {
     }
 
     private DataModel getDataModelFromSupplier(String tableName) {
-        for (DataModelSupplier dataModelSupplier: dataModelSuppliers) {
+        for (DataModelSupplier dataModelSupplier : dataModelSuppliers) {
             final var dataModel = dataModelSupplier.supply(tableName);
             if (dataModel != null) {
                 return dataModel;
@@ -902,4 +932,5 @@ public class TrinoDataConnectAdapter {
         return jdbi.withExtension(QueryJobDao.class, dao -> dao.get(id))
             .orElseThrow(() -> new InvalidQueryJobException(id, errorMessage));
     }
+
 }

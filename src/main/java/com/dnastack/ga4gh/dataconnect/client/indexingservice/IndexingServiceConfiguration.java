@@ -9,7 +9,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "app.indexing-service")
 public class IndexingServiceConfiguration {
+
     private boolean enabled = false;
     private String baseUri;
     private OAuthClientConfiguration oauthClient;
+    private String publisherCatalogName = null;
+
 }

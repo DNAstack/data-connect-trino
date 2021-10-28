@@ -10,18 +10,27 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class IndexingServiceDataModelSupplier implements DataModelSupplier {
+
     private final IndexingServiceClient client;
     private final ObjectMapper objectMapper = new ObjectMapper()
         .registerModule(new JavaTimeModule())
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
-    public IndexingServiceDataModelSupplier(IndexingServiceClient client) {
+
+    private final String publisherDataCatalogName;
+
+    public IndexingServiceDataModelSupplier(IndexingServiceClient client, String publisherDataCatalogName) {
         this.client = client;
+        this.publisherDataCatalogName = publisherDataCatalogName;
     }
 
     @Override
     public DataModel supply(String tableName) {
         String jsonSchemaAsString;
+        if (publisherDataCatalogName != null && tableName.startsWith(publisherDataCatalogName + ".") ) {
+            tableName = tableName.substring(publisherDataCatalogName.length() + 1);
+        }
+
         try {
             final LibraryItem libraryItem = client.get(tableName);
             log.info("LibraryItem {}", libraryItem);
@@ -39,4 +48,5 @@ public class IndexingServiceDataModelSupplier implements DataModelSupplier {
             return null;
         }
     }
+
 }
