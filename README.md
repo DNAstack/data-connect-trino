@@ -32,7 +32,7 @@ SPRING_PROFILES_ACTIVE=no-auth
 The data connect adapter requires a Postgres database. To start the app locally quickly with the default settings, you can 
 spin up the database with this docker command:
 ```
-docker run -d -p 5432:5432 --name ga4ghdataconnectpresto -e POSTGRES_USER=ga4ghdataconnectpresto -e POSTGRES_PASSWORD=ga4ghsearchadapterpresto postgres
+docker run -d -p 5432:5432 --name dataconnecttrino -e POSTGRES_USER=dataconnecttrino -e POSTGRES_PASSWORD=dataconnecttrino postgres
 ```
 
 ### Run
