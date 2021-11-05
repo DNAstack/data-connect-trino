@@ -484,6 +484,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
             return;
         }
 
+        assertThat(currentPage.getErrors(), is(nullValue()));
         assertThat(currentPage.getPagination(), not(nullValue()));
 
         //assert that the nth page has next url equal to the n+1st index.
@@ -493,6 +494,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 200,
                 ListTableResponse.class);
             log.info("Follow-up: Page {}: currentPage: {}", i, currentPage);
+            assertThat(currentPage.getErrors(), is(nullValue()));
             //all pages with index < pageIndex.size() - 1 should have a non null valid next url.
             assertThat(currentPage.getPagination().getNextPageUrl(), not(nullValue()));
             if (i == (pageIndex.size() - 1)) {
