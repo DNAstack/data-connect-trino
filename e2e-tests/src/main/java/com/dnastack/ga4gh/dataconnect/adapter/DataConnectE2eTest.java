@@ -125,17 +125,17 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     private static final int MAX_REAUTH_ATTEMPTS = 10;
 
-    private static String trinoTestUri = optionalEnv("E2E_TRINO_JDBCURI", "jdbc:trino://localhost:8091");;  // MUST be in format jdbc:trino://host:port
-    private static String trinoTestUser = optionalEnv("E2E_TRINO_USERNAME", null);; // optional
-    private static String trinoTestPass = optionalEnv("E2E_TRINO_PASSWORD", null);; // optional
-    private static String trinoAudience = optionalEnv("E2E_TRINO_AUDIENCE", null);; // optional
-    private static String trinoScopes = optionalEnv("E2E_TRINO_SCOPES", "full_access");;   // optional
+    private static final String trinoTestUri = optionalEnv("E2E_TRINO_JDBCURI", "jdbc:trino://localhost:8091");  // MUST be in format jdbc:trino://host:port
+    private static final String trinoTestUser = optionalEnv("E2E_TRINO_USERNAME", null); // optional
+    private static final String trinoTestPass = optionalEnv("E2E_TRINO_PASSWORD", null); // optional
+    private static final String trinoAudience = optionalEnv("E2E_TRINO_AUDIENCE", null); // optional
+    private static final String trinoScopes = optionalEnv("E2E_TRINO_SCOPES", "full_access");   // optional
 
     // test catalog name
-    private static String inMemoryCatalog = optionalEnv("E2E_INMEMORY_TESTCATALOG", "memory"); //memory;
+    private static final String inMemoryCatalog = optionalEnv("E2E_INMEMORY_TESTCATALOG", "memory"); //memory;
 
     // test schema name
-    private static String inMemorySchema = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default"); //default;
+    private static final String inMemorySchema = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default"); //default;
 
 
     private static boolean globalMethodSecurityEnabled;
@@ -151,10 +151,10 @@ public class DataConnectE2eTest extends BaseE2eTest {
      * These are the extra credentials of the type that the Data Connect API challenges for. They will be added to the
      * RestAssured requests created by {@link #givenAuthenticatedRequest(String...)}.
      */
-    private static Map<String, String> extraCredentials = new HashMap<>();
+    private static final Map<String, String> extraCredentials = new HashMap<>();
 
     @BeforeAll
-    public static void beforeClass() throws Exception {
+    public static void beforeClass() {
         globalMethodSecurityEnabled = Boolean.parseBoolean(optionalEnv("E2E_GLOBAL_METHOD_SECURITY_ENABLED", "false"));
         scopeCheckingEnabled = Boolean.parseBoolean(optionalEnv("E2E_SCOPE_CHECKING_ENABLED", "false"));
 
@@ -169,9 +169,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
         try {
             Class.forName("io.trino.jdbc.TrinoDriver");
-            //Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException ce) {
-            throw new RuntimeException("Class not found", ce);
+            throw new RuntimeException("Can't find JDBC driver", ce);
         }
 
         DriverManager.drivers().forEach(driver -> log.info("Got driver " + driver.toString()));
@@ -188,23 +187,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
             properties.setProperty("accessToken", getToken(trinoAudience, trinoScopes));
         }
 
-        Connection conn = DriverManager.getConnection(trinoTestUri, properties);
-        return conn;
-    }
-
-    private static void assertTestDatabaseConnection() {
-        try (Connection conn = getTestDatabaseConnection()) {
-            if (conn != null) {
-                log.info("Test database connection is valid for " + trinoTestUri);
-            } else {
-                throw new RuntimeException("Couldn't connect to test database with URI " + trinoTestUri);
-            }
-        } catch (SQLException e) {
-            log.error("Error connecting to test database.  SQL State: {}", e.getSQLState(), e.getMessage());
-            throw new RuntimeException("Couldn't connect to test database with URI " + trinoTestUri, e);
-        } catch (Exception e) {
-            throw new RuntimeException("Couldn't connect to test database with URI " + trinoTestUri, e);
-        }
+        return DriverManager.getConnection(trinoTestUri, properties);
     }
 
     private static String trinoDateTimeTestTable;
@@ -266,12 +249,12 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 try {
                     statement.execute(query);
                 } catch (SQLException se) {
-                    log.error("Detected error while setting up the test tables.  SQL State: %s\n%s", se.getSQLState(), se.getMessage());
+                    log.error("Detected error while setting up the test tables.  SQL State: {}\n{}", se.getSQLState(), se.getMessage());
                     throw new RuntimeException("During test table setup, failed to execute: " + query, se);
                 }
             });
         } catch (SQLException se) {
-            log.error("Error connecting to the server.  SQL State: %s\n%s", se.getSQLState(), se.getMessage());
+            log.error("Error connecting to the server.  SQL State: {}\n{}", se.getSQLState(), se.getMessage());
             throw new RuntimeException("Unable to setup test tables.", se);
         }
     }
