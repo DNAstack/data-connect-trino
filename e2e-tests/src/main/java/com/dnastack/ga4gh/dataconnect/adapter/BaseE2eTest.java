@@ -16,9 +16,7 @@ import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.*;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -79,6 +77,11 @@ public abstract class BaseE2eTest {
         } catch (URISyntaxException use) {
             throw new RuntimeException(String.format("Error initializing tests -- E2E_BASE_URI (%s) is invalid", RestAssured.baseURI));
         }
+    }
+
+    @BeforeEach
+    public void printTestStartMessage(TestInfo testInfo) {
+        log.info("*** Starting test case {}", testInfo.getDisplayName());
     }
 
     private static class TraceLoggingFilter implements Filter {
