@@ -66,7 +66,7 @@ public class TrinoCatalog {
             if (log.isTraceEnabled()) {
                 log.error("Error when fetching tables for {}", catalogName, t);
             }
-            return new TablesList(null, throwableTransformer.transform(t, catalogName), null);
+            return new TablesList(null, throwableTransformer.transform(t, catalogName), nextPage);
         }
     }
 }
