@@ -13,8 +13,8 @@ import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig.OauthClientConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.DelegatingJwtDecoder;
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
-import com.dnastack.ga4gh.dataconnect.adapter.telemetry.Monitor;
 import com.dnastack.ga4gh.dataconnect.adapter.telemetry.TrinoTelemetryClient;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -55,18 +55,15 @@ public class ApplicationConfig {
      * Other settings
      */
     private final String corsUrls;
-    private final Monitor monitor;
     private final Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter;
 
     @Autowired
     public ApplicationConfig(
-            Monitor monitor,
             Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter,
             @Value("${cors.urls}") String corsUrls,
             @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs,
             @Value("${trino.datasource.url}") String trinoDatasourceUrl
     ) {
-        this.monitor = monitor;
         this.jwtScopesConverter = jwtScopesConverter;
         this.corsUrls = corsUrls;
         this.hiddenCatalogs = hiddenCatalogs;
@@ -89,8 +86,9 @@ public class ApplicationConfig {
     }
 
     @Bean
-    public TrinoClient getTrinoClient(OkHttpClient httpClient, Tracer tracer, ServiceAccountAuthenticator accountAuthenticator) {
-        return new TrinoTelemetryClient(new TrinoHttpClient(tracer,httpClient, trinoDatasourceUrl, accountAuthenticator));
+    public TrinoClient getTrinoClient(OkHttpClient httpClient, Tracer tracer, ServiceAccountAuthenticator accountAuthenticator, MeterRegistry registry) {
+        return new TrinoTelemetryClient(
+                new TrinoHttpClient(tracer,httpClient, trinoDatasourceUrl, accountAuthenticator), registry);
     }
 
     @Bean

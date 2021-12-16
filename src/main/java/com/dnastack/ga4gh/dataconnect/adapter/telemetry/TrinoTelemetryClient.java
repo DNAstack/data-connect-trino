@@ -5,12 +5,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /***
  * Wraps a TrinoClient to add telemetry.
@@ -26,18 +28,29 @@ public class TrinoTelemetryClient implements TrinoClient {
     private final TrinoClient client;
     private final Cache<String, TrinoState> stateCache;
 
-    public TrinoTelemetryClient(TrinoClient client) {
+    public TrinoTelemetryClient(TrinoClient client, MeterRegistry registry) {
         this.client = client;
-        this.queryCount = Monitor.registerCounter("search.queries.queries_performed",
-            "The raw number of queries performed over a given step of time.");
-        this.queryLatency = Monitor.registerRequestTimer("search.queries.query_latency",
-            "The average latency of queries performed over a given step of time.");
-        this.queryQueueTime = Monitor
-            .registerRequestTimer("search.queries.queue_time", "The average time a request spends in the queued state");
-        this.queryExecuteTime = Monitor
-            .registerRequestTimer("search.queries.execute_time", "The average time a request spends executing");
-        this.pageCount = Monitor.registerCounter("search.queries.additional_pages_retrieved",
-            "The number of additional pages retrieved after an initial query.");
+
+        this.queryCount = Counter.builder("search.queries.queries_performed")
+                .description("The raw number of queries performed over a given step of time.")
+                .register(registry);
+
+        this.queryLatency = Timer.builder("search.queries.query_latency")
+                .description("The average latency of queries performed over a given step of time.")
+                .register(registry);
+
+        this.queryQueueTime = Timer.builder("search.queries.queue_time")
+                .description( "The average time a request spends in the queued state")
+                .register(registry);
+
+        this.queryExecuteTime = Timer.builder("search.queries.execute_time")
+                .description( "The average time a request spends executing")
+                .register(registry);
+
+        this.pageCount = Counter.builder("search.queries.additional_pages_retrieved")
+                .description("The number of additional pages retrieved after an initial query.")
+                .register(registry);
+
         stateCache = CacheBuilder.newBuilder().expireAfterWrite(15, TimeUnit.MINUTES).build();
     }
 
