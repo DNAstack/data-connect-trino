@@ -30,3 +30,25 @@ databaseChangeLog:
                         nullable: true
                     name: schema
                     type: VARCHAR
+- changeSet:
+    id: add_query_time_cols
+    author: prajjwolm
+    changes:
+        - addColumn:
+            tableName: query_job
+            columns:
+                - column:
+                    name: started_at
+                    type: timestamptz
+        - addColumn:
+            tableName: query_job
+            columns:
+                - column:
+                    name: last_activity_at, and finished_at
+                    type: timestamptz
+        - addColumn:
+            tableName: query_job
+            columns:
+                - column:
+                    name: finished_at
+                    type: timestamptz
