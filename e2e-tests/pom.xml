@@ -9,19 +9,11 @@
 	<version>0.1-SNAPSHOT</version>
 	<name>Data Connect End-to-end tests</name>
 
-	<repositories>
-		<repository>
-			<id>github-public</id>
-			<name>DNAstack Public Github Packages</name>
-			<url>https://maven.pkg.github.com/DNAstack/dnastack-public-packages</url>
-		</repository>
-	</repositories>
-
 	<properties>
 		<java.version>11</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
-		<actuator-e2e-test.version>1.0-24-gf249274</actuator-e2e-test.version>
+		<actuator-e2e-test.version>1.0.0</actuator-e2e-test.version>
 	</properties>
 
 	<dependencyManagement>
