@@ -8,7 +8,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableScheduling
 @SpringBootApplication
-@EnableConfigurationProperties(AuditEventLoggerProperties.class) // can be removed on spring-boot version upgrade
 public class DataConnectTrinoApplication {
 
     public static void main(String[] args) {

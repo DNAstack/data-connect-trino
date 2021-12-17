@@ -61,7 +61,7 @@
     <feign.version>10.2.0</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <wallet-token-validator.version>1.0-48-g6fbb745</wallet-token-validator.version>
-    <audit-event-logger.version>1.0-37-gc37b833</audit-event-logger.version>
+    <audit-event-logger.version>1.0-47-g5b091b4</audit-event-logger.version>
     <oauth-client-factory.version>0.1-10-gd1d87e8</oauth-client-factory.version>
   </properties>
 
