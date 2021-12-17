@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.regex.MatchResult;
@@ -285,7 +286,7 @@ public class TrinoDataConnectAdapter {
                 "query", Optional.ofNullable(rewrittenQuery).orElse("(undefined)"))
         );
         JsonNode response = client.query(rewrittenQuery, extraCredentials);
-        QueryJob queryJob = createQueryJob(query, dataModel);
+        QueryJob queryJob = createQueryJob(response.get("id").asText(), query, dataModel);
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob.getId(), request);
         return tableData;
     }
@@ -302,10 +303,19 @@ public class TrinoDataConnectAdapter {
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJobId, request);
         log.debug("[getNextSearchPage]tableData = {}", tableData);
         populateTableSchemaIfAvailable(queryJobId, tableData);
+
+        if (queryJobId != null) {
+            Instant currentTime = Instant.now();
+            jdbi.useExtension(QueryJobDao.class, dao -> dao.setLastActivityAt(currentTime, queryJobId));
+            if (tableData.getPagination().getNextPageUrl() == null) {
+                jdbi.useExtension(QueryJobDao.class, dao -> dao.setFinishedAt(currentTime, queryJobId));
+            }
+        }
+
         return tableData;
     }
 
-    private QueryJob createQueryJob(String query, DataModel dataModel) {
+    private QueryJob createQueryJob(String queryId, String query, DataModel dataModel) {
 
         String tableSchema = null;
         if (dataModel != null) {
@@ -316,9 +326,12 @@ public class TrinoDataConnectAdapter {
             }
         }
 
+        var currentTime = Instant.now();
         QueryJob queryJob = QueryJob.builder()
             .query(query)
-            .id(UUID.randomUUID().toString())
+            .id(queryId)
+            .startedAt(currentTime)
+            .lastActivityAt(currentTime)
             .schema(tableSchema)
             .build();
 
@@ -483,6 +496,9 @@ public class TrinoDataConnectAdapter {
 
         if (trinoResponse.hasNonNull("error")) {
             ObjectMapper objectMapper = new ObjectMapper();
+
+            jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJobId));
+
             try {
                 TrinoError trinoError = objectMapper.readValue(trinoResponse.get("error").toString(), TrinoError.class);
                 log.error("Trino Error: State: {}", trinoResponse.get("stats").get("state"));

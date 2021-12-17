@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,4 +19,10 @@ public class QueryJob {
     // This column is used to store table schema retrieved from tables-registry.
     // If the table schema is not available in tables-registry, this column stays empty.
     private String schema;
+
+    private Instant startedAt;
+
+    private Instant finishedAt;
+
+    private Instant lastActivityAt;
 }
