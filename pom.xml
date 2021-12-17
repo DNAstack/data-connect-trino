@@ -63,6 +63,7 @@
     <wallet-token-validator.version>1.0-48-g6fbb745</wallet-token-validator.version>
     <audit-event-logger.version>1.0-47-g5b091b4</audit-event-logger.version>
     <oauth-client-factory.version>0.1-10-gd1d87e8</oauth-client-factory.version>
+    <logback-extensions.version>1.0.0</logback-extensions.version>
   </properties>
 
   <dependencies>
@@ -233,6 +234,13 @@
       <groupId>com.dnastack</groupId>
       <artifactId>java-oauth-client-factory-spring-starter</artifactId>
       <version>${oauth-client-factory.version}</version>
+    </dependency>
+
+    <!-- Customized Logging -->
+    <dependency>
+      <groupId>com.dnastack</groupId>
+      <artifactId>logback-extensions</artifactId>
+      <version>${logback-extensions.version}</version>
     </dependency>
 
   </dependencies>
