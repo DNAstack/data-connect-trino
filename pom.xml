@@ -60,9 +60,9 @@
     <version.bouncy.castle>1.66</version.bouncy.castle>
     <feign.version>10.2.0</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
-    <wallet-token-validator.version>1.0-48-g6fbb745</wallet-token-validator.version>
-    <audit-event-logger.version>1.0-47-g5b091b4</audit-event-logger.version>
-    <oauth-client-factory.version>0.1-10-gd1d87e8</oauth-client-factory.version>
+    <dnastack-token-validator.version>1.0.2</dnastack-token-validator.version>
+    <audit-event-logger.version>1.0.0</audit-event-logger.version>
+    <oauth-client-factory.version>0.1.0</oauth-client-factory.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
   </properties>
 
@@ -219,8 +219,8 @@
     <!--Supporting-->
     <dependency>
       <groupId>com.dnastack</groupId>
-      <artifactId>java-wallet-token-validator</artifactId>
-      <version>${wallet-token-validator.version}</version>
+      <artifactId>dnastack-token-validator</artifactId>
+      <version>${dnastack-token-validator.version}</version>
     </dependency>
 
     <!-- Audit Event Logger -->
@@ -232,7 +232,7 @@
 
     <dependency>
       <groupId>com.dnastack</groupId>
-      <artifactId>java-oauth-client-factory-spring-starter</artifactId>
+      <artifactId>dnastack-oauth-client-factory-spring-starter</artifactId>
       <version>${oauth-client-factory.version}</version>
     </dependency>
 
@@ -280,18 +280,6 @@
       <id>spring-milestones</id>
       <name>Spring Milestones</name>
       <url>https://repo.spring.io/milestone</url>
-    </repository>
-
-    <repository>
-      <id>github</id>
-      <name>GitHub OWNER Apache Maven Packages</name>
-      <url>https://maven.pkg.github.com/DNAstack/dnastack-packages</url>
-    </repository>
-
-    <repository>
-      <id>dnastack-releases</id>
-      <layout>default</layout>
-      <url>https://nexus.dnastack.com/content/repositories/releases</url>
     </repository>
   </repositories>
 </project>
