@@ -31,7 +31,7 @@ databaseChangeLog:
                     name: schema
                     type: VARCHAR
 - changeSet:
-    id: add_query_time_cols
+    id: add-query-time-columns
     author: prajjwolm
     changes:
         - addColumn:
@@ -44,7 +44,7 @@ databaseChangeLog:
             tableName: query_job
             columns:
                 - column:
-                    name: last_activity_at, and finished_at
+                    name: last_activity_at
                     type: timestamptz
         - addColumn:
             tableName: query_job
