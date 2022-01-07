@@ -1,15 +1,17 @@
 package com.dnastack.ga4gh.dataconnect.repository;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
+@SuperBuilder(toBuilder = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@ToString
 @Builder
 public class QueryJob {
     private String id;
@@ -25,4 +27,6 @@ public class QueryJob {
     private Instant finishedAt;
 
     private Instant lastActivityAt;
+
+    private String nextPageUrl;
 }

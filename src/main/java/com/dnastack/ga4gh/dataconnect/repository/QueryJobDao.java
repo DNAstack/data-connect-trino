@@ -1,9 +1,9 @@
 package com.dnastack.ga4gh.dataconnect.repository;
 
 import org.jdbi.v3.sqlobject.config.RegisterBeanMapper;
-import org.jdbi.v3.sqlobject.config.RegisterRowMapper;
 import org.jdbi.v3.sqlobject.customizer.Bind;
 import org.jdbi.v3.sqlobject.customizer.BindBean;
+import org.jdbi.v3.sqlobject.statement.SqlCall;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 
@@ -16,7 +16,7 @@ public interface QueryJobDao {
     @SqlQuery("SELECT * FROM query_job WHERE id = :id")
     Optional<QueryJob> get(@Bind String id);
 
-    @SqlUpdate("INSERT INTO query_job (id, query, schema, started_at, last_activity_at) VALUES (:id, :query, :schema, :startedAt, :lastActivityAt)")
+    @SqlUpdate("INSERT INTO query_job (id, query, schema, started_at, last_activity_at, next_page_url) VALUES (:id, :query, :schema, :startedAt, :lastActivityAt, :nextPageUrl)")
     void save(@BindBean QueryJob queryJob);
 
     @SqlUpdate("UPDATE query_job SET finished_at = :finishedAt WHERE id = :id")
@@ -28,7 +28,9 @@ public interface QueryJobDao {
     @SqlUpdate("UPDATE query_job SET last_activity_at = now(), finished_at = now() where id = :id")
     void setQueryFinishedAndLastActivityTime(@Bind String id);
 
-    @SqlQuery("SELECT * FROM query_job WHERE last_activity_at < :lastActivty AND finished_at IS NULL")
-    @RegisterRowMapper(QueryJobRowMapper.class)
-    Optional<List<QueryJob>> getOldQueries(@Bind Instant lastActivity);
+    @SqlQuery("SELECT * FROM query_job WHERE last_activity_at < :lastActivity AND finished_at IS NULL")
+    List<QueryJob> getOldQueries(@Bind Instant lastActivity);
+
+    @SqlQuery("SELECT next_page_url FROM query_job WHERE id = :id")
+    String getNextPageUrl(@Bind String id);
 }

@@ -18,12 +18,14 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.jdbi.v3.core.Jdbi;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
@@ -97,6 +99,16 @@ public class TrinoHttpClient implements TrinoClient {
             }
         } finally {
             span.finish();
+        }
+    }
+
+    @Override
+    public void killQuery(String page) {
+        Request.Builder request = new Request.Builder().url(page).method("DELETE", null);
+        try {
+            execute(request, Collections.emptyMap());
+        } catch (IOException ie) {
+            throw new TrinoIOException("Unable to send DELETE request to kill old running query.", ie);
         }
     }
 
@@ -251,9 +263,9 @@ public class TrinoHttpClient implements TrinoClient {
                 .size());
             Response response = httpClient.newCall(r).execute();
             log.info("GET "+r.url()+" returned "+response.code());
-            if(response !=null && !response.isSuccessful()){
+            if(response != null && !response.isSuccessful()){
                 log.debug("GET "+r.url()+" gave unsuccessful response "+response.code()+": "+
-                          ((response.body()==null) ? "null" : response.body().string()));
+                          ((response.body() == null) ? "null" : response.body().string()));
             }
             return response;
         }

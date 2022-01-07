@@ -9,34 +9,44 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
 public class QueryCleanupManager {
 
     private final Jdbi jdbi;
+    private final TrinoClient client;
 
     @Value("${app.query-cleanup-timeout-in-seconds}")
     private int queryCleanupTimeoutInSeconds;
 
-    public QueryCleanupManager(Jdbi jdbi) {this.jdbi = jdbi;}
+    public QueryCleanupManager(Jdbi jdbi, TrinoClient client) {
+        this.jdbi = jdbi;
+        this.client = client;
+    }
 
-//    @Scheduled(cron = "${app.query-cleanup-interval}")
-    @Scheduled(cron = "0/2 * * ? * *")
+    @Scheduled(cron = "${app.query-cleanup-interval}")
     public void cleanupOldQueries() {
-        Optional<List<QueryJob>> optionalQueryJobList = jdbi.withExtension(QueryJobDao.class, dao -> {
+        List<QueryJob> queryJobList = jdbi.withExtension(QueryJobDao.class, dao -> {
             Instant oldQueryTimestamp = Instant.now().minusSeconds(queryCleanupTimeoutInSeconds);
-            var test = dao.getOldQueries(oldQueryTimestamp);
-            return test;
+            return dao.getOldQueries(oldQueryTimestamp);
         });
-        if (optionalQueryJobList.isEmpty()) {
+        if (queryJobList.isEmpty()) {
             log.info("No old queries present, skipping cleanup.");
         } else {
-            List<QueryJob> queryJobList = optionalQueryJobList.get();
             log.info("Terminating {} old queries", queryJobList.size());
-            queryJobList.forEach(queryJob -> log.info("Terminating query with ID: {}", queryJob.getId()));
+            queryJobList.forEach(queryJob -> {
+                final String queryJobId = queryJob.getId();
+                log.info("Terminating query with ID: {}", queryJobId);
+                client.killQuery(queryJob.getNextPageUrl());
+                jdbi.useExtension(QueryJobDao.class, dao -> {
+                    dao.setFinishedAt(Instant.now(), queryJobId);
+                });
+            });
         }
     }
 

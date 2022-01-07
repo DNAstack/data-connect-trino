@@ -286,9 +286,8 @@ public class TrinoDataConnectAdapter {
                 "query", Optional.ofNullable(rewrittenQuery).orElse("(undefined)"))
         );
         JsonNode response = client.query(rewrittenQuery, extraCredentials);
-        QueryJob queryJob = createQueryJob(response.get("id").asText(), query, dataModel);
-        TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob.getId(), request);
-        return tableData;
+        QueryJob queryJob = createQueryJob(response.get("id").asText(), query, response.get("nextUri").asText(), dataModel);
+        return toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob.getId(), request);
     }
 
     public TableData getNextSearchPage(String page, String queryJobId, HttpServletRequest request, Map<String, String> extraCredentials) {
@@ -315,7 +314,7 @@ public class TrinoDataConnectAdapter {
         return tableData;
     }
 
-    private QueryJob createQueryJob(String queryId, String query, DataModel dataModel) {
+    private QueryJob createQueryJob(String queryId, String query, String nextPageUrl, DataModel dataModel) {
 
         String tableSchema = null;
         if (dataModel != null) {
@@ -333,6 +332,7 @@ public class TrinoDataConnectAdapter {
             .startedAt(currentTime)
             .lastActivityAt(currentTime)
             .schema(tableSchema)
+            .nextPageUrl(nextPageUrl)
             .build();
 
         jdbi.useExtension(QueryJobDao.class, dao -> dao.save(queryJob));
