@@ -75,17 +75,6 @@ public class TrinoHttpClient implements TrinoClient {
 
     }
 
-//    public Single<JsonNode> next(String page, Map<String, String> extraCredentials) {
-//        return Single.defer(() -> {
-//            return Single.fromCallable(() -> {
-//                //TODO: better url construction
-//                try (Response response = get(this.trinoServer + "/" + page, extraCredentials)) {
-//                    return pollForQueryResults(response, extraCredentials, 0, new QueryManager());
-//                }
-//            });
-//        }).subscribeOn(Schedulers.io());
-//    }
-
     public JsonNode next(String page, Map<String, String> extraCredentials) {
         Span span = tracer.nextSpan().name("trinoNext");
         try (Tracer.SpanInScope ws = tracer.withSpanInScope(span.start())) {
@@ -103,8 +92,8 @@ public class TrinoHttpClient implements TrinoClient {
     }
 
     @Override
-    public void killQuery(String page) {
-        Request.Builder request = new Request.Builder().url(page).method("DELETE", null);
+    public void killQuery(String nextPageUrl) {
+        Request.Builder request = new Request.Builder().url(nextPageUrl).method("DELETE", null);
         try {
             execute(request, Collections.emptyMap());
         } catch (IOException ie) {

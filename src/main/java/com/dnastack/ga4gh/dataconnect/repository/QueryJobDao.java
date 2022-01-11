@@ -17,7 +17,7 @@ public interface QueryJobDao {
     Optional<QueryJob> get(@Bind String id);
 
     @SqlUpdate("INSERT INTO query_job (id, query, schema, started_at, last_activity_at, next_page_url) VALUES (:id, :query, :schema, :startedAt, :lastActivityAt, :nextPageUrl)")
-    void save(@BindBean QueryJob queryJob);
+    void create(@BindBean QueryJob queryJob);
 
     @SqlUpdate("UPDATE query_job SET finished_at = :finishedAt WHERE id = :id")
     void setFinishedAt(@Bind Instant finishedAt, @Bind String id);
