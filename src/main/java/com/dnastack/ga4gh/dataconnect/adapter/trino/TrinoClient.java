@@ -28,4 +28,11 @@ public interface TrinoClient {
      * Never null.
      */
     JsonNode next(String page, Map<String, String> extraCredentials);
+
+    /**
+     * Used by the {@link QueryCleanupManager} to kill queries that are no longer being used.
+     *
+     * @param nextPageUrl the next page URL returned by Trino in a previous call.
+     */
+    void killQuery(String nextPageUrl);
 }

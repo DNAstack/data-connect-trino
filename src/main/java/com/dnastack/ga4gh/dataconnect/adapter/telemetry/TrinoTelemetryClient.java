@@ -72,6 +72,10 @@ public class TrinoTelemetryClient implements TrinoClient {
         return jsonNode;
     }
 
+    @Override
+    public void killQuery(String nextPageUrl) {
+        client.killQuery(nextPageUrl);
+    }
 
     @Data
     @AllArgsConstructor

@@ -57,7 +57,7 @@ public class DataConnectController {
         String page = request.getRequestURI()
                              .split(request.getContextPath() + "/search/")[1];
         log.info("/search/** page= {}", page);
-        TableData tableData = null;
+        TableData tableData;
 
         try {
             tableData = trinoDataConnectAdapter

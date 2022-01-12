@@ -40,6 +40,8 @@ app:
     oauth-client:
       resource: "${app.indexing-service.base-uri}"
     publisher-catalog-name: publisher_data
+  query-cleanup-interval: "*/10 * * ? * *" # Every 10 seconds
+  query-cleanup-timeout-in-seconds: 120
 
 trino:
   datasource:
