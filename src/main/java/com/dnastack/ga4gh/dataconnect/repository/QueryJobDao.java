@@ -29,6 +29,7 @@ public interface QueryJobDao {
     void setQueryFinishedAndLastActivityTime(@Bind String id);
 
     @SqlQuery("SELECT * FROM query_job WHERE last_activity_at < :lastActivity AND finished_at IS NULL")
+    @SqlQuery("SELECT * FROM query_job WHERE (last_activity_at IS NOT NULL AND started_at IS NOT NULL) AND last_activity_at < :lastActivity AND finished_at IS NULL")
     List<QueryJob> getOldQueries(@Bind Instant lastActivity);
 
     @SqlQuery("SELECT next_page_url FROM query_job WHERE id = :id")
