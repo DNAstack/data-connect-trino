@@ -18,10 +18,10 @@ public class QueryCleanupManager {
     private final Jdbi jdbi;
     private final TrinoClient client;
 
-    @Value("${app.query-cleanup.query-timeout-in-seconds}")
+    @Value("${app.query-cleanup.timeout-in-seconds}")
     private int queryCleanupTimeoutInSeconds;
 
-    @Value("${app.query-job-cleanup.query-deletion-timeout-in-days}")
+    @Value("${app.query-job-cleanup.deletion-timeout-in-days}")
     private int queryJobCleanupDeletionTimeoutInDays;
 
     public QueryCleanupManager(Jdbi jdbi, TrinoClient client) {

@@ -42,10 +42,10 @@ app:
     publisher-catalog-name: publisher_data
   query-cleanup:
     cron-interval: "*/10 * * ? * *" # Every 10 seconds
-    query-timeout-in-seconds: 120
+    timeout-in-seconds: 120
   query-job-cleanup:
     cron-interval: "0 0 1 * * ?" # Every day at 1am
-    query-deletion-timeout-in-days: 1
+    deletion-timeout-in-days: 1
 
 trino:
   datasource:
