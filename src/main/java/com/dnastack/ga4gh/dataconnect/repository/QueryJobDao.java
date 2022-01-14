@@ -3,7 +3,7 @@ package com.dnastack.ga4gh.dataconnect.repository;
 import org.jdbi.v3.sqlobject.config.RegisterBeanMapper;
 import org.jdbi.v3.sqlobject.customizer.Bind;
 import org.jdbi.v3.sqlobject.customizer.BindBean;
-import org.jdbi.v3.sqlobject.statement.SqlCall;
+import org.jdbi.v3.sqlobject.customizer.BindList;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 
@@ -31,6 +31,9 @@ public interface QueryJobDao {
     @SqlQuery("SELECT * FROM query_job WHERE (last_activity_at IS NOT NULL AND started_at IS NOT NULL) AND last_activity_at < :lastActivity AND finished_at IS NULL")
     List<QueryJob> getOldQueries(@Bind Instant lastActivity);
 
-    @SqlQuery("SELECT next_page_url FROM query_job WHERE id = :id")
-    String getNextPageUrl(@Bind String id);
+    @SqlQuery("SELECT * FROM query_job WHERE last_activity_at < now()::DATE - :timeoutInDays")
+    List<String> getQueryJobIdsToDelete(@Bind int timeoutInDays);
+
+    @SqlUpdate("DELETE FROM query_job WHERE query_id IN (<queryJobIds>)")
+    void deleteOldQueryJobs(@BindList List<String> queryJobIds);
 }

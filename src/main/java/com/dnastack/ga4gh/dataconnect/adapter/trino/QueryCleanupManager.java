@@ -18,16 +18,19 @@ public class QueryCleanupManager {
     private final Jdbi jdbi;
     private final TrinoClient client;
 
-    @Value("${app.query-cleanup-timeout-in-seconds}")
+    @Value("${app.query-cleanup-query-timeout-in-seconds}")
     private int queryCleanupTimeoutInSeconds;
+
+    @Value("${app.query-job-cleanup-query-deletion-timeout-in-days}")
+    private int queryJobCleanupDeletionTimeoutInDays;
 
     public QueryCleanupManager(Jdbi jdbi, TrinoClient client) {
         this.jdbi = jdbi;
         this.client = client;
     }
 
-    @Scheduled(cron = "${app.query-cleanup-interval}")
-    public void cleanupOldQueries() {
+    @Scheduled(cron = "${app.query-cleanup-cron-interval}")
+    public void terminateOldQueries() {
         List<QueryJob> queryJobList = jdbi.withExtension(QueryJobDao.class, dao -> {
             Instant oldQueryTimestamp = Instant.now().minusSeconds(queryCleanupTimeoutInSeconds);
             return dao.getOldQueries(oldQueryTimestamp);
@@ -45,6 +48,14 @@ public class QueryCleanupManager {
                 });
             });
         }
+    }
+
+    @Scheduled(cron = "${app.query-job-cleanup-cron-interval}")
+    public void deleteOldQueryJobRows() {
+        jdbi.useExtension(QueryJobDao.class, dao -> {
+            List<String> queryJobIdsToBeDeleted = dao.getQueryJobIdsToDelete(queryJobCleanupDeletionTimeoutInDays);
+            dao.deleteOldQueryJobs(queryJobIdsToBeDeleted);
+        });
     }
 
 }
