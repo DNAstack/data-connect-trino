@@ -31,7 +31,7 @@ public interface QueryJobDao {
     @SqlQuery("SELECT * FROM query_job WHERE next_page_url IS NOT NULL AND last_activity_at < :lastActivity AND finished_at IS NULL")
     List<QueryJob> getOldQueries(@Bind Instant lastActivity);
 
-    @SqlQuery("SELECT * FROM query_job WHERE last_activity_at < now()::DATE - :timeoutInDays")
+    @SqlQuery("SELECT id FROM query_job WHERE last_activity_at < now()::DATE - :timeoutInDays")
     List<String> getQueryJobIdsToDelete(@Bind int timeoutInDays);
 
     @SqlUpdate("DELETE FROM query_job WHERE id IN (<queryJobIds>)")
