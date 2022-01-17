@@ -45,7 +45,7 @@ app:
     timeout-in-seconds: 120
   query-job-cleanup:
     cron-interval: "0 0 1 * * ?" # Every day at 1am
-    deletion-timeout-in-days: 1
+    deletion-timeout-in-days: 7
 
 trino:
   datasource:

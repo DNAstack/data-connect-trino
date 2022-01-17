@@ -28,7 +28,7 @@ public interface QueryJobDao {
     @SqlUpdate("UPDATE query_job SET last_activity_at = now(), finished_at = now() where id = :id")
     void setQueryFinishedAndLastActivityTime(@Bind String id);
 
-    @SqlQuery("SELECT * FROM query_job WHERE (last_activity_at IS NOT NULL AND started_at IS NOT NULL) AND last_activity_at < :lastActivity AND finished_at IS NULL")
+    @SqlQuery("SELECT * FROM query_job WHERE next_page_url IS NOT NULL AND last_activity_at < :lastActivity AND finished_at IS NULL")
     List<QueryJob> getOldQueries(@Bind Instant lastActivity);
 
     @SqlQuery("SELECT * FROM query_job WHERE last_activity_at < now()::DATE - :timeoutInDays")
