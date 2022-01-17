@@ -51,9 +51,8 @@ public class QueryCleanupManager {
     @Scheduled(cron = "${app.query-job-cleanup.cron-interval}")
     public void deleteOldQueryJobRows() {
         jdbi.useExtension(QueryJobDao.class, dao -> {
-            List<String> queryJobIdsToBeDeleted = dao.getQueryJobIdsToDelete(queryJobCleanupDeletionTimeoutInDays);
-            log.info("Deleting {} rows from the query_job table", queryJobIdsToBeDeleted.size());
-            dao.deleteOldQueryJobs(queryJobIdsToBeDeleted);
+            var recordsDeleted = dao.deleteOldQueryJobs(queryJobCleanupDeletionTimeoutInDays);
+            log.info("Deleted {} rows from the query_job table", recordsDeleted);
         });
     }
 
