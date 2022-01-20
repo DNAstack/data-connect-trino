@@ -711,7 +711,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         assumeTrue(scopeCheckingEnabled);
 
         DataConnectRequest testDataConnectRequest = new DataConnectRequest("SELECT * FROM E2ETEST LIMIT 10");
-        givenAuthenticatedRequest("search:data") // but not search:query
+        givenAuthenticatedRequest("data-connect:data") // but not data-connect:query
                 .when()
                 .contentType(ContentType.JSON)
                 .body(testDataConnectRequest)
@@ -721,7 +721,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 .statusCode(403)
                 .header("WWW-Authenticate", containsString("error=\"insufficient_scope\""));
 
-        givenAuthenticatedRequest("search:query") // but not search:data
+        givenAuthenticatedRequest("data-connect:query") // but not data-connect:data
                 .when()
                 .contentType(ContentType.JSON)
                 .body(testDataConnectRequest)
