@@ -35,4 +35,4 @@ ARG APP_VERSION
 
 COPY --from=0 /build/target/data-connect-trino-*.jar /app.jar
 EXPOSE 8080
-ENTRYPOINT ["java","-jar", "app.jar", "-XX:MaxRAMPercentage=90"]
+ENTRYPOINT exec java ${JAVA_OPTS} -jar app.jar
