@@ -36,8 +36,10 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static io.restassured.http.Method.POST;
 
 @Slf4j
 public class DataConnectE2eTest extends BaseE2eTest {
@@ -137,6 +139,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
     // test schema name
     private static final String inMemorySchema = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default"); //default;
 
+    private static final String showSchemaForCatalogName = optionalEnv("E2E_SHOW_SCHEMA_FOR_CATALOG_NAME", "data_lake");
+    private static final String showTableForCatalogSchemaName = optionalEnv("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME", "data_lake.public");
 
     private static boolean globalMethodSecurityEnabled;
     private static boolean scopeCheckingEnabled;
@@ -730,6 +734,40 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 .log().ifValidationFails()
                 .statusCode(403)
                 .header("WWW-Authenticate", containsString("error=\"insufficient_scope\""));
+    }
+
+    @Test
+    public void show_schemas_from_catalog_should_return_schemas() throws IOException {
+        DataConnectRequest query = new DataConnectRequest("SHOW SCHEMAS FROM " + showSchemaForCatalogName);
+        log.info("Running query {}", query);
+
+        Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
+        result = dataConnectApiGetAllPages(result);
+
+        assertThat("Expected results for query " + query.getQuery() + ", but none were found.", result.getData(), not(nullValue()));
+
+        assertThat(result.getDataModel(), not(nullValue()));
+        assertThat(result.getDataModel().getProperties(), not(nullValue()));
+
+        assertTrue(result.getDataModel().getProperties().containsKey("Schema"));
+        assertTrue(result.getData().size() > 0);
+    }
+
+    @Test
+    public void show_tables_from_catalog_schema_should_return_tables() throws IOException {
+        DataConnectRequest query = new DataConnectRequest("SHOW TABLES FROM " + showTableForCatalogSchemaName);
+        log.info("Running query {}", query);
+
+        Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
+        result = dataConnectApiGetAllPages(result);
+
+        assertThat("Expected results for query " + query.getQuery() + ", but none were found.", result.getData(), not(nullValue()));
+
+        assertThat(result.getDataModel(), not(nullValue()));
+        assertThat(result.getDataModel().getProperties(), not(nullValue()));
+
+        assertTrue(result.getDataModel().getProperties().containsKey("Table"));
+        assertTrue(result.getData().size() > 0);
     }
 
     static void runBasicAssertionOnTableErrorList(List<TableError> errors) {
