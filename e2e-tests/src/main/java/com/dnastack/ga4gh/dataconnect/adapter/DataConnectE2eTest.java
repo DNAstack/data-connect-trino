@@ -39,6 +39,7 @@ import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static io.restassured.http.Method.POST;
 
 @Slf4j
 public class DataConnectE2eTest extends BaseE2eTest {
@@ -736,16 +737,14 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void showSchemasFromCatalog_should_return_schemas() throws IOException {
+    public void show_schemas_from_catalog_should_return_schemas() throws IOException {
         DataConnectRequest query = new DataConnectRequest("SHOW SCHEMAS FROM " + showSchemaForCatalogName);
         log.info("Running query {}", query);
 
-        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
+        Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
         result = dataConnectApiGetAllPages(result);
 
-        if (result.getData() == null) {
-            throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
-        }
+        assertThat("Expected results for query " + query.getQuery() + ", but none were found.", result.getData(), not(nullValue()));
 
         assertThat(result.getDataModel(), not(nullValue()));
         assertThat(result.getDataModel().getProperties(), not(nullValue()));
@@ -755,16 +754,14 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void showTablesFromCatalogSchema_should_return_tables() throws IOException {
+    public void show_tables_from_catalog_schema_should_return_tables() throws IOException {
         DataConnectRequest query = new DataConnectRequest("SHOW TABLES FROM " + showTableForCatalogSchemaName);
         log.info("Running query {}", query);
 
-        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
+        Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
         result = dataConnectApiGetAllPages(result);
 
-        if (result.getData() == null) {
-            throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
-        }
+        assertThat("Expected results for query " + query.getQuery() + ", but none were found.", result.getData(), not(nullValue()));
 
         assertThat(result.getDataModel(), not(nullValue()));
         assertThat(result.getDataModel().getProperties(), not(nullValue()));
