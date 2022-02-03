@@ -37,6 +37,16 @@
         <version>${jdbi.version}</version>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-core</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -64,6 +74,7 @@
     <audit-event-logger.version>1.0.0</audit-event-logger.version>
     <oauth-client-factory.version>0.1.0</oauth-client-factory.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
+    <logback.version>1.2.10</logback.version>
   </properties>
 
   <dependencies>
