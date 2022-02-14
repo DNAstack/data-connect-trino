@@ -33,7 +33,7 @@ FROM openjdk:11-slim
 ARG APP_NAME
 ARG APP_VERSION
 
-RUN adduser --home / ${APP_NAME}
+RUN adduser ${APP_NAME}
 USER ${APP_NAME}
 
 COPY --from=0 /build/target/data-connect-trino-*.jar /app.jar
