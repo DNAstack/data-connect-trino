@@ -9,6 +9,11 @@ ARG APP_NAME
 ARG APP_VERSION
 WORKDIR /build
 
+# Add the memory calculator to the image
+RUN apt-get update && apt-get -y install curl
+RUN curl -L https://github.com/cloudfoundry/java-buildpack-memory-calculator/releases/download/v4.1.0/memory-calculator-4.1.0.tgz \
+    | tar zxv
+
 # Before bringing in project sources, resolve maven dependencies.
 # This allows Docker to reuse the cached image with all dependencies resolved.
 
@@ -38,4 +43,16 @@ USER ${APP_NAME}
 
 COPY --from=0 /build/target/data-connect-trino-*.jar /app.jar
 EXPOSE 8080
-ENTRYPOINT exec java ${JAVA_OPTS} -jar app.jar
+#ENTRYPOINT exec java ${JAVA_OPTS} -jar app.jar
+# If the container has a memory limit, that limit (in bytes) is present in a file under /sys/fs/cgroup
+# In Linux 5.10.76, the value comes from memory.max.
+# If the container doesn't have a set memory limit, the file contains "max", hence we fall back to a default value of 2GiB
+# In Linux 5.4.129, the value comes from memory/memory.limit_in_bytes
+# If the container doesn't have a set memory limit, the file will be blank, hence we fall back to a default value of 2GiB
+CMD container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memory/memory.limit_in_bytes") ; \
+    exec java $(/java-buildpack-memory-calculator \
+    --total-memory=$([ "$container_mem" = "max" -o -z "$container_mem" -o "$container_mem" -eq 9223372036854771712 ] && echo "2097152000" || echo "$container_mem")B \
+    --loaded-class-count="${ESTIMATED_LOADED_CLASSES:-15000}" \
+    --thread-count="${ESTIMATED_THREADS:-130}" \
+    --jvm-options="${JAVA_OPTS}") ${JAVA_OPTS} \
+    -jar app.jar
