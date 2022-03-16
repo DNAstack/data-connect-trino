@@ -30,7 +30,7 @@ public class TablesController {
     private TrinoDataConnectAdapter trinoDataConnectAdapter;
 
     // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
-    @PreAuthorize("@accessEvaluator.canAccessResource('/tables', 'search:info', 'search:info') || @accessEvaluator.canAccessResource('/tables', 'data-connect:info', 'data-connect:info')")
+    @PreAuthorize("@accessEvaluator.canAccessResource('/tables', 'data-connect:info', 'data-connect:info')")
     @RequestMapping(value = "/tables", method = RequestMethod.GET)
     public ResponseEntity<TablesList> getTables(HttpServletRequest request,
                                                 @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
@@ -49,7 +49,7 @@ public class TablesController {
 
     // This endpoint is in addition to GET /tables to allow random-access to pages in the GET /tables result
     // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
-    @PreAuthorize("@accessEvaluator.canAccessResource('/tables/catalog/' + #catalogName, 'search:info', 'search:info') || @accessEvaluator.canAccessResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
+    @PreAuthorize("@accessEvaluator.canAccessResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
     @RequestMapping(value = "/tables/catalog/{catalogName}", method = RequestMethod.GET)
     public ResponseEntity<TablesList> getTablesByCatalog(@PathVariable("catalogName") String catalogName,
                                                          HttpServletRequest request,
@@ -69,7 +69,7 @@ public class TablesController {
     }
 
     // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
-    @PreAuthorize("@accessEvaluator.canAccessResource('/table/' + #table_name + '/info', 'search:info', 'search:info') || @accessEvaluator.canAccessResource('/table/' + #table_name + '/info', 'data-connect:info', 'data-connect:info')")
+    @PreAuthorize("@accessEvaluator.canAccessResource('/table/' + #table_name + '/info', 'data-connect:info', 'data-connect:info')")
     @RequestMapping(value = "/table/{table_name}/info", method = RequestMethod.GET)
     public TableInfo getTableInfo(@PathVariable("table_name") String tableName,
                                   HttpServletRequest request,
@@ -89,7 +89,7 @@ public class TablesController {
     }
 
     // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
-    @PreAuthorize("@accessEvaluator.canAccessResource('/table/' + #table_name + '/data', 'search:data', 'search:data') || @accessEvaluator.canAccessResource('/table/' + #table_name + '/data', 'data-connect:data', 'data-connect:data')")
+    @PreAuthorize("@accessEvaluator.canAccessResource('/table/' + #table_name + '/data', 'data-connect:data', 'data-connect:data')")
     @RequestMapping(value = "/table/{table_name}/data", method = RequestMethod.GET)
     public TableData getTableData(@PathVariable("table_name") String tableName,
                                   HttpServletRequest request,

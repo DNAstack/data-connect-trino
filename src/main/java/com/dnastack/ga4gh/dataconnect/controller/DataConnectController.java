@@ -31,7 +31,7 @@ public class DataConnectController {
     private TrinoDataConnectAdapter trinoDataConnectAdapter;
 
     // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
-    @PreAuthorize("@accessEvaluator.canAccessResource('/search', {'search:query', 'search:data'}, {'search:query', 'search:data'}) || @accessEvaluator.canAccessResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
+    @PreAuthorize("@accessEvaluator.canAccessResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @RequestMapping(value = "/search", method = RequestMethod.POST)
     public TableData search(@RequestBody DataConnectRequest dataConnectRequest,
                             HttpServletRequest request,
@@ -50,7 +50,7 @@ public class DataConnectController {
     }
 
     // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
-    @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'search:query', 'search:data'}, {'search:query', 'search:data'}) || @accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
+    @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @RequestMapping(value = "/search/**", method = RequestMethod.GET)
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
                                               HttpServletRequest request,
