@@ -28,7 +28,9 @@ public class ThrowableTransformer {
         entry(TrinoInsufficientResourcesException.class, HttpStatus.SERVICE_UNAVAILABLE),
         entry(QueryParsingException.class, HttpStatus.BAD_REQUEST),
         entry(InvalidQueryJobException.class, HttpStatus.BAD_REQUEST),
-        entry(UnexpectedQueryResponseException.class, HttpStatus.INTERNAL_SERVER_ERROR));
+        entry(UnexpectedQueryResponseException.class, HttpStatus.INTERNAL_SERVER_ERROR),
+        entry(TrinoUserUnauthorizedException.class, HttpStatus.UNAUTHORIZED),
+        entry(TrinoUserForbiddenException.class, HttpStatus.FORBIDDEN));
 
 
 

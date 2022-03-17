@@ -532,6 +532,16 @@ public class TrinoDataConnectAdapter {
                 } else if (trinoError.getErrorName().equals("COLUMN_NOT_FOUND")) {
                     throw new TrinoNoSuchColumnException(trinoError);
                 } else if (trinoError.getErrorType().equals("USER_ERROR")) {
+                    if (trinoError.getErrorName().equals("PERMISSION_DENIED")) {
+                        if (trinoError.getMessage().startsWith("Access Denied: HTTP 500"))
+                            throw new TrinoInternalErrorException(trinoError);
+                        else if (trinoError.getMessage().startsWith("Access Denied: HTTP 404"))
+                            throw new TrinoNoSuchTableException(trinoError);
+                        else if (trinoError.getMessage().startsWith("Access Denied: HTTP 401"))
+                            throw new TrinoUserUnauthorizedException(trinoError);
+                        else if (trinoError.getMessage().startsWith("Access Denied: HTTP 403"))
+                            throw new TrinoUserForbiddenException(trinoError);
+                    }
                     //Most other USER_ERRORs are bad queries and should likely return BAD_REQUEST error code.
                     throw new TrinoInvalidQueryException(trinoError);
                 } else if (trinoError.getErrorType().equals("INSUFFICIENT_RESOURCES")) {
