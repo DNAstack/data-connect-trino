@@ -112,6 +112,8 @@ spring:
     username: dataconnecttrino
     password: dataconnecttrino
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
   # For sending samples to the server
   zipkin:
     enabled: false # By default, it is DISABLED for the local development.

@@ -128,8 +128,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static final int MAX_REAUTH_ATTEMPTS = 10;
 
     private static final String trinoTestUri = optionalEnv("E2E_TRINO_JDBCURI", "jdbc:trino://localhost:8091");  // MUST be in format jdbc:trino://host:port
-    private static final String trinoTestUser = optionalEnv("E2E_TRINO_USERNAME", null); // optional
-    private static final String trinoTestPass = optionalEnv("E2E_TRINO_PASSWORD", null); // optional
     private static final String trinoAudience = optionalEnv("E2E_TRINO_AUDIENCE", null); // optional
     private static final String trinoScopes = optionalEnv("E2E_TRINO_SCOPES", "full_access");   // optional
 
@@ -139,8 +137,14 @@ public class DataConnectE2eTest extends BaseE2eTest {
     // test schema name
     private static final String inMemorySchema = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default"); //default;
 
-    private static final String showSchemaForCatalogName = optionalEnv("E2E_SHOW_SCHEMA_FOR_CATALOG_NAME", "data_lake");
-    private static final String showTableForCatalogSchemaName = optionalEnv("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME", "data_lake.public");
+    /**
+     * Set this test env variable to name of a valid catalog eg: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME="publisher"
+     */
+    private static final String showSchemaForCatalogName = requiredEnv("E2E_SHOW_SCHEMA_FOR_CATALOG_NAME");
+    /**
+     * Set this test env variable to name of a valid schema of a catalog eg: E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME="publisher.public"
+     */
+    private static final String showTableForCatalogSchemaName = requiredEnv("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME");
 
     private static boolean globalMethodSecurityEnabled;
     private static boolean scopeCheckingEnabled;
@@ -168,7 +172,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     static Connection getTestDatabaseConnection() throws SQLException {
-        log.info("Logging in to {} with user {} and pass {}", trinoTestUri, trinoTestUser, trinoTestPass);
         log.info("Driver dump:");
 
         try {
@@ -180,13 +183,10 @@ public class DataConnectE2eTest extends BaseE2eTest {
         DriverManager.drivers().forEach(driver -> log.info("Got driver " + driver.toString()));
 
         Properties properties = new Properties();
-        properties.setProperty("user", trinoTestUser != null ? trinoTestUser : "e2etestuser");
+        properties.setProperty("user", "e2etestuser");
         properties.setProperty("SSL", trinoTestUri.contains("localhost") ? "false" : "true");
 
-        if (trinoTestPass != null) {
-            properties.setProperty("password", trinoTestPass);
-        }
-
+        log.info("Fetching a wallet token using audience {} and scopes {} to setup a JDBC connection to trino.", trinoAudience, trinoScopes);
         if (trinoAudience != null) {
             properties.setProperty("accessToken", getToken(trinoAudience, trinoScopes));
         }
