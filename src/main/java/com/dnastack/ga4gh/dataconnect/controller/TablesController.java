@@ -32,7 +32,7 @@ public class TablesController {
     }
 
     @AuditActionUri("data-connect:info")
-    @AuditIgnoreHeaders("ga4gh-search-authorization")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/tables', 'data-connect:info', 'data-connect:info')")
     @GetMapping(value = "/tables")
     public ResponseEntity<TablesList> getTables(HttpServletRequest request,
@@ -52,7 +52,7 @@ public class TablesController {
 
     // This endpoint is in addition to GET /tables to allow random-access to pages in the GET /tables result
     @AuditActionUri("data-connect:get-tables-in-catalog")
-    @AuditIgnoreHeaders("ga4gh-search-authorization")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
     @GetMapping(value = "/tables/catalog/{catalogName}")
     public ResponseEntity<TablesList> getTablesByCatalog(@PathVariable("catalogName") String catalogName,
@@ -73,7 +73,7 @@ public class TablesController {
     }
 
     @AuditActionUri("data-connect:get-table-info")
-    @AuditIgnoreHeaders("ga4gh-search-authorization")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/table/' + #table_name + '/info', 'data-connect:info', 'data-connect:info')")
     @GetMapping(value = "/table/{table_name}/info")
     public TableInfo getTableInfo(@PathVariable("table_name") String tableName,
@@ -94,7 +94,7 @@ public class TablesController {
     }
 
     @AuditActionUri("data-connect:get-table-data")
-    @AuditIgnoreHeaders("ga4gh-search-authorization")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/table/' + #table_name + '/data', 'data-connect:data', 'data-connect:data')")
     @GetMapping(value = "/table/{table_name}/data")
     public TableData getTableData(@PathVariable("table_name") String tableName,

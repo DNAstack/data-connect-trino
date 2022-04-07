@@ -33,7 +33,7 @@ public class DataConnectController {
     }
 
     @AuditActionUri("data-connect:search")
-    @AuditIgnoreHeaders("ga4gh-search-authorization")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @PostMapping(value = "/search")
     public TableData search(@RequestBody DataConnectRequest dataConnectRequest,
@@ -53,7 +53,7 @@ public class DataConnectController {
     }
 
     @AuditActionUri("data-connect:next-page")
-    @AuditIgnoreHeaders("ga4gh-search-authorization")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @GetMapping(value = "/search/**")
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
