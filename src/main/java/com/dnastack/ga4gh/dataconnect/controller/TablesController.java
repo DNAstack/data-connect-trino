@@ -1,13 +1,11 @@
 package com.dnastack.ga4gh.dataconnect.controller;
 
+import com.dnastack.audit.aspect.AuditActionUri;
+import com.dnastack.audit.aspect.AuditIgnore;
+import com.dnastack.audit.aspect.AuditIgnoreHeaders;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
 import com.dnastack.ga4gh.dataconnect.model.TableData;
-
-import java.util.LinkedList;
-import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-
 import com.dnastack.ga4gh.dataconnect.model.TableInfo;
 import com.dnastack.ga4gh.dataconnect.model.TablesList;
 import lombok.extern.slf4j.Slf4j;
@@ -16,25 +14,30 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletRequest;
+import java.util.LinkedList;
+import java.util.List;
 
 @Slf4j
 @RestController
 public class TablesController {
 
-    @Autowired
-    private TrinoDataConnectAdapter trinoDataConnectAdapter;
+    private final TrinoDataConnectAdapter trinoDataConnectAdapter;
 
-    // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
+    @Autowired
+    public TablesController(TrinoDataConnectAdapter trinoDataConnectAdapter) {
+        this.trinoDataConnectAdapter = trinoDataConnectAdapter;
+    }
+
+    @AuditActionUri("data-connect:info")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/tables', 'data-connect:info', 'data-connect:info')")
-    @RequestMapping(value = "/tables", method = RequestMethod.GET)
+    @GetMapping(value = "/tables")
     public ResponseEntity<TablesList> getTables(HttpServletRequest request,
-                                                @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
-        TablesList tablesList = null;
+                                                @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
+        TablesList tablesList;
 
         try {
             tablesList = trinoDataConnectAdapter
@@ -48,13 +51,14 @@ public class TablesController {
     }
 
     // This endpoint is in addition to GET /tables to allow random-access to pages in the GET /tables result
-    // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
+    @AuditActionUri("data-connect:get-tables-in-catalog")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
-    @RequestMapping(value = "/tables/catalog/{catalogName}", method = RequestMethod.GET)
+    @GetMapping(value = "/tables/catalog/{catalogName}")
     public ResponseEntity<TablesList> getTablesByCatalog(@PathVariable("catalogName") String catalogName,
                                                          HttpServletRequest request,
-                                                         @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
-        TablesList tablesList = null;
+                                                         @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
+        TablesList tablesList;
 
         try {
             tablesList = trinoDataConnectAdapter
@@ -68,14 +72,15 @@ public class TablesController {
 
     }
 
-    // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
+    @AuditActionUri("data-connect:get-table-info")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/table/' + #table_name + '/info', 'data-connect:info', 'data-connect:info')")
-    @RequestMapping(value = "/table/{table_name}/info", method = RequestMethod.GET)
+    @GetMapping(value = "/table/{table_name}/info")
     public TableInfo getTableInfo(@PathVariable("table_name") String tableName,
                                   HttpServletRequest request,
-                                  @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
+                                  @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
 
-        TableInfo tableInfo = null;
+        TableInfo tableInfo;
 
         try {
             log.info("Getting info for table {}", tableName);
@@ -88,14 +93,15 @@ public class TablesController {
         return tableInfo;
     }
 
-    // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
+    @AuditActionUri("data-connect:get-table-data")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/table/' + #table_name + '/data', 'data-connect:data', 'data-connect:data')")
-    @RequestMapping(value = "/table/{table_name}/data", method = RequestMethod.GET)
+    @GetMapping(value = "/table/{table_name}/data")
     public TableData getTableData(@PathVariable("table_name") String tableName,
                                   HttpServletRequest request,
-                                  @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
+                                  @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
 
-        TableData tableData = null;
+        TableData tableData;
 
         try {
             tableData = trinoDataConnectAdapter

@@ -1,9 +1,5 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
-import brave.Tracer;
-import brave.propagation.TraceContext;
-import com.dnastack.audit.logger.AuditEventLogger;
-import com.dnastack.audit.model.*;
 import com.dnastack.ga4gh.dataconnect.ApplicationConfig;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.*;
@@ -63,11 +59,7 @@ public class TrinoDataConnectAdapter {
 
     private final ApplicationConfig applicationConfig;
 
-    private final AuditEventLogger auditEventLogger;
-
     private final DataModelSupplier[] dataModelSuppliers;
-
-    private final Tracer tracer;
 
     private final ObjectMapper objectMapper;
 
@@ -76,17 +68,13 @@ public class TrinoDataConnectAdapter {
         Jdbi jdbi,
         ThrowableTransformer throwableTransformer,
         ApplicationConfig applicationConfig,
-        AuditEventLogger auditEventLogger,
-        DataModelSupplier[] dataModelSuppliers,
-        Tracer tracer
+        DataModelSupplier[] dataModelSuppliers
     ) {
         this.client = client;
         this.jdbi = jdbi;
         this.throwableTransformer = throwableTransformer;
         this.applicationConfig = applicationConfig;
-        this.auditEventLogger = auditEventLogger;
         this.dataModelSuppliers = dataModelSuppliers;
-        this.tracer = tracer;
         this.objectMapper = new ObjectMapper();
         objectMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -278,25 +266,12 @@ public class TrinoDataConnectAdapter {
 
         log.info("Received query: " + query + ".");
         String rewrittenQuery = rewriteQuery(query, "ga4gh_type", 0);
-        logAuditEvent(
-            request,
-            "search",
-            "query",
-            Map.of(
-                "query", Optional.ofNullable(rewrittenQuery).orElse("(undefined)"))
-        );
         JsonNode response = client.query(rewrittenQuery, extraCredentials);
         QueryJob queryJob = createQueryJob(response.get("id").asText(), query, dataModel, response.get("nextUri").asText());
         return toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob.getId(), request);
     }
 
     public TableData getNextSearchPage(String page, String queryJobId, HttpServletRequest request, Map<String, String> extraCredentials) {
-        logAuditEvent(
-            request,
-            "search",
-            "next-page",
-            Map.of("page", Optional.ofNullable(page).orElse("(undefined)"))
-        );
         JsonNode response = client.next(page, extraCredentials);
         log.debug("[getNextSearchPage]response = {}", response);
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJobId, request);
@@ -371,7 +346,6 @@ public class TrinoDataConnectAdapter {
     }
 
     public TablesList getTables(HttpServletRequest request, Map<String, String> extraCredentials) {
-        logAuditEvent(request, "table", "read", null);
         Set<String> catalogs = getTrinoCatalogs(request, extraCredentials);
         if (catalogs == null || catalogs.isEmpty()) {
             return new TablesList(List.of(), null, null);
@@ -384,9 +358,6 @@ public class TrinoDataConnectAdapter {
     }
 
     public TablesList getTablesInCatalog(String catalog, HttpServletRequest request, Map<String, String> extraCredentials) {
-        logAuditEvent(request, "table", "in-catalog", Map.of(
-            "catalog", Optional.ofNullable(catalog).orElse("(undefined)")
-        ));
         Set<String> catalogs = getTrinoCatalogs(request, extraCredentials);
         if (catalogs != null) {
             Iterator<String> catalogIt = catalogs.iterator();
@@ -404,9 +375,6 @@ public class TrinoDataConnectAdapter {
     }
 
     public TableData getTableData(String tableName, HttpServletRequest request, Map<String, String> extraCredentials) {
-        logAuditEvent(request, "table", "data", Map.of(
-            "table", Optional.ofNullable(tableName).orElse("(undefined)")
-        ));
         // Get table JSON schema from tables registry if one exists for this table (for tables from trino-public)
         DataModel dataModel = getDataModelFromSupplier(tableName);
         //Add quotes to tableName in the query. Table name can be of the format <catalog_name>.<datasource_name>.tableName
@@ -435,9 +403,6 @@ public class TrinoDataConnectAdapter {
         HttpServletRequest request,
         Map<String, String> extraCredentials
     ) {
-        logAuditEvent(request, "table", "info", Map.of(
-            "table", Optional.ofNullable(tableName).orElse("(undefined)")
-        ));
         if (!isValidTrinoName(tableName)) {
             //triggers a 404.
             throw new TrinoBadlyQualifiedNameException("Invalid tablename " + tableName + " -- expected name in format <catalog>.<schema>.<tableName>");
@@ -934,24 +899,6 @@ public class TrinoDataConnectAdapter {
         else {
             tableData.setDataModel(null);
         }
-    }
-
-    private void logAuditEvent(HttpServletRequest request, String action, String outcome, Map<String, Object> extraArguments) {
-        final TraceContext context = tracer.currentSpan().context();
-        auditEventLogger.log(
-            AuditEventBody.builder()
-                .action(new AuditedAction(action))
-                .outcome(new AuditedOutcome(outcome))
-                .context(
-                    AuditedContext.builder()
-                        .traceId(context.traceIdString())
-                        .spanId(context.spanIdString())
-                        .build()
-                )
-                .resource(new AuditedResource(callbackBaseUrl(request) + request.getPathInfo()))
-                .extraArguments(extraArguments)
-                .build()
-        );
     }
 
     private QueryJob getQueryJobBy(String id, String errorMessage) {

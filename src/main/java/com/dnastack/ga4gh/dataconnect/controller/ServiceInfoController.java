@@ -1,5 +1,6 @@
 package com.dnastack.ga4gh.dataconnect.controller;
 
+import com.dnastack.audit.aspect.AuditActionUri;
 import com.dnastack.ga4gh.dataconnect.ServiceInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -15,15 +16,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ServiceInfoController {
 
-    private ServiceInfo serviceInfo;
+    private final ServiceInfo serviceInfo;
 
     @Autowired
     public ServiceInfoController(ServiceInfo serviceInfo) {
         this.serviceInfo = serviceInfo;
     }
 
-    @GetMapping(value = "/service-info", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-    public ResponseEntity getServiceInfo() {
+    @AuditActionUri("data-connect:service-info")
+    @GetMapping(value = "/service-info", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getServiceInfo() {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(serviceInfo);
     }

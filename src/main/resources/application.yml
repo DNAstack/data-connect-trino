@@ -68,7 +68,9 @@ logging:
     p6spy: WARN
 
 auditing:
-  enabled: false
+  enabled: true
+  publish-external: false
+  # Set the above value to true if you want to publish audit events
   batch-processing-enabled: true
   scheduling:
     batch-emit:
@@ -90,7 +92,7 @@ auditing:
     token-uri: http://localhost:8081/oauth/token
     token-issuers-uris: ["http://localhost:8081"]
     policy-evaluation-requester: "${app.url}"
-    policy-evaluation-uri: "${app.auth.token-issuers[0].issuer-uri}/policies/evaluations"
+    policy-evaluation-uri: "http://localhost:8081/policies/evaluations"
   json-printer-style: dense_print
 
 spring:
