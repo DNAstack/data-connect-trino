@@ -1,8 +1,10 @@
 package com.dnastack.ga4gh.dataconnect.controller;
 
 import com.dnastack.audit.aspect.AuditActionUri;
+import com.dnastack.audit.aspect.AuditEventCustomize;
 import com.dnastack.audit.aspect.AuditIgnore;
 import com.dnastack.audit.aspect.AuditIgnoreHeaders;
+import com.dnastack.ga4gh.dataconnect.adapter.shared.QueryJobAppenderAuditEventCustomizer;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
 import com.dnastack.ga4gh.dataconnect.model.TableData;
@@ -83,7 +85,7 @@ public class TablesController {
         TableInfo tableInfo;
 
         try {
-            log.info("Getting info for table {}", tableName);
+            log.debug("Getting info for table {}", tableName);
             tableInfo = trinoDataConnectAdapter
                 .getTableInfo(tableName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
@@ -95,6 +97,7 @@ public class TablesController {
 
     @AuditActionUri("data-connect:get-table-data")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
+    @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
     @PreAuthorize("@accessEvaluator.canAccessResource('/table/' + #table_name + '/data', 'data-connect:data', 'data-connect:data')")
     @GetMapping(value = "/table/{table_name}/data")
     public TableData getTableData(@PathVariable("table_name") String tableName,

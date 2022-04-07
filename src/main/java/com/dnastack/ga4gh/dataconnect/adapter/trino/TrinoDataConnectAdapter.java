@@ -1,5 +1,6 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
+import brave.Tracing;
 import com.dnastack.ga4gh.dataconnect.ApplicationConfig;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.*;
@@ -63,18 +64,22 @@ public class TrinoDataConnectAdapter {
 
     private final ObjectMapper objectMapper;
 
+    private final Tracing tracer;
+
     public TrinoDataConnectAdapter(
         TrinoClient client,
         Jdbi jdbi,
         ThrowableTransformer throwableTransformer,
         ApplicationConfig applicationConfig,
-        DataModelSupplier[] dataModelSuppliers
+        DataModelSupplier[] dataModelSuppliers,
+        Tracing tracer
     ) {
         this.client = client;
         this.jdbi = jdbi;
         this.throwableTransformer = throwableTransformer;
         this.applicationConfig = applicationConfig;
         this.dataModelSuppliers = dataModelSuppliers;
+        this.tracer = tracer;
         this.objectMapper = new ObjectMapper();
         objectMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -214,7 +219,7 @@ public class TrinoDataConnectAdapter {
         TableData tableData = search(statement, request, extraCredentials, dataModel);
         while (hasMore(tableData)) {
             log.debug("searchAll: Autoloading next page of data");
-            TableData nextPage = getNextSearchPage(tableData.getPagination().getTrinoNextPageUrl().getPath(), null, request, extraCredentials);
+            TableData nextPage = getNextSearchPage(tableData.getPagination().getTrinoNextPageUrl().getPath(), null,null, request, extraCredentials);
             log.debug("searchAll: nextPage.size(): {}", nextPage.getData().size());
             tableData.append(nextPage);
         }
@@ -240,7 +245,7 @@ public class TrinoDataConnectAdapter {
         TableData tableData = search(statement, request, extraCredentials, dataModel);
         while (hasMore(tableData)) {
             log.debug("searchUntilHavingFirstRow: Autoloading next page of data");
-            TableData nextPage = getNextSearchPage(tableData.getPagination().getTrinoNextPageUrl().getPath(), null, request, extraCredentials);
+            TableData nextPage = getNextSearchPage(tableData.getPagination().getTrinoNextPageUrl().getPath(), null,null, request, extraCredentials);
             log.debug("searchUntilHavingFirstRow: nextPage.size(): {}", nextPage.getData().size());
             tableData.append(nextPage);
             if (!nextPage.getData().isEmpty()) {
@@ -268,13 +273,19 @@ public class TrinoDataConnectAdapter {
         String rewrittenQuery = rewriteQuery(query, "ga4gh_type", 0);
         JsonNode response = client.query(rewrittenQuery, extraCredentials);
         QueryJob queryJob = createQueryJob(response.get("id").asText(), query, dataModel, response.get("nextUri").asText());
-        return toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob.getId(), request);
+        return toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob.getId(), null, request);
     }
 
-    public TableData getNextSearchPage(String page, String queryJobId, HttpServletRequest request, Map<String, String> extraCredentials) {
+    public TableData getNextSearchPage(
+        String page,
+        String queryJobId,
+        String originalTraceId,
+        HttpServletRequest request,
+        Map<String, String> extraCredentials
+    ) {
         JsonNode response = client.next(page, extraCredentials);
         log.debug("[getNextSearchPage]response = {}", response);
-        TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJobId, request);
+        TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJobId, originalTraceId, request);
         log.debug("[getNextSearchPage]tableData = {}", tableData);
         populateTableSchemaIfAvailable(queryJobId, tableData);
 
@@ -337,7 +348,7 @@ public class TrinoDataConnectAdapter {
         TrinoCatalog trinoCatalog = new TrinoCatalog(this, throwableTransformer, callbackBaseUrl(request), currentCatalog);
         Pagination nextPage = null;
         if (nextCatalog != null) {
-            nextPage = new Pagination(null, getLinkToCatalog(nextCatalog, request), null);
+            nextPage = new Pagination(null, null, getLinkToCatalog(nextCatalog, request), null);
         }
 
         TablesList tablesList = trinoCatalog.getTablesList(nextPage, request, extraCredentials);
@@ -456,6 +467,7 @@ public class TrinoDataConnectAdapter {
         String nextPageTemplate,
         JsonNode trinoResponse,
         String queryJobId,
+        String originalTraceId,
         HttpServletRequest request
     ) {
 
@@ -498,14 +510,15 @@ public class TrinoDataConnectAdapter {
                     throw new TrinoNoSuchColumnException(trinoError);
                 } else if (trinoError.getErrorType().equals("USER_ERROR")) {
                     if (trinoError.getErrorName().equals("PERMISSION_DENIED")) {
-                        if (trinoError.getMessage().startsWith("Access Denied: HTTP 500"))
+                        if (trinoError.getMessage().startsWith("Access Denied: HTTP 500")) {
                             throw new TrinoInternalErrorException(trinoError);
-                        else if (trinoError.getMessage().startsWith("Access Denied: HTTP 404"))
+                        } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 404")) {
                             throw new TrinoNoSuchTableException(trinoError);
-                        else if (trinoError.getMessage().startsWith("Access Denied: HTTP 401"))
+                        } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 401")) {
                             throw new TrinoUserUnauthorizedException(trinoError);
-                        else if (trinoError.getMessage().startsWith("Access Denied: HTTP 403"))
+                        } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 403")) {
                             throw new TrinoUserForbiddenException(trinoError);
+                        }
                     }
                     //Most other USER_ERRORs are bad queries and should likely return BAD_REQUEST error code.
                     throw new TrinoInvalidQueryException(trinoError);
@@ -540,9 +553,8 @@ public class TrinoDataConnectAdapter {
         }
 
 
-
         // Generate pagination
-        Pagination pagination = generatePagination(nextPageTemplate, trinoResponse, queryJobId, request);
+        Pagination pagination = generatePagination(nextPageTemplate, trinoResponse, queryJobId, originalTraceId, request);
 
         TableData tableData = new TableData(dataModel, Collections.unmodifiableList(data), null, pagination);
         if (queryJobId != null) {
@@ -575,9 +587,10 @@ public class TrinoDataConnectAdapter {
     }
 
     @SneakyThrows
-    private Pagination generatePagination(String template, JsonNode trinoResponse, String queryJobId, HttpServletRequest request) {
+    private Pagination generatePagination(String template, JsonNode trinoResponse, String queryJobId, String originalTraceId, HttpServletRequest request) {
         URI nextPageUri = null;
         URI trinoNextPageUri = null;
+        originalTraceId = originalTraceId == null ? tracer.currentTraceContext().get().traceIdString() : originalTraceId;
         if (trinoResponse.hasNonNull("nextUri")) {
             final String rawTrinoResponseUri = trinoResponse.get("nextUri").asText();
             final String rawTrinoRelayedPath = URI.create(rawTrinoResponseUri).getPath().replaceFirst("^/+", "");
@@ -587,7 +600,7 @@ public class TrinoDataConnectAdapter {
             trinoNextPageUri = ServletUriComponentsBuilder.fromHttpUrl(rawTrinoResponseUri).build().toUri();
         }
 
-        return new Pagination(queryJobId, nextPageUri, trinoNextPageUri);
+        return new Pagination(queryJobId, originalTraceId, nextPageUri, trinoNextPageUri);
     }
 
     /**

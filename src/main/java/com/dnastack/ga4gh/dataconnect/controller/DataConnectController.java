@@ -1,8 +1,7 @@
 package com.dnastack.ga4gh.dataconnect.controller;
 
-import com.dnastack.audit.aspect.AuditActionUri;
-import com.dnastack.audit.aspect.AuditIgnore;
-import com.dnastack.audit.aspect.AuditIgnoreHeaders;
+import com.dnastack.audit.aspect.*;
+import com.dnastack.ga4gh.dataconnect.adapter.shared.QueryJobAppenderAuditEventCustomizer;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.DataConnectRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
@@ -34,6 +33,7 @@ public class DataConnectController {
 
     @AuditActionUri("data-connect:search")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
+    @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
     @PreAuthorize("@accessEvaluator.canAccessResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @PostMapping(value = "/search")
     public TableData search(@RequestBody DataConnectRequest dataConnectRequest,
@@ -42,7 +42,7 @@ public class DataConnectController {
         TableData tableData = null;
 
         try {
-            log.info("/search query= {}", dataConnectRequest.getSqlQuery());
+            log.debug("Request: /search query= {}", dataConnectRequest.getSqlQuery());
             tableData = trinoDataConnectAdapter
                 .search(dataConnectRequest.getSqlQuery(), request, parseCredentialsHeader(clientSuppliedCredentials), null);
         } catch (Exception ex) {
@@ -57,17 +57,17 @@ public class DataConnectController {
     @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @GetMapping(value = "/search/**")
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
+                                              @RequestParam("originalTraceId") String originalTraceId,
                                               HttpServletRequest request,
                                               @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
-        log.info("/search/** request= {}", request);
         String page = request.getRequestURI()
                              .split(request.getContextPath() + "/search/")[1];
-        log.info("/search/** page= {}", page);
+        log.debug("Request: /search/** page= {}", page);
         TableData tableData;
 
         try {
             tableData = trinoDataConnectAdapter
-                .getNextSearchPage(page, queryJobId, request, parseCredentialsHeader(clientSuppliedCredentials));
+                .getNextSearchPage(page, queryJobId,originalTraceId, request, parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableData::errorInstance);
         }
