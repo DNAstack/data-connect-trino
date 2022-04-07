@@ -19,9 +19,6 @@ public class Pagination {
     @JsonIgnore
     private String queryJobId;
 
-    @JsonIgnore
-    private String originalTraceId;
-
     @JsonProperty("next_page_url")
     private URI nextPageUrl;
 
@@ -29,10 +26,9 @@ public class Pagination {
     private URI trinoNextPageUrl;
 
     public URI getNextPageUrl() {
-        if (queryJobId != null && nextPageUrl != null && originalTraceId != null) {
+        if (queryJobId != null && nextPageUrl != null) {
             return UriComponentsBuilder.fromUri(nextPageUrl)
                 .queryParam("queryJobId", queryJobId)
-                .queryParam("originalTraceId", originalTraceId)
                 .build()
                 .toUri();
         }

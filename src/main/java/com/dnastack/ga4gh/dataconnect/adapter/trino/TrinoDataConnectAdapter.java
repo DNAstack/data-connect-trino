@@ -219,7 +219,9 @@ public class TrinoDataConnectAdapter {
         TableData tableData = search(statement, request, extraCredentials, dataModel);
         while (hasMore(tableData)) {
             log.debug("searchAll: Autoloading next page of data");
-            TableData nextPage = getNextSearchPage(tableData.getPagination().getTrinoNextPageUrl().getPath(), null,null, request, extraCredentials);
+            String queryJobId = tableData.getPagination().getQueryJobId();
+            String nextSearchPage = tableData.getPagination().getTrinoNextPageUrl().getPath();
+            TableData nextPage = getNextSearchPage(nextSearchPage, queryJobId, request, extraCredentials);
             log.debug("searchAll: nextPage.size(): {}", nextPage.getData().size());
             tableData.append(nextPage);
         }
@@ -245,7 +247,10 @@ public class TrinoDataConnectAdapter {
         TableData tableData = search(statement, request, extraCredentials, dataModel);
         while (hasMore(tableData)) {
             log.debug("searchUntilHavingFirstRow: Autoloading next page of data");
-            TableData nextPage = getNextSearchPage(tableData.getPagination().getTrinoNextPageUrl().getPath(), null,null, request, extraCredentials);
+            ;
+            String queryJobId = tableData.getPagination().getQueryJobId();
+            String nextSearchPage = tableData.getPagination().getTrinoNextPageUrl().getPath();
+            TableData nextPage = getNextSearchPage(nextSearchPage, queryJobId, request, extraCredentials);
             log.debug("searchUntilHavingFirstRow: nextPage.size(): {}", nextPage.getData().size());
             tableData.append(nextPage);
             if (!nextPage.getData().isEmpty()) {
@@ -273,28 +278,26 @@ public class TrinoDataConnectAdapter {
         String rewrittenQuery = rewriteQuery(query, "ga4gh_type", 0);
         JsonNode response = client.query(rewrittenQuery, extraCredentials);
         QueryJob queryJob = createQueryJob(response.get("id").asText(), query, dataModel, response.get("nextUri").asText());
-        return toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob.getId(), null, request);
+        return toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob, request);
     }
 
     public TableData getNextSearchPage(
         String page,
         String queryJobId,
-        String originalTraceId,
         HttpServletRequest request,
         Map<String, String> extraCredentials
     ) {
         JsonNode response = client.next(page, extraCredentials);
         log.debug("[getNextSearchPage]response = {}", response);
-        TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJobId, originalTraceId, request);
+        QueryJob queryJob = getQueryJobBy(queryJobId, "No query job with id " + queryJobId);
+        TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob, request);
         log.debug("[getNextSearchPage]tableData = {}", tableData);
         populateTableSchemaIfAvailable(queryJobId, tableData);
 
-        if (queryJobId != null) {
-            Instant currentTime = Instant.now();
-            jdbi.useExtension(QueryJobDao.class, dao -> dao.setLastActivityAt(currentTime, queryJobId));
-            if (tableData.getPagination().getNextPageUrl() == null) {
-                jdbi.useExtension(QueryJobDao.class, dao -> dao.setFinishedAt(currentTime, queryJobId));
-            }
+        Instant currentTime = Instant.now();
+        jdbi.useExtension(QueryJobDao.class, dao -> dao.setLastActivityAt(currentTime, queryJobId));
+        if (tableData.getPagination().getNextPageUrl() == null) {
+            jdbi.useExtension(QueryJobDao.class, dao -> dao.setFinishedAt(currentTime, queryJobId));
         }
 
         return tableData;
@@ -315,6 +318,7 @@ public class TrinoDataConnectAdapter {
         QueryJob queryJob = QueryJob.builder()
             .query(query)
             .id(queryId)
+            .originalTraceId(tracer.currentTraceContext().get().traceIdString())
             .startedAt(currentTime)
             .lastActivityAt(currentTime)
             .schema(tableSchema)
@@ -348,7 +352,7 @@ public class TrinoDataConnectAdapter {
         TrinoCatalog trinoCatalog = new TrinoCatalog(this, throwableTransformer, callbackBaseUrl(request), currentCatalog);
         Pagination nextPage = null;
         if (nextCatalog != null) {
-            nextPage = new Pagination(null, null, getLinkToCatalog(nextCatalog, request), null);
+            nextPage = new Pagination(null, getLinkToCatalog(nextCatalog, request), null);
         }
 
         TablesList tablesList = trinoCatalog.getTablesList(nextPage, request, extraCredentials);
@@ -466,15 +470,14 @@ public class TrinoDataConnectAdapter {
     private TableData toTableData(
         String nextPageTemplate,
         JsonNode trinoResponse,
-        String queryJobId,
-        String originalTraceId,
+        QueryJob queryJob,
         HttpServletRequest request
     ) {
 
         if (trinoResponse.hasNonNull("error")) {
             ObjectMapper objectMapper = new ObjectMapper();
 
-            jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJobId));
+            jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJob.getId()));
 
             try {
                 TrinoError trinoError = objectMapper.readValue(trinoResponse.get("error").toString(), TrinoError.class);
@@ -554,12 +557,9 @@ public class TrinoDataConnectAdapter {
 
 
         // Generate pagination
-        Pagination pagination = generatePagination(nextPageTemplate, trinoResponse, queryJobId, originalTraceId, request);
-
-        TableData tableData = new TableData(dataModel, Collections.unmodifiableList(data), null, pagination);
-        if (queryJobId != null) {
-            applyResponseTransforms(queryJobId, tableData);
-        }
+        Pagination pagination = generatePagination(nextPageTemplate, trinoResponse, queryJob, request);
+        TableData tableData = new TableData(dataModel, Collections.unmodifiableList(data), null, pagination, queryJob);
+        applyResponseTransforms(queryJob, tableData);
 
         if (tableData.getData().isEmpty()) {
             log.debug("No data in current trino response page");
@@ -576,8 +576,7 @@ public class TrinoDataConnectAdapter {
 
     // Parses the saved query identified by queryJobId, finds all functions that transform the response in some way,
     // and applies them to the response represented by tableData.
-    private void applyResponseTransforms(String queryJobId, final TableData tableData) {
-        QueryJob queryJob = getQueryJobBy(queryJobId, "The query corresponding to this search could not be located.");
+    private void applyResponseTransforms(QueryJob queryJob, final TableData tableData) {
         String query = queryJob.getQuery();
         Stream<SQLFunction> responseTransformingFunctions = parseSQLBiFunctions(query);
 
@@ -587,10 +586,9 @@ public class TrinoDataConnectAdapter {
     }
 
     @SneakyThrows
-    private Pagination generatePagination(String template, JsonNode trinoResponse, String queryJobId, String originalTraceId, HttpServletRequest request) {
+    private Pagination generatePagination(String template, JsonNode trinoResponse, QueryJob queryJob, HttpServletRequest request) {
         URI nextPageUri = null;
         URI trinoNextPageUri = null;
-        originalTraceId = originalTraceId == null ? tracer.currentTraceContext().get().traceIdString() : originalTraceId;
         if (trinoResponse.hasNonNull("nextUri")) {
             final String rawTrinoResponseUri = trinoResponse.get("nextUri").asText();
             final String rawTrinoRelayedPath = URI.create(rawTrinoResponseUri).getPath().replaceFirst("^/+", "");
@@ -600,7 +598,7 @@ public class TrinoDataConnectAdapter {
             trinoNextPageUri = ServletUriComponentsBuilder.fromHttpUrl(rawTrinoResponseUri).build().toUri();
         }
 
-        return new Pagination(queryJobId, originalTraceId, nextPageUri, trinoNextPageUri);
+        return new Pagination(queryJob.getId(), nextPageUri, trinoNextPageUri);
     }
 
     /**

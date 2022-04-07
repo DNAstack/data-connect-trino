@@ -15,9 +15,9 @@ public class QueryJobAppenderAuditEventCustomizer extends AuditEventCustomizer {
 
         if (returnValue instanceof TableData) {
             TableData tableData = (TableData) returnValue;
-            if (tableData.getPagination() != null && tableData.getPagination().getQueryJobId() != null) {
-                eventBody.getExtraArguments().put("queryJobId", tableData.getPagination().getQueryJobId());
-                eventBody.getExtraArguments().put("orginalTraceId", tableData.getPagination().getOriginalTraceId());
+            if (tableData.getQueryJob() != null) {
+                eventBody.getExtraArguments().put("queryJobId", tableData.getQueryJob().getId());
+                eventBody.getExtraArguments().put("orginalTraceId", tableData.getQueryJob().getOriginalTraceId());
             }
         }
 

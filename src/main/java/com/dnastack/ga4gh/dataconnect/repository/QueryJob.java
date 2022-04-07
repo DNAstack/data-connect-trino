@@ -16,6 +16,8 @@ import java.time.Instant;
 public class QueryJob {
     private String id;
 
+    private String originalTraceId;
+
     private String query;
 
     // This column is used to store table schema retrieved from tables-registry.

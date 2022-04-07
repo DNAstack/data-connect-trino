@@ -54,10 +54,10 @@ public class DataConnectController {
 
     @AuditActionUri("data-connect:next-page")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
+    @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
     @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @GetMapping(value = "/search/**")
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
-                                              @RequestParam(value = "originalTraceId",required = false) String originalTraceId,
                                               HttpServletRequest request,
                                               @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
         String page = request.getRequestURI()
@@ -67,7 +67,7 @@ public class DataConnectController {
 
         try {
             tableData = trinoDataConnectAdapter
-                .getNextSearchPage(page, queryJobId,originalTraceId, request, parseCredentialsHeader(clientSuppliedCredentials));
+                .getNextSearchPage(page, queryJobId, request, parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableData::errorInstance);
         }

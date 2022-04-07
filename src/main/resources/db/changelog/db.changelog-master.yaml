@@ -62,3 +62,13 @@ databaseChangeLog:
                 - column:
                     name: next_page_url
                     type: varchar
+- changeSet:
+      id: add-original-trace-id
+      author: patrick
+      changes:
+          - addColumn:
+                tableName: query_job
+                columns:
+                    - column:
+                          name: original_trace_id
+                          type: varchar

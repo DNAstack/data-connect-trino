@@ -1,5 +1,7 @@
 package com.dnastack.ga4gh.dataconnect.model;
 
+import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -32,6 +34,9 @@ public class TableData {
     @JsonProperty("pagination")
     private Pagination pagination;
 
+    @JsonIgnore
+    private QueryJob queryJob;
+
     private static <T> List<T> concat(List<T> l1, List<T> l2) {
         if (l1 != null && l2 != null) {
             List<T> result = new ArrayList<>(l1.size() + l2.size());
@@ -58,6 +63,6 @@ public class TableData {
     }
 
     public static TableData errorInstance(TableError error) {
-        return new TableData(null, null, List.of(error), null);
+        return new TableData(null, null, List.of(error), null,null);
     }
 }
