@@ -1,7 +1,10 @@
 package com.dnastack.ga4gh.dataconnect.controller;
 
-import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
+import com.dnastack.audit.aspect.AuditActionUri;
+import com.dnastack.audit.aspect.AuditIgnore;
+import com.dnastack.audit.aspect.AuditIgnoreHeaders;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.DataConnectRequest;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
 import com.dnastack.ga4gh.dataconnect.model.TableData;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -9,12 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -27,15 +25,20 @@ public class DataConnectController {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Autowired
-    private TrinoDataConnectAdapter trinoDataConnectAdapter;
+    private final TrinoDataConnectAdapter trinoDataConnectAdapter;
 
-    // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
+    @Autowired
+    public DataConnectController(TrinoDataConnectAdapter trinoDataConnectAdapter) {
+        this.trinoDataConnectAdapter = trinoDataConnectAdapter;
+    }
+
+    @AuditActionUri("data-connect:search")
+    @AuditIgnoreHeaders("ga4gh-search-authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
-    @RequestMapping(value = "/search", method = RequestMethod.POST)
+    @PostMapping(value = "/search")
     public TableData search(@RequestBody DataConnectRequest dataConnectRequest,
                             HttpServletRequest request,
-                            @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
+                            @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
         TableData tableData = null;
 
         try {
@@ -49,12 +52,13 @@ public class DataConnectController {
         return tableData;
     }
 
-    // scope and actions were renamed from search to data-connect as part of the process both options are supported [#179277447]
+    @AuditActionUri("data-connect:next-page")
+    @AuditIgnoreHeaders("ga4gh-search-authorization")
     @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
-    @RequestMapping(value = "/search/**", method = RequestMethod.GET)
+    @GetMapping(value = "/search/**")
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
                                               HttpServletRequest request,
-                                              @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
+                                              @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
         log.info("/search/** request= {}", request);
         String page = request.getRequestURI()
                              .split(request.getContextPath() + "/search/")[1];
