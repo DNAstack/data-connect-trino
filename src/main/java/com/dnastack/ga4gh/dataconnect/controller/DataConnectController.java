@@ -57,7 +57,7 @@ public class DataConnectController {
     @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @GetMapping(value = "/search/**")
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
-                                              @RequestParam("originalTraceId") String originalTraceId,
+                                              @RequestParam(value = "originalTraceId",required = false) String originalTraceId,
                                               HttpServletRequest request,
                                               @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
         String page = request.getRequestURI()
