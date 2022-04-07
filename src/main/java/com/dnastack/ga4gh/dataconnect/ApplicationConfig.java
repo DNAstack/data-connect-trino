@@ -1,19 +1,18 @@
 package com.dnastack.ga4gh.dataconnect;
 
-import brave.Tracer;
 import brave.Tracing;
 import com.dnastack.auth.PermissionChecker;
 import com.dnastack.auth.PermissionCheckerFactory;
 import com.dnastack.auth.keyresolver.CachingIssuerPubKeyJwksResolver;
 import com.dnastack.auth.keyresolver.IssuerPubKeyStaticResolver;
 import com.dnastack.auth.model.IssuerInfo;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig.OauthClientConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.DelegatingJwtDecoder;
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
 import com.dnastack.ga4gh.dataconnect.adapter.telemetry.TrinoTelemetryClient;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -59,10 +58,10 @@ public class ApplicationConfig {
 
     @Autowired
     public ApplicationConfig(
-            Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter,
-            @Value("${cors.urls}") String corsUrls,
-            @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs,
-            @Value("${trino.datasource.url}") String trinoDatasourceUrl
+        Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter,
+        @Value("${cors.urls}") String corsUrls,
+        @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs,
+        @Value("${trino.datasource.url}") String trinoDatasourceUrl
     ) {
         this.jwtScopesConverter = jwtScopesConverter;
         this.corsUrls = corsUrls;
@@ -81,14 +80,14 @@ public class ApplicationConfig {
     }
 
     @Bean
-    public OkHttpClient httpClient(){
+    public OkHttpClient httpClient() {
         return new OkHttpClient();
     }
 
     @Bean
-    public TrinoClient getTrinoClient(OkHttpClient httpClient, Tracer tracer, ServiceAccountAuthenticator accountAuthenticator, MeterRegistry registry) {
+    public TrinoClient getTrinoClient(OkHttpClient httpClient, Tracing tracing, ServiceAccountAuthenticator accountAuthenticator, MeterRegistry registry) {
         return new TrinoTelemetryClient(
-                new TrinoHttpClient(tracer,httpClient, trinoDatasourceUrl, accountAuthenticator), registry);
+            new TrinoHttpClient(tracing, httpClient, trinoDatasourceUrl, accountAuthenticator), registry);
     }
 
     @Bean
@@ -109,6 +108,7 @@ public class ApplicationConfig {
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'scope'")
     @Configuration
     protected static class DefaultJwtSecurityConfig extends WebSecurityConfigurerAdapter {
+
         private final Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter;
 
         @Autowired
@@ -119,17 +119,17 @@ public class ApplicationConfig {
         @Override
         protected void configure(HttpSecurity http) throws Exception {
             http.cors().and()
-                    .authorizeRequests()
-                    .antMatchers("/actuator/health", "/actuator/info", "/service-info").permitAll()
-                    .antMatchers("/**")
-                    .authenticated()
-                    .and()
-                    .oauth2ResourceServer()
-                    .jwt().jwtAuthenticationConverter(jwtScopesConverter)
-                    .and()
-                    .and()
-                    .csrf()
-                    .disable();
+                .authorizeRequests()
+                .antMatchers("/actuator/health", "/actuator/info", "/service-info").permitAll()
+                .antMatchers("/**")
+                .authenticated()
+                .and()
+                .oauth2ResourceServer()
+                .jwt().jwtAuthenticationConverter(jwtScopesConverter)
+                .and()
+                .and()
+                .csrf()
+                .disable();
         }
 
         @Bean
@@ -142,26 +142,28 @@ public class ApplicationConfig {
             issuers = new ArrayList<>(issuers);
             return new DelegatingJwtDecoder(issuers);
         }
+
     }
 
-    @ConditionalOnClass(name = {"com.dnastack.auth.PermissionChecker", "com.dnastack.auth.model.IssuerInfo"})
+    @ConditionalOnClass(name = { "com.dnastack.auth.PermissionChecker", "com.dnastack.auth.model.IssuerInfo" })
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'wallet'")
     @Configuration
     protected static class WalletJwtSecurityConfig extends WebSecurityConfigurerAdapter {
+
         @Override
         protected void configure(HttpSecurity http) throws Exception {
             http.cors().and()
-                    .authorizeRequests()
-                    .antMatchers("/actuator/health", "/actuator/info", "/service-info").permitAll()
-                    .antMatchers("/**")
-                    .authenticated()
-                    .and()
-                    .oauth2ResourceServer()
-                    .jwt()
-                    .and()
-                    .and()
-                    .csrf()
-                    .disable();
+                .authorizeRequests()
+                .antMatchers("/actuator/health", "/actuator/info", "/service-info").permitAll()
+                .antMatchers("/**")
+                .authenticated()
+                .and()
+                .oauth2ResourceServer()
+                .jwt()
+                .and()
+                .and()
+                .csrf()
+                .disable();
         }
 
         @Bean
@@ -172,17 +174,17 @@ public class ApplicationConfig {
             }
 
             return authConfig.getTokenIssuers().stream()
-                    .map((issuerConfig) -> {
-                        final String issuerUri = issuerConfig.getIssuerUri();
-                        return IssuerInfo.IssuerInfoBuilder.builder()
-                                .issuerUri(issuerUri)
-                                .allowedAudiences(issuerConfig.getAudiences())
-                                .publicKeyResolver(issuerConfig.getRsaPublicKey() != null
-                                        ? new IssuerPubKeyStaticResolver(issuerUri, issuerConfig.getRsaPublicKey())
-                                        : new CachingIssuerPubKeyJwksResolver(issuerUri))
-                                .build();
-                    })
-                    .collect(Collectors.toUnmodifiableList());
+                .map((issuerConfig) -> {
+                    final String issuerUri = issuerConfig.getIssuerUri();
+                    return IssuerInfo.IssuerInfoBuilder.builder()
+                        .issuerUri(issuerUri)
+                        .allowedAudiences(issuerConfig.getAudiences())
+                        .publicKeyResolver(issuerConfig.getRsaPublicKey() != null
+                            ? new IssuerPubKeyStaticResolver(issuerUri, issuerConfig.getRsaPublicKey())
+                            : new CachingIssuerPubKeyJwksResolver(issuerUri))
+                        .build();
+                })
+                .collect(Collectors.toUnmodifiableList());
         }
 
         @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer'")
@@ -215,45 +217,51 @@ public class ApplicationConfig {
             issuers = new ArrayList<>(issuers);
             return new DelegatingJwtDecoder(issuers);
         }
+
     }
 
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'basic'")
     @Configuration
     protected static class BasicAuthSecurityConfig extends WebSecurityConfigurerAdapter {
+
         @Override
         protected void configure(HttpSecurity http) throws Exception {
             http.cors().and()
-                    .authorizeRequests()
-                    .antMatchers("/api/**")
-                    .authenticated()
-                    .and()
-                    .httpBasic()
-                    .and()
-                    .authorizeRequests()
-                    .antMatchers("/actuator/health", "/actuator/info", "/service-info")
-                    .permitAll()
-                    .and()
-                    .authorizeRequests()
-                    .anyRequest()
-                    .authenticated()
-                    .and()
-                    .formLogin()
-                    .and()
-                    .csrf()
-                    .disable();
+                .authorizeRequests()
+                .antMatchers("/api/**")
+                .authenticated()
+                .and()
+                .httpBasic()
+                .and()
+                .authorizeRequests()
+                .antMatchers("/actuator/health", "/actuator/info", "/service-info")
+                .permitAll()
+                .and()
+                .authorizeRequests()
+                .anyRequest()
+                .authenticated()
+                .and()
+                .formLogin()
+                .and()
+                .csrf()
+                .disable();
         }
+
     }
 
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'none'")
     @Configuration
     protected static class NoAuthSecurityConfig extends WebSecurityConfigurerAdapter {
+
         @Override
         protected void configure(HttpSecurity http) throws Exception {
             http.cors().and().authorizeRequests().anyRequest().permitAll().and().csrf().disable();
         }
+
     }
 
     private String[] parseCorsUrls() {
         return corsUrls.split(",");
     }
+
 }

@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
 import brave.Span;
 import brave.Tracer;
+import brave.Tracing;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoIOException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUnexpectedHttpResponseException;
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
@@ -44,14 +45,16 @@ public class TrinoHttpClient implements TrinoClient {
     private final ServiceAccountAuthenticator authenticator;
     private final OkHttpClient httpClient;
     private final Tracer tracer;
+    private Tracing tracing;
     private final ObjectMapper objectMapper = new ObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    public TrinoHttpClient(Tracer tracer, OkHttpClient httpClient, String trinoServerUrl, ServiceAccountAuthenticator accountAuthenticator) {
+    public TrinoHttpClient(Tracing tracing, OkHttpClient httpClient, String trinoServerUrl, ServiceAccountAuthenticator accountAuthenticator) {
         this.trinoServer = trinoServerUrl;
         this.trinoSearchEndpoint = trinoServerUrl + "/v1/statement";
         this.authenticator = accountAuthenticator;
-        this.tracer = tracer;
+        this.tracing = tracing;
+        this.tracer = tracing.tracer();
         this.httpClient = httpClient;
     }
 
@@ -244,6 +247,7 @@ public class TrinoHttpClient implements TrinoClient {
 
     private Response execute(final Request.Builder request, Map<String, String> extraCredentials) throws IOException {
         request.header("X-Trino-User", getUserNameForRequest());
+        request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
         extraCredentials.forEach((k, v) -> request.addHeader("X-Trino-Extra-Credential", k + "=" + v));
 
         if (!authenticator.requiresAuthentication()) {
