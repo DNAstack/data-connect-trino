@@ -1,8 +1,11 @@
 package com.dnastack.ga4gh.dataconnect;
 
 import brave.Tracing;
+import com.dnastack.auth.JwtTokenParser;
+import com.dnastack.auth.JwtTokenParserFactory;
 import com.dnastack.auth.PermissionChecker;
 import com.dnastack.auth.PermissionCheckerFactory;
+import com.dnastack.auth.client.TokenActionsHttpClientFactory;
 import com.dnastack.auth.keyresolver.CachingIssuerPubKeyJwksResolver;
 import com.dnastack.auth.keyresolver.IssuerPubKeyStaticResolver;
 import com.dnastack.auth.model.IssuerInfo;
@@ -13,6 +16,10 @@ import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticat
 import com.dnastack.ga4gh.dataconnect.adapter.telemetry.TrinoTelemetryClient;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwsHeader;
+import io.jsonwebtoken.JwtException;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -208,14 +215,19 @@ public class ApplicationConfig {
         }
 
         @Bean
-        public JwtDecoder jwtDecoder(AuthConfig authConfig) {
-            List<AuthConfig.IssuerConfig> issuers = authConfig.getTokenIssuers();
-
-            if (issuers == null || issuers.isEmpty()) {
-                throw new IllegalArgumentException("At least one token issuer must be defined");
-            }
-            issuers = new ArrayList<>(issuers);
-            return new DelegatingJwtDecoder(issuers);
+        public JwtDecoder jwtDecoder(List<IssuerInfo> allowedIssuers, PermissionChecker permissionChecker, Tracing tracing) {
+            final JwtTokenParser jwtTokenParser = JwtTokenParserFactory.create(allowedIssuers, TokenActionsHttpClientFactory.create(tracing));
+            return (jwtToken) -> {
+                try {
+                    permissionChecker.checkPermissions(jwtToken);
+                    final Jws<Claims> jws = jwtTokenParser.parseTokenClaims(jwtToken);
+                    final JwsHeader headers = jws.getHeader();
+                    final Claims claims = jws.getBody();
+                    return new Jwt(jwtToken, claims.getIssuedAt().toInstant(), claims.getExpiration().toInstant(), headers, claims);
+                } catch (JwtException e) {
+                    throw new org.springframework.security.oauth2.jwt.BadJwtException(e.getMessage(), e);
+                }
+            };
         }
 
     }
