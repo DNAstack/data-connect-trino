@@ -68,7 +68,7 @@
     <version.nimbus>8.6</version.nimbus>
     <version.joda>2.10.3</version.joda>
     <version.bouncy.castle>1.67</version.bouncy.castle>
-    <feign.version>10.10.0</feign.version>
+    <feign.version>10.10.1</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <dnastack-token-validator.version>1.0.3</dnastack-token-validator.version>
     <audit-event-logger.version>1.0.3</audit-event-logger.version>
