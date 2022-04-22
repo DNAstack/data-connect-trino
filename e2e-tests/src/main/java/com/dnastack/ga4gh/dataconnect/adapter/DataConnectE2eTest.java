@@ -304,7 +304,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
 
     private ListTableResponse getFirstPageOfTableListing() throws Exception {
-        ListTableResponse listTableResponse = getListTableResponse("/tables");
+        ListTableResponse listTableResponse = globalMethodSecurityEnabled ? getListTableResponse("/tables") :
+                dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
 
         assertThat(listTableResponse.getIndex(), not(nullValue()));
 
@@ -521,7 +522,12 @@ public class DataConnectE2eTest extends BaseE2eTest {
         for (int i = 1; i < Math.min(MAX_PAGES_TO_TRAVERSE, pageIndex.size() - 1); ++i) {
             log.info("Follow-up: Page {}: Start", i);
 
-            currentPage = getListTableResponse(currentPage.getPagination().getNextPageUrl().toString());
+            currentPage = globalMethodSecurityEnabled ? getListTableResponse(currentPage.getPagination().getNextPageUrl().toString()) :
+                    dataConnectApiGetRequest(
+                            currentPage.getPagination().getNextPageUrl().toString(),
+                            200,
+                            ListTableResponse.class
+                    );
 
             log.info("Follow-up: Page {}: currentPage: {}", i, currentPage);
 
@@ -639,7 +645,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     public void getTables_should_returnAtLeastOneTable() throws Exception {
-        ListTableResponse listTableResponse = getListTableResponse("/tables");
+        ListTableResponse listTableResponse = globalMethodSecurityEnabled ? getListTableResponse("/tables") :
+                dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
 
         assertThat(listTableResponse, not(nullValue()));
         assertThat(listTableResponse.getTables(), hasSize(greaterThan(0)));
