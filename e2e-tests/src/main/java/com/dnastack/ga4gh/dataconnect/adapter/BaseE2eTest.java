@@ -35,7 +35,7 @@ public abstract class BaseE2eTest {
     protected static RestAssuredConfig config;
     protected static String walletClientId = optionalEnv("E2E_WALLET_CLIENT_ID", "data-connect-trino-e2e-test");
     protected static String walletClientSecret = optionalEnv("E2E_WALLET_CLIENT_SECRET", "dev-secret-never-use-in-prod");
-    protected static String dataConnectAdapterAudience = optionalEnv("E2E_WALLET_AUDIENCE", null);
+    protected static String dataConnectAdapterAudience = optionalEnv("E2E_WALLET_AUDIENCE", "http://localhost:8089");
 
     protected List<Runnable> cleanupOperations = new LinkedList<>();
 

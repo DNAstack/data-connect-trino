@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
 import io.restassured.filter.log.LogDetail;
 import io.restassured.http.ContentType;
+import io.restassured.http.Headers;
 import io.restassured.http.Method;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -146,6 +147,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
      */
     private static final String showTableForCatalogSchemaName = requiredEnv("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME");
 
+    private static final String collectionServiceUri = optionalEnv("E2E_COLLECTION_SERVICE_URI", "http://localhost:8093");
+
     private static boolean globalMethodSecurityEnabled;
     private static boolean scopeCheckingEnabled;
 
@@ -160,6 +163,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
      * RestAssured requests created by {@link #givenAuthenticatedRequest(String...)}.
      */
     private static final Map<String, String> extraCredentials = new HashMap<>();
+
+    private final List<String> dataConnectScopes = List.of("data-connect:query", "data-connect:data", "data-connect:info");
 
     @BeforeAll
     public static void beforeClass() {
@@ -299,7 +304,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
 
     private ListTableResponse getFirstPageOfTableListing() throws Exception {
-        ListTableResponse listTableResponse = dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
+        ListTableResponse listTableResponse = getListTableResponse("/tables");
+
         assertThat(listTableResponse.getIndex(), not(nullValue()));
 
         for (int i = 0; i < listTableResponse.getIndex().size(); ++i) {
@@ -307,6 +313,22 @@ public class DataConnectE2eTest extends BaseE2eTest {
             assertThat(listTableResponse.getIndex().get(i).getPage(), is(i));
         }
         return listTableResponse;
+    }
+
+    private ListTableResponse getListTableResponse(String url) {
+        String bearerToken = getToken(dataConnectAdapterAudience, dataConnectScopes.toArray(new String[dataConnectScopes.size()]));
+
+        String searchAuthorizationToken = getToken(collectionServiceUri, dataConnectScopes.toArray(new String[dataConnectScopes.size()]));
+
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
+
+        return given()
+                .auth().oauth2(bearerToken)
+                .headers(headers)
+                .get(url)
+                .getBody()
+                .as(ListTableResponse.class);
     }
 
     @Test
@@ -498,11 +520,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
         //assert that the nth page has next url equal to the n+1st index.
         for (int i = 1; i < Math.min(MAX_PAGES_TO_TRAVERSE, pageIndex.size() - 1); ++i) {
             log.info("Follow-up: Page {}: Start", i);
-            currentPage = dataConnectApiGetRequest(
-                currentPage.getPagination().getNextPageUrl().toString(),
-                200,
-                ListTableResponse.class
-            );
+
+            currentPage = getListTableResponse(currentPage.getPagination().getNextPageUrl().toString());
+
             log.info("Follow-up: Page {}: currentPage: {}", i, currentPage);
 
             if (currentPage.getErrors() != null) {
@@ -619,7 +639,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     public void getTables_should_returnAtLeastOneTable() throws Exception {
-        ListTableResponse listTableResponse = dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
+        ListTableResponse listTableResponse = getListTableResponse("/tables");
+
         assertThat(listTableResponse, not(nullValue()));
         assertThat(listTableResponse.getTables(), hasSize(greaterThan(0)));
     }
