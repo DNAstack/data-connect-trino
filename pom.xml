@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>2.6.4</version>
+    <version>2.3.8.RELEASE</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -51,20 +51,24 @@
   </dependencyManagement>
 
   <properties>
-    <java.version>17</java.version>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <java.version>11</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <spring-cloud.version>2021.0.0</spring-cloud.version> <!-- Version 2021.0.0 is compatible with Spring Boot: 2.6.* -->
-    <springdoc.version>1.6.5</springdoc.version>
-    <jdbi.version>3.14.4</jdbi.version>
+    <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+    <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
+    <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
+    <spring-cloud.version>Hoxton.SR10</spring-cloud.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <jdbi.version>3.21.0</jdbi.version>
+    <version.okhttp>3.14.0</version.okhttp>
+    <version.micrometer>1.4.1</version.micrometer>
     <version.trino>359</version.trino>
-    <version.spring.boot>2.6.4</version.spring.boot>
-    <version.guava>31.1-jre</version.guava>
-    <version.nimbus>9.22</version.nimbus>
-    <version.joda>2.10.14</version.joda>
-    <version.bouncy.castle>1.70</version.bouncy.castle>
+    <version.spring.boot>2.3.8.RELEASE</version.spring.boot>
+    <version.guava>30.0-jre</version.guava>
+    <version.nimbus>8.6</version.nimbus>
+    <version.joda>2.10.3</version.joda>
+    <version.bouncy.castle>1.67</version.bouncy.castle>
+    <feign.version>10.10.1</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <dnastack-token-validator.version>1.0.3</dnastack-token-validator.version>
     <audit-event-logger.version>1.0.3</audit-event-logger.version>
@@ -74,7 +78,11 @@
   </properties>
 
   <dependencies>
-    <!--Spring dependencies-->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.20</version>
+    </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-beans</artifactId>
@@ -102,17 +110,22 @@
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-zipkin</artifactId>
-      <version>2.2.8.RELEASE</version>
     </dependency>
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-configuration-processor</artifactId>
-      <optional>true</optional>
+      <groupId>com.github.gavlyukovskiy</groupId>
+      <artifactId>p6spy-spring-boot-starter</artifactId>
+      <version>1.7.0</version>
     </dependency>
+
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-actuator</artifactId>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
     </dependency>
+
+<!--    <dependency>-->
+<!--      <groupId>org.springframework.boot</groupId>-->
+<!--      <artifactId>spring-boot-starter-data-jpa</artifactId>-->
+<!--    </dependency>-->
 
     <dependency>
       <groupId>org.bouncycastle</groupId>
@@ -120,12 +133,18 @@
       <version>${version.bouncy.castle}</version>
     </dependency>
     <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>okhttp</artifactId>
+      <version>${version.okhttp}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
@@ -162,12 +181,17 @@
       <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
-
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
 
     <!--Feign-->
     <dependency>
       <groupId>io.github.openfeign</groupId>
       <artifactId>feign-core</artifactId>
+      <version>${feign.version}</version>
     </dependency>
     <dependency>
       <groupId>io.github.openfeign.form</groupId>
@@ -177,27 +201,13 @@
     <dependency>
       <groupId>io.github.openfeign</groupId>
       <artifactId>feign-okhttp</artifactId>
+      <version>${feign.version}</version>
     </dependency>
     <dependency>
       <groupId>io.github.openfeign</groupId>
       <artifactId>feign-jackson</artifactId>
+      <version>${feign.version}</version>
     </dependency>
-
-    <!--Database support-->
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-jdbc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.liquibase</groupId>
-      <artifactId>liquibase-core</artifactId>
-    </dependency>
-
 
     <!-- JDBI -->
     <dependency>
@@ -224,17 +234,17 @@
       <version>${dnastack-token-validator.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>com.dnastack</groupId>
-      <artifactId>dnastack-oauth-client-factory-spring-starter</artifactId>
-      <version>${oauth-client-factory.version}</version>
-    </dependency>
-
     <!-- Audit Event Logger -->
     <dependency>
       <groupId>com.dnastack</groupId>
       <artifactId>spring-boot-audit-event-logger</artifactId>
       <version>${audit-event-logger.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.dnastack</groupId>
+      <artifactId>dnastack-oauth-client-factory-spring-starter</artifactId>
+      <version>${oauth-client-factory.version}</version>
     </dependency>
 
     <!-- Customized Logging -->
@@ -251,6 +261,7 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <version>${version.spring.boot}</version>
         <executions>
           <execution>
             <goals>
@@ -262,7 +273,7 @@
       <plugin>
         <groupId>de.qaware.maven</groupId>
         <artifactId>go-offline-maven-plugin</artifactId>
-        <version>1.2.8</version>
+        <version>1.2.5</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
