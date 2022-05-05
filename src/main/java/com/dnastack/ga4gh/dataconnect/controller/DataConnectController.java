@@ -39,7 +39,7 @@ public class DataConnectController {
     public TableData search(@RequestBody DataConnectRequest dataConnectRequest,
                             HttpServletRequest request,
                             @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
-        TableData tableData = null;
+        TableData tableData;
 
         try {
             log.debug("Request: /search query= {}", dataConnectRequest.getSqlQuery());

@@ -248,6 +248,7 @@ public class TrinoHttpClient implements TrinoClient {
     private Response execute(final Request.Builder request, Map<String, String> extraCredentials) throws IOException {
         request.header("X-Trino-User", getUserNameForRequest());
         request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
+        request.header("X-Trino-Extra-Credential", "trace=" + tracing.currentTraceContext().get().traceIdString()); // We're doing this to extract the trace token inside the SAC plugin
         extraCredentials.forEach((k, v) -> request.addHeader("X-Trino-Extra-Credential", k + "=" + v));
 
         if (!authenticator.requiresAuthentication()) {
