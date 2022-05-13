@@ -133,6 +133,8 @@ management:
       environment: local
       stackdriver:
         enabled: false
+  endpoints:
+    web.exposure.include: info, health
         
 ---
 
