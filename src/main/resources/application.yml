@@ -98,6 +98,8 @@ auditing:
 spring:
   application:
     name: data-connect-trino
+  main:
+    allow-circular-references: true
   jackson:
     default-property-inclusion: NON_NULL
   jpa:
