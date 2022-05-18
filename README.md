@@ -35,6 +35,11 @@ spin up the database with this docker command:
 docker run -d -p 5432:5432 --name dataconnecttrino -e POSTGRES_USER=dataconnecttrino -e POSTGRES_PASSWORD=dataconnecttrino postgres
 ```
 
+Or if you already have a local postgres installed, configure a user and a database:
+```
+CREATE USER dataconnecttrino PASSWORD 'dataconnecttrino' CREATEDB CREATEROLE;
+CREATE DATABASE dataconnecttrino OWNER dataconnecttrino;
+```
 ### Run
 ```$xslt
 mvn clean spring-boot:run
