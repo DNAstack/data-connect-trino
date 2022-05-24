@@ -71,7 +71,7 @@ public class SchemaTestWithLibraryTest extends BaseE2eTest {
                     .jsonSchema(objectMapper.writeValueAsString(Map.of("$comment", "This is the custom schema from library"))) // private String jsonSchema
                     .size(123L) // private Long size
                     .sizeUnit("row") // private String sizeUnit
-                    .dataSourceUrl("https://search-e2e-test.dnastack.com") // private String dataSourceUrl
+                    .dataSourceUrl("https://search-e2e-test.dnastack.com/") // private String dataSourceUrl
                     .build()
             )
             .post(URI.create(INS_BASE_URI).resolve("/library"))
