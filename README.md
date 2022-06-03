@@ -23,8 +23,8 @@ mvn clean package
 
 ### Configure
  
-Set these two environment variables.
-```$xslt
+Set these environment variables.
+```
 TRINO_DATASOURCE_URL=https://<your-trino-server>
 SPRING_PROFILES_ACTIVE=no-auth
 ```
@@ -112,7 +112,7 @@ SPRING_SECURITY_USER_PASSWORD={some-password}
 ```
 
 ## Postgres Configuration
-The data connect adapter uses trino to save queries, so that it can reparse them during pagination to re-evaluate functions
+The data connect adapter uses a PostgreSQL database to save queries, so that it can reparse them during pagination to re-evaluate functions
 that need to be processed prior to submitting queries to trino.
 
 The following is a quick start for local development:
