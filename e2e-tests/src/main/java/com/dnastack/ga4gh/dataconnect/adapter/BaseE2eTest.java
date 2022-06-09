@@ -20,10 +20,7 @@ import org.junit.jupiter.api.*;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import static io.restassured.RestAssured.given;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -153,6 +150,10 @@ public abstract class BaseE2eTest {
     }
 
     static String getToken(String audience, String... scopes) {
+        return getToken(audience, Arrays.asList(scopes) , List.of());
+    }
+
+    static String getToken(String audience, List<String> scopes, List<String> resources) {
         RequestSpecification specification = new RequestSpecBuilder().setBaseUri(optionalEnv("E2E_WALLET_TOKEN_URI", "http://localhost:8081/oauth/token"))
             .build();
 
@@ -164,9 +165,16 @@ public abstract class BaseE2eTest {
             .formParam("client_id", walletClientId)
             .formParam("client_secret", walletClientSecret)
             .formParam("resource", audience + "/");
-        if (scopes.length > 0) {
+        if (scopes.size() > 0) {
             requestSpecification.formParam("scope", String.join(" ", scopes));
         }
+
+        if (resources != null) {
+            for (String resource : resources) {
+                requestSpecification.formParam("resource", resource);
+            }
+        }
+
         JsonPath tokenResponse = requestSpecification
             .when()
             .post()

@@ -34,7 +34,7 @@ public class SchemaTestWithLibraryTest extends BaseE2eTest {
 
     @Test
     public void getTableInfo_should_returnTableAndSchema() throws JsonProcessingException {
-        final String indexingServiceBearerToken = getToken(INS_BASE_URI, "ins:library:write");
+        final String indexingServiceBearerToken = getToken(INS_BASE_URI, List.of("ins:library:write"), List.of(INS_BASE_URI + "library/") );
 
         final String shortTableName = ("libTest_" + RandomStringUtils.randomAlphanumeric(8)).toLowerCase();
         final String fullTableName = getFullyQualifiedTestTableName(shortTableName);
