@@ -19,12 +19,12 @@ oauth-client-factory:
 app:
   url: http://localhost:${server.port}
   service-info:
-    id:
+    id: data-connect-trino
     name: "GA4GH Discovery Search API"
-    description:
-    documentation-url:
-    contact-url:
-    version:
+    description: "Supports data discovery by searching heterogeneous genomic and clinical data using a uniform query language."
+    documentation-url: /docs/swagger-ui.html
+    contact-url: mailto:support@dnastack.com
+    version: @project.version@
   # Un-comment the following section of tables-registry if you would like to enable the flow of fetching the table schema from tables-registry
   # Get the staging secret corresponding to client-id from kubernetes or create your own if pointing to local wallet
   # tables-registry:
@@ -59,7 +59,6 @@ info:
   build:
     name: "Data Connect API"
     version: 1.0
-
 
 logging:
   level:
