@@ -1007,8 +1007,10 @@ public class DataConnectE2eTest extends BaseE2eTest {
         RequestSpecification req = given()
             .config(config);
 
-        // add auth if configured
-        if (walletClientId != null && walletClientSecret != null && dataConnectAdapterAudience != null) {
+        // Add auth if running data-connect-trino tests and if auth properties are configured
+        if (DATA_CONNECT_TRINO_APP_NAME.equals(optionalEnv("APP_NAME", null)) &&
+            walletClientId != null && walletClientSecret != null && dataConnectAdapterAudience != null) {
+
             String accessToken = getToken(dataConnectAdapterAudience, scopes);
             req.auth().oauth2(accessToken);
             if (Boolean.parseBoolean(optionalEnv("E2E_LOG_TOKENS", "false"))) {

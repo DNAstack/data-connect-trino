@@ -5,7 +5,6 @@ import com.dnastack.ga4gh.dataconnect.adapter.test.model.Table;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.TableInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.assertj.core.api.Assertions;
-import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -17,9 +16,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public class TablesRegistrySchemaTest extends BaseE2eTest {
-
-    private static String DATA_CONNECT_TRINO_PUBLIC_APP_NAME = "data-connect-trino-public";
-    private static String DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE = "This test is run for 'data-connect-trino-public' ONLY";
 
     private static String egaTable1 = "dbgap_demo.scr_ega.scr_egapancreatic_sample_multi";
     private static String geccoTable1 = "dbgap_demo.scr_gecco_susceptibility.sample_attributes_multi";

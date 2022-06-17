@@ -26,8 +26,6 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @Slf4j
 public class SchemaTestWithLibraryTest extends BaseE2eTest {
     private static final String INS_BASE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
-    private static String DATA_CONNECT_TRINO_APP_NAME = "data-connect-trino";
-    private static String DATA_CONNECT_TRINO_TEST_VALIDATION_MESSAGE = "This test is run for 'data-connect-trino' ONLY";
 
     @BeforeAll
     public static void preflightCheck() {
