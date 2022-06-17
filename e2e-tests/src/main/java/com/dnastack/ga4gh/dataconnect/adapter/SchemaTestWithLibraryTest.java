@@ -25,7 +25,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Slf4j
 public class SchemaTestWithLibraryTest extends BaseE2eTest {
-    private static final String INS_BASE_URI = optionalEnv("E2E_INS_BASE_URI", null);
+    private static final String INS_BASE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
+    private static String DATA_CONNECT_TRINO_APP_NAME = "data-connect-trino";
+    private static String DATA_CONNECT_TRINO_TEST_VALIDATION_MESSAGE = "This test is run for 'data-connect-trino' ONLY";
 
     @BeforeAll
     public static void preflightCheck() {
@@ -34,6 +36,9 @@ public class SchemaTestWithLibraryTest extends BaseE2eTest {
 
     @Test
     public void getTableInfo_should_returnTableAndSchema() throws JsonProcessingException {
+        assumeTrue(
+            DATA_CONNECT_TRINO_APP_NAME.equals(optionalEnv("APP_NAME", null)), DATA_CONNECT_TRINO_TEST_VALIDATION_MESSAGE);
+
         final String indexingServiceBearerToken = getToken(INS_BASE_URI, List.of("ins:library:write"), List.of(INS_BASE_URI + "library/") );
 
         final String shortTableName = ("libTest_" + RandomStringUtils.randomAlphanumeric(8)).toLowerCase();
