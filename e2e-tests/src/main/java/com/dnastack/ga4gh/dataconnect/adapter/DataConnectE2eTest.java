@@ -1013,7 +1013,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
             String accessToken = getToken(dataConnectAdapterAudience, scopes);
             req.auth().oauth2(accessToken);
-            if (Boolean.parseBoolean(optionalEnv("E2E_LOG_TOKENS", "false"))) {
+            if (optionalEnv("E2E_LOG_TOKENS", "false").equalsIgnoreCase("true")) {
                 log.info("Using access token {}", accessToken);
             }
         }
