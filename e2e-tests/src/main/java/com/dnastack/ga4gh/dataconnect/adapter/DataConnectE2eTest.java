@@ -302,7 +302,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
         return inMemoryCatalog + "." + inMemorySchema + "." + tableName;
     }
 
-
     private ListTableResponse getFirstPageOfTableListing() throws Exception {
         ListTableResponse listTableResponse = globalMethodSecurityEnabled ? getListTableResponse("/tables") :
                 dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);

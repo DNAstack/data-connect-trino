@@ -25,12 +25,12 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Slf4j
 public class SchemaTestWithLibraryTest extends BaseE2eTest {
-    private static final String E2E_INDEXING_SERVICE_ENABLED = optionalEnv("E2E_INDEXING_SERVICE_ENABLED", null);
+    private static final boolean E2E_INDEXING_SERVICE_ENABLED = Boolean.parseBoolean(optionalEnv("E2E_INDEXING_SERVICE_ENABLED", "false"));
     private static final String E2E_INS_BASE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
 
     @BeforeAll
     public static void preflightCheck() {
-        assumeTrue(E2E_INDEXING_SERVICE_ENABLED != null, "This app doesn't have indexing-service properties configured.");
+        assumeTrue(E2E_INDEXING_SERVICE_ENABLED, "This app doesn't have indexing-service properties configured.");
     }
 
     @Test
