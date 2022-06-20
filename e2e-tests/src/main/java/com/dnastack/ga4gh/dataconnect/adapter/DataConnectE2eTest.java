@@ -1011,6 +1011,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         if (DATA_CONNECT_TRINO_APP_NAME.equals(optionalEnv("APP_NAME", null)) &&
             walletClientId != null && walletClientSecret != null && dataConnectAdapterAudience != null) {
 
+            log.info("Debug log: Trying to fetch access token");
             String accessToken = getToken(dataConnectAdapterAudience, scopes);
             req.auth().oauth2(accessToken);
             if (optionalEnv("E2E_LOG_TOKENS", "false").equalsIgnoreCase("true")) {
