@@ -1007,10 +1007,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
         RequestSpecification req = given()
             .config(config);
 
-        // Add auth if running data-connect-trino tests and if auth properties are configured
-        if (DATA_CONNECT_TRINO_APP_NAME.equals(optionalEnv("APP_NAME", null)) &&
-            walletClientId != null && walletClientSecret != null && dataConnectAdapterAudience != null) {
-
+        // Add auth if auth properties are configured
+        if (walletClientId != null && walletClientSecret != null && dataConnectAdapterAudience != null) {
             log.info("Debug log: Trying to fetch access token");
             String accessToken = getToken(dataConnectAdapterAudience, scopes);
             req.auth().oauth2(accessToken);
@@ -1023,12 +1021,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
         extraCredentials.forEach((k, v) -> req.header("GA4GH-Search-Authorization", k + "=" + v));
 
         return req;
-    }
-
-    static String discoverTableName() throws IOException {
-        ListTableResponse listTableResponse = dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
-        assertThat(listTableResponse.getTables(), hasSize(greaterThan(0)));
-        return listTableResponse.getTables().get(0).getName();
     }
 
 }

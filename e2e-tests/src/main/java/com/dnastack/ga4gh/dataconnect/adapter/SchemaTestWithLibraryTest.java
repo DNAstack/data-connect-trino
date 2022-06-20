@@ -25,19 +25,17 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Slf4j
 public class SchemaTestWithLibraryTest extends BaseE2eTest {
-    private static final String INS_BASE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
+    private static final String E2E_INDEXING_SERVICE_ENABLED = optionalEnv("E2E_INDEXING_SERVICE_ENABLED", null);
+    private static final String E2E_INS_BASE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
 
     @BeforeAll
     public static void preflightCheck() {
-        assumeTrue(INS_BASE_URI != null, "The base URI to the indexing service NOT DEFINED for this test");
+        assumeTrue(E2E_INDEXING_SERVICE_ENABLED != null, "This app doesn't have indexing-service properties configured.");
     }
 
     @Test
     public void getTableInfo_should_returnTableAndSchema() throws JsonProcessingException {
-        assumeTrue(
-            DATA_CONNECT_TRINO_APP_NAME.equals(optionalEnv("APP_NAME", null)), DATA_CONNECT_TRINO_TEST_VALIDATION_MESSAGE);
-
-        final String indexingServiceBearerToken = getToken(INS_BASE_URI, List.of("ins:library:write"), List.of(INS_BASE_URI + "library/") );
+        final String indexingServiceBearerToken = getToken(E2E_INS_BASE_URI, List.of("ins:library:write"), List.of(E2E_INS_BASE_URI + "library/") );
 
         final String shortTableName = ("libTest_" + RandomStringUtils.randomAlphanumeric(8)).toLowerCase();
         final String fullTableName = getFullyQualifiedTestTableName(shortTableName);
@@ -77,7 +75,7 @@ public class SchemaTestWithLibraryTest extends BaseE2eTest {
                     .dataSourceUrl("https://search-e2e-test.dnastack.com/") // private String dataSourceUrl
                     .build()
             )
-            .post(URI.create(INS_BASE_URI).resolve("/library"))
+            .post(URI.create(E2E_INS_BASE_URI).resolve("/library"))
             .then()
             .log().ifValidationFails()
             .statusCode(200)
@@ -89,7 +87,7 @@ public class SchemaTestWithLibraryTest extends BaseE2eTest {
         afterThisTest(() ->
             given()
                 .auth().oauth2(indexingServiceBearerToken)
-                .delete(URI.create(INS_BASE_URI).resolve("/library/" + libraryItemId))
+                .delete(URI.create(E2E_INS_BASE_URI).resolve("/library/" + libraryItemId))
                 .then()
                 .statusCode(204)
         );
