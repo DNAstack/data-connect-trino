@@ -36,8 +36,6 @@ public abstract class BaseE2eTest {
 
     protected static String DATA_CONNECT_TRINO_PUBLIC_APP_NAME = "data-connect-trino-public";
     protected static String DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE = "This test is run for 'data-connect-trino-public' ONLY";
-    protected static String DATA_CONNECT_TRINO_APP_NAME = "data-connect-trino";
-    protected static String DATA_CONNECT_TRINO_TEST_VALIDATION_MESSAGE = "This test is run for 'data-connect-trino' ONLY";
 
     protected List<Runnable> cleanupOperations = new LinkedList<>();
 

@@ -1007,7 +1007,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
             .config(config);
 
         // Add auth if auth properties are configured
-        if (walletClientId != null && walletClientSecret != null && dataConnectAdapterAudience != null) {
+        if (globalMethodSecurityEnabled && walletClientId != null && walletClientSecret != null && dataConnectAdapterAudience != null) {
             log.info("Debug log: Trying to fetch access token");
             String accessToken = getToken(dataConnectAdapterAudience, scopes);
             req.auth().oauth2(accessToken);
