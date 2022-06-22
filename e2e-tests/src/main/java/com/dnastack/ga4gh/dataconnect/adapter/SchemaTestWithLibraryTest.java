@@ -28,13 +28,10 @@ public class SchemaTestWithLibraryTest extends BaseE2eTest {
     private static final boolean E2E_INDEXING_SERVICE_ENABLED = Boolean.parseBoolean(optionalEnv("E2E_INDEXING_SERVICE_ENABLED", "false"));
     private static final String E2E_INS_BASE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
 
-    @BeforeAll
-    public static void preflightCheck() {
-        assumeTrue(E2E_INDEXING_SERVICE_ENABLED, "This app doesn't have indexing-service properties configured.");
-    }
-
     @Test
     public void getTableInfo_should_returnTableAndSchema() throws JsonProcessingException {
+        assumeTrue(E2E_INDEXING_SERVICE_ENABLED, "This app doesn't have indexing-service properties configured.");
+
         final String indexingServiceBearerToken = getToken(E2E_INS_BASE_URI, List.of("ins:library:write"), List.of(E2E_INS_BASE_URI + "library/") );
 
         final String shortTableName = ("libTest_" + RandomStringUtils.randomAlphanumeric(8)).toLowerCase();
