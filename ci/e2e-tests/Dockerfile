@@ -6,7 +6,7 @@
 
 # This stage depends on a JDK image and uses Maven Wrapper to pull in dependencies and build the project
 # from source.
-FROM openjdk:11-jdk-slim AS build
+FROM amazoncorretto:17-alpine AS build
 ARG APP_NAME
 ARG APP_VERSION
 WORKDIR /build
@@ -32,7 +32,7 @@ RUN ./mvnw -B -o package -DskipTests=true
 
 # This stage uses a JRE rather than JDK because it doesn't have to compile any Java sources.
 # It is assembling the runnable test container and packaging all its Maven dependencies
-FROM openjdk:11-slim
+FROM amazoncorretto:17-alpine
 ARG APP_NAME
 ARG APP_VERSION
 
