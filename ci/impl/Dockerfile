@@ -40,7 +40,7 @@ ARG APP_VERSION
 COPY --from=0 /build/target/data-connect-trino-*.jar /app.jar
 COPY --from=0 /build/java-buildpack-memory-calculator /java-buildpack-memory-calculator
 RUN mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
-EXPOSE 9095
+EXPOSE 8080
 
 RUN busybox adduser -D -h / ${APP_NAME}
 USER ${APP_NAME}
