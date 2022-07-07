@@ -24,7 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 @Slf4j
 @EnabledIfEnvironmentVariable(named = "E2E_INDEXING_SERVICE_ENABLED", matches = "true", disabledReason = "This app doesn't have indexing-service properties configured.")
-public class ParameterizedTablesRegistrySchemaTest extends BaseE2eTest {
+public class TablesRegistrySchemaTest extends BaseE2eTest {
 
     public static Collection<Object[]> getTestParams() {
         final Pattern groupPattern = Pattern.compile("^E2E_TRS_([A-Za-z\\d]+)_TABLE_NAME$");
