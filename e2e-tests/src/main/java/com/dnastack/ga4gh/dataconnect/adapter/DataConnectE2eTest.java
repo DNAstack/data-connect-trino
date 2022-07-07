@@ -1,15 +1,17 @@
 package com.dnastack.ga4gh.dataconnect.adapter;
 
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
 import io.restassured.filter.log.LogDetail;
 import io.restassured.http.ContentType;
-import io.restassured.http.Headers;
 import io.restassured.http.Method;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.HttpStatus;
@@ -100,7 +102,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static final String INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE = "INSERT INTO %s(bogusfield) VALUES('%s')";
 
     private static final String INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE =
-        "INSERT INTO %s (id, data) VALUES('foo', JSON '{\"name\": \"Foo\", \"age\": 25}')";
+        "INSERT INTO %s (id, data) VALUES('%s', json_parse('%s'))";
+    private static final String INSERT_JSON_TEST_TABLE_ENTRY_NULL =
+        "INSERT INTO %s (id, data) VALUES('null', null)";
 
     private static final String TEST_DATE = "2020-05-27";
     private static final String TEST_TIME_LOS_ANGELES = "12:22:27.000-08:00";
@@ -122,7 +126,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         + "id integer,"
         + "bogusfield varchar(64))";
 
-    private static final String CREATE_JSON_TEST_TABLE_TEMPLATE = "CREATE TABLE %s (id varchar(8), data json)";
+    private static final String CREATE_JSON_TEST_TABLE_TEMPLATE = "CREATE TABLE %s (id varchar(25), data json)";
 
     private static final String DELETE_TEST_TABLE_TEMPLATE = "DROP TABLE %s";
 
@@ -211,7 +215,13 @@ public class DataConnectE2eTest extends BaseE2eTest {
         // Create a test table for JSON support tests.
         trinoJsonTestTable = getFullyQualifiedTestTableName("jsonTest_" + randomFactor);
         queries.add(String.format(CREATE_JSON_TEST_TABLE_TEMPLATE, trinoJsonTestTable));
-        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable));
+        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "string", "\"Hello\""));
+        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "boolean", "true"));
+        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "number", "1.0"));
+        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "json_object", "{\"name\": \"Foo\", \"age\": 25}"));
+        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_NULL, trinoJsonTestTable));
+        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "array_of_various_types", "[\"Hello\", true, 1.0, {\"name\": \"Foo\"}, null, [1,2]]"));
+        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "array_of_json_objects", "[{\"name\": \"Foo\", \"age\": 25}, {\"name\": \"Boo\", \"age\": 52}]"));
 
         // Create a test table for datetime tests.
         trinoDateTimeTestTable = getFullyQualifiedTestTableName("dateTimeTest_" + randomFactor);
@@ -347,10 +357,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
         assertThat(tableData, not(nullValue()));
         tableData = dataConnectApiGetAllPages(tableData);
 
-        Map<String, Object> jsonField = (Map<String, Object>) tableData.getData().get(0).get("data");
-
-        assertThat(jsonField.get("name"), equalTo("Foo"));
-        assertThat(jsonField.get("age"), equalTo(25));
+        for(Map<String, Object> data : tableData.getData()) {
+            checkJsonData(String.valueOf(data.get("id")), data.get("data"));
+        }
     }
 
     @Test
@@ -1020,6 +1029,50 @@ public class DataConnectE2eTest extends BaseE2eTest {
         extraCredentials.forEach((k, v) -> req.header("GA4GH-Search-Authorization", k + "=" + v));
 
         return req;
+    }
+
+    private static void checkJsonData(String id, Object data) throws JsonProcessingException {
+        JsonNode node = objectMapper.readTree(String.valueOf(data));;
+        switch (id) {
+            case "number":
+                assertTrue(node.isNumber());
+                assertThat(node.numberValue(), equalTo(1.0));
+                break;
+            case "string":
+                assertTrue(node.isTextual());
+                assertThat(node.textValue(), equalTo("Hello"));
+                break;
+            case "boolean":
+                assertTrue(node.isBoolean());
+                assertTrue(node.booleanValue());
+                break;
+            case "null":
+                assertTrue(node.isNull());
+                break;
+            case "json_object":
+                assertTrue(node.isObject());
+                assertThat(node.get("age").numberValue(), equalTo(25));
+                assertThat(node.get("name").textValue(), equalTo("Foo"));
+                break;
+            case "array_of_various_types":
+                assertTrue(node.isArray());
+                assertThat(node.size(), equalTo(6));
+                assertTrue(node.get(0).isTextual());
+                assertTrue(node.get(1).isBoolean());
+                assertTrue(node.get(2).isNumber());
+                assertTrue(node.get(3).isObject());
+                assertTrue(node.get(4).isNull());
+                assertTrue(node.get(5).isArray());
+                break;
+            case "array_of_json_objects":
+                assertTrue(node.isArray());
+                assertThat(node.size(), equalTo(2));
+                assertTrue(node.get(0).isObject());
+                assertTrue(node.get(1).isObject());
+                break;
+            default:
+                break;
+        }
     }
 
 }
