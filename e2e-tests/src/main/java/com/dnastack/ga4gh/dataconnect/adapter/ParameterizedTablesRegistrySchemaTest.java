@@ -30,21 +30,22 @@ public class ParameterizedTablesRegistrySchemaTest extends BaseE2eTest {
         final Pattern groupPattern = Pattern.compile("^E2E_TRS_([A-Za-z\\d]+)_TABLE_NAME$");
         List<String> groups = System.getenv().keySet().stream().map(key -> {
             Matcher matcher = groupPattern.matcher(key);
-            if (matcher.find())
+            if (matcher.find()) {
                 return matcher.group(1);
+            }
             return null;
         }).filter(Objects::nonNull).collect(Collectors.toList());
 
         return groups.stream().flatMap(group -> {
             String tableName = requiredEnv(String.format("E2E_TRS_%s_TABLE_NAME", group));
-            String expectedJsonDataModel = requiredEnv(String.format("E2E_TRS_%s_EXPECTED_JSON_DATA_MODEL", group));
+            String expectedJsonDataModel = requiredEnv(String.format("E2E_TRS_%s_EXPECTED_DATA_MODEL", group));
             List<Object[]> params = new ArrayList<>();
             params.add(new Object[]{ tableName, expectedJsonDataModel });
             return params.stream();
         }).collect(Collectors.toList());
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "Testing table with name [{0}]")
     @MethodSource("getTestParams")
     public void getTableInfo_should_returnDataModelFromTablesRegistry(String tableName, String expectedJsonDataModel) throws Exception {
         DataModel expectedDataModel = objectMapper.readValue(expectedJsonDataModel, DataModel.class);
@@ -64,4 +65,5 @@ public class ParameterizedTablesRegistrySchemaTest extends BaseE2eTest {
         DataConnectE2eTest.dataConnectApiGetAllPages(tableData);
         Assertions.assertThat(tableData.getDataModel()).usingRecursiveComparison().isEqualTo(expectedDataModel);
     }
+
 }
