@@ -3,7 +3,6 @@ package com.dnastack.ga4gh.dataconnect.adapter;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.DataModel;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.Table;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.TableInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -11,7 +10,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -37,33 +35,21 @@ public class ParameterizedTablesRegistrySchemaTest extends BaseE2eTest {
             return null;
         }).filter(Objects::nonNull).collect(Collectors.toList());
 
-        final List<Object[]> collect = groups.stream().flatMap(group -> {
+        return groups.stream().flatMap(group -> {
             String tableName = requiredEnv(String.format("E2E_TRS_%s_TABLE_NAME", group));
-            String expectedJsonDataModel = requiredEnv(String.format("E2E_TRS_%s_EXPECTED_JSON_DATA_MODEL", group)); //TODO: This should be the JSON contents, not the file name
+            String expectedJsonDataModel = requiredEnv(String.format("E2E_TRS_%s_EXPECTED_JSON_DATA_MODEL", group));
             List<Object[]> params = new ArrayList<>();
             params.add(new Object[]{ tableName, expectedJsonDataModel });
             return params.stream();
         }).collect(Collectors.toList());
-
-        log.info("collect: {}", collect);
-        return collect;
     }
 
     @ParameterizedTest
     @MethodSource("getTestParams")
-    public void getTableInfo_should_returnDataModelFromTablesRegistryForEgaTable1(String tableName, String expectedJsonDataModel) throws Exception {
-        DataModel expectedDataModel = getExpectedDataModelFromTestResources(expectedJsonDataModel);
+    public void getTableInfo_should_returnDataModelFromTablesRegistry(String tableName, String expectedJsonDataModel) throws Exception {
+        DataModel expectedDataModel = objectMapper.readValue(expectedJsonDataModel, DataModel.class);
         fetchAndVerifyTableInfo(tableName, expectedDataModel);
         fetchAndVerifyTableData(tableName, expectedDataModel);
-    }
-
-    private DataModel getExpectedDataModelFromTestResources(String dataModelJsonFile) throws IOException {
-        DataModel expectedDataModel;
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(dataModelJsonFile)) {
-            ObjectMapper objectMapper = new ObjectMapper();
-            expectedDataModel = objectMapper.readValue(is, DataModel.class);
-        }
-        return expectedDataModel;
     }
 
     private void fetchAndVerifyTableInfo(String tableName, DataModel expectedDataModel) throws IOException {
@@ -75,7 +61,7 @@ public class ParameterizedTablesRegistrySchemaTest extends BaseE2eTest {
     private void fetchAndVerifyTableData(String tableName, DataModel expectedDataModel) throws IOException {
         Table tableData = DataConnectE2eTest.dataConnectApiGetRequest("/table/" + tableName + "/data", 200, Table.class);
         assertThat(tableData, not(nullValue()));
-        tableData = DataConnectE2eTest.dataConnectApiGetAllPages(tableData);
+        DataConnectE2eTest.dataConnectApiGetAllPages(tableData);
         Assertions.assertThat(tableData.getDataModel()).usingRecursiveComparison().isEqualTo(expectedDataModel);
     }
 }
