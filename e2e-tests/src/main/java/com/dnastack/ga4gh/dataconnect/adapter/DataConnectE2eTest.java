@@ -39,8 +39,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static io.restassured.http.Method.POST;
 
@@ -1031,8 +1030,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
         return req;
     }
 
-    private static void checkJsonData(String id, Object data) throws JsonProcessingException {
-        JsonNode node = objectMapper.readTree(String.valueOf(data));
+    private static void checkJsonData(String id, Object data) {
+        JsonNode node = objectMapper.valueToTree(data);
         switch (id) {
             case "number":
                 assertTrue(node.isNumber());
