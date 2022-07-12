@@ -671,64 +671,60 @@ public class TrinoDataConnectAdapter {
     }
 
 
-    private Object getData(ColumnSchema columnSchema, JsonNode trinoDataArray) {
+    private Object getData(ColumnSchema columnSchema, JsonNode trinoData) {
         if (columnSchema.getRawType().equals("map")) {
             LinkedHashMap<String, Object> map = new LinkedHashMap<>();
-            if (trinoDataArray.getNodeType() != JsonNodeType.OBJECT) {
+            if (trinoData.getNodeType() != JsonNodeType.OBJECT) {
                 throw new UnexpectedQueryResponseException("Expected value for map was not of type object for schema " + columnSchema);
             }
 
             ColumnSchema mapEntryColumnSchema = columnSchema.getProperties().get("value");
-            return Streams.stream(trinoDataArray.fields())
+            return Streams.stream(trinoData.fields())
                 .map(mapEntry -> Map.entry(mapEntry.getKey(), getData(mapEntryColumnSchema, mapEntry.getValue())))
                 .collect(toSortedMap(deepMapEntry -> deepMapEntry.getKey(), deepMapEntry -> deepMapEntry.getValue()));
         } else if (columnSchema.getRawType().equals("row")) {
-            if (trinoDataArray.getNodeType() != JsonNodeType.ARRAY) {
+            if (trinoData.getNodeType() != JsonNodeType.ARRAY) {
                 throw new UnexpectedQueryResponseException("Expected array of row values for schema " + columnSchema);
             }
             int j = 0;
             Map<String, Object> row = new LinkedHashMap<>();
             for (Map.Entry<String, ColumnSchema> rowPropertyTypeInfo : columnSchema.getProperties().entrySet()) {
-                JsonNode rowValue = trinoDataArray.get(j++);
+                JsonNode rowValue = trinoData.get(j++);
                 row.put(rowPropertyTypeInfo.getKey(), getData(rowPropertyTypeInfo.getValue(), rowValue));
             }
             return row;
         } else if (columnSchema.getRawType().equals("array")) {
-            if (trinoDataArray.getNodeType() != JsonNodeType.ARRAY) {
+            if (trinoData.getNodeType() != JsonNodeType.ARRAY) {
                 throw new UnexpectedQueryResponseException("Expected array of row values for schema " + columnSchema);
             }
             ColumnSchema itemSchema = columnSchema.getItems();
-            return StreamSupport.stream(trinoDataArray.spliterator(), false)
+            return StreamSupport.stream(trinoData.spliterator(), false)
                 .map(arrayValue -> getData(itemSchema, arrayValue))
                 .collect(Collectors.toUnmodifiableList());
         } else if (columnSchema.getRawType().equals("json")) { //json or primitive.
             try {
-                if (trinoDataArray.asText() != "null" && objectMapper.readTree(trinoDataArray.asText()).isArray()) {
-                    return objectMapper.readValue(trinoDataArray.asText(), new TypeReference<List<Map<String, Object>>>() {});
-                } else {
-                    return objectMapper.readValue(trinoDataArray.asText(), new TypeReference<Map<String, Object>>() {});
-                }
-            } catch (IOException e) {
+                return objectMapper.readTree(trinoData.asText());
+            } catch (JsonProcessingException e) {
                 throw new UnexpectedQueryResponseException(
-                    "JSON came back badly formatted: trinoDataArray.asText() = " + trinoDataArray.asText() + ". Exception message=" + e.getMessage());
+                    "JSON came back badly formatted: trinoDataArray.asText() = " + trinoData.asText() + ". Exception message=" + e.getMessage());
             }
         } else {
 
-            if (trinoDataArray.isTextual()) {
+            if (trinoData.isTextual()) {
                 //currently only textual types are transformed.
                 TrinoDataTransformer transformer = JsonAdapter.getTrinoDataTransformer(columnSchema.getRawType());
                 if (transformer == null) {
-                    return trinoDataArray.asText();
+                    return trinoData.asText();
                 } else {
-                    return transformer.transform(trinoDataArray.asText());
+                    return transformer.transform(trinoData.asText());
                 }
-            } else if (trinoDataArray.isBoolean()) {
-                return trinoDataArray.asBoolean();
-            } else if (trinoDataArray.isIntegralNumber()) {
-                return trinoDataArray.asLong();
-            } else if (trinoDataArray.isFloatingPointNumber()) {
-                return trinoDataArray.asDouble();
-            } else if (trinoDataArray.isNull()) {
+            } else if (trinoData.isBoolean()) {
+                return trinoData.asBoolean();
+            } else if (trinoData.isIntegralNumber()) {
+                return trinoData.asLong();
+            } else if (trinoData.isFloatingPointNumber()) {
+                return trinoData.asDouble();
+            } else if (trinoData.isNull()) {
                 return null;
             } else {
                 throw new UnexpectedQueryResponseException("Unexpected value type in data for schema " + columnSchema);
