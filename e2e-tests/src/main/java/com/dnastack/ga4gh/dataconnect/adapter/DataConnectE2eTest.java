@@ -357,7 +357,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         assertThat(tableData, not(nullValue()));
         tableData = dataConnectApiGetAllPages(tableData);
 
-        for(Map<String, Object> data : tableData.getData()) {
+        for (Map<String, Object> data : tableData.getData()) {
             checkJsonData(String.valueOf(data.get("id")), data.get("data"));
         }
     }
@@ -1032,7 +1032,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     private static void checkJsonData(String id, Object data) throws JsonProcessingException {
-        JsonNode node = objectMapper.readTree(String.valueOf(data));;
+        JsonNode node = objectMapper.readTree(String.valueOf(data));
         switch (id) {
             case "number":
                 assertTrue(node.isNumber());
