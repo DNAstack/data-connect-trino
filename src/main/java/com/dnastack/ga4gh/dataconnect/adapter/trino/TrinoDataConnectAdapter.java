@@ -702,7 +702,12 @@ public class TrinoDataConnectAdapter {
                 .map(arrayValue -> getData(itemSchema, arrayValue))
                 .collect(Collectors.toUnmodifiableList());
         } else if (columnSchema.getRawType().equals("json")) { //json or primitive.
-            return trinoData;
+            try {
+                return objectMapper.readTree(trinoData.asText());
+            } catch (JsonProcessingException e) {
+                throw new UnexpectedQueryResponseException(
+                    "JSON came back badly formatted: trinoDataArray.asText() = " + trinoData.asText() + ". Exception message=" + e.getMessage());
+            }
         } else {
 
             if (trinoData.isTextual()) {
