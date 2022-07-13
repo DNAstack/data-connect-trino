@@ -249,8 +249,7 @@ public class TrinoHttpClient implements TrinoClient {
         request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
         String b3Header = String.format("%s-%s-%s-%s", tracing.currentTraceContext().get().traceIdString(), tracing.currentTraceContext().get().spanIdString(),
             1, tracing.currentTraceContext().get().parentIdString());
-        request.header("b3", b3Header);
-        request.header("X-Trino-Extra-Credential", "b3=" + b3Header); // We're doing this to extract the trace token inside the SAC plugin
+        request.header("X-Trino-Extra-Credential", "b3=" + b3Header); // We're adding the b3 contents to this header, so we can extract it inside the SAC plugin & ga4gh-tables-connector
         extraCredentials.forEach((k, v) -> request.addHeader("X-Trino-Extra-Credential", k + "=" + v));
 
         if (!authenticator.requiresAuthentication()) {
