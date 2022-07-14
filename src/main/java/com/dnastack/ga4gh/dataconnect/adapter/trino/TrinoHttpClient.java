@@ -269,6 +269,8 @@ public class TrinoHttpClient implements TrinoClient {
         log.debug(">>> {} {} (With Authorization header, {} extra credentials)", r.method(), r.url(), extraCredentials
             .size());
 
+        // [#182698954] This approach of token refresh on 401/403 differs from approach in other apps which use Interceptor implemented in DNAStack OAuth library.
+        // Due to reasons described in the ticket we decided to keep this code instead of using auth interceptor but this might change in the future.
         Response firstTry = httpClient.newCall(r).execute();
         if (firstTry.code() != 401 && firstTry.code() != 403) {
             return firstTry;
