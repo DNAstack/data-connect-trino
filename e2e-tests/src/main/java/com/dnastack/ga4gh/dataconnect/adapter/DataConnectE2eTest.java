@@ -18,7 +18,10 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,6 +31,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.Method.GET;
@@ -347,7 +353,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         final String indexingServiceBearerToken = getToken(INDEXING_SERVICE_URI, List.of("ins:library:write"), List.of(INDEXING_SERVICE_URI + "library/") );
 
         log.info("Verifying table info for [{}]", trinoPaginationTestTableName);
-        Table tableInfo = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/info", 200, Table.class);
+        TableInfo tableInfo = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/info", 200, TableInfo.class);
         assertThat("Table name is incorrect", tableInfo.getName(), equalTo(trinoPaginationTestTableName));
         assertThat("Table data model is null", tableInfo.getDataModel(), not(nullValue()));
         assertThat("ID in the table data model is null", tableInfo.getDataModel().getId(), not(nullValue()));
@@ -394,7 +400,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         );
 
         log.info("Verifying that the custom schema is fetched for [{}]", trinoPaginationTestTableName);
-        tableInfo = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/info", 200, Table.class);
+        tableInfo = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/info", 200, TableInfo.class);
         assertThat("ID in the table data model is not null", tableInfo.getDataModel().getId(), nullValue());
         assertThat("The table data model properties is not null", tableInfo.getDataModel().getProperties(), nullValue());
         assertThat(
@@ -402,6 +408,51 @@ public class DataConnectE2eTest extends BaseE2eTest {
             tableInfo.getDataModel().getAdditionalProperties().get("$comment"),
             equalTo("This is the custom schema from library")
         );
+    }
+
+    public static Collection<Object[]> getTestParams() {
+        final Pattern groupPattern = Pattern.compile("^E2E_([A-Za-z\\d]+)_EXPECTED_DATA_MODEL$");
+        List<String> groups = System.getenv().keySet().stream().map(key -> {
+            Matcher matcher = groupPattern.matcher(key);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+            return null;
+        }).filter(Objects::nonNull).collect(Collectors.toList());
+
+        return groups.stream().flatMap(group -> {
+            String tableName = requiredEnv(String.format("E2E_%s_TABLE_NAME", group));
+            String expectedJsonDataModel = requiredEnv(String.format("E2E_%s_EXPECTED_DATA_MODEL", group));
+            List<Object[]> params = new ArrayList<>();
+            params.add(new Object[]{ tableName, expectedJsonDataModel });
+            return params.stream();
+        }).collect(Collectors.toList());
+    }
+
+    static boolean runTest() {
+        return getTestParams().size() <= 0;
+    }
+
+    @ParameterizedTest(name = "Testing table with name [{0}]")
+    @MethodSource("getTestParams")
+    @DisabledIf(value = "runTest", disabledReason = "No test data found when looking for environment variables of pattern E2E_%s_EXPECTED_DATA_MODEL")
+    public void getTableInfoAndData_should_returnExpectedDataModel(String tableName, String expectedJsonDataModel) throws Exception {
+        DataModel expectedDataModel = objectMapper.readValue(expectedJsonDataModel, DataModel.class);
+        fetchAndVerifyTableInfo(tableName, expectedDataModel);
+        fetchAndVerifyTableData(tableName, expectedDataModel);
+    }
+
+    private void fetchAndVerifyTableInfo(String tableName, DataModel expectedDataModel) throws IOException {
+        TableInfo tableInfo = dataConnectApiGetRequest("/table/" + tableName + "/info", 200, TableInfo.class);
+        assertThat(tableInfo, not(nullValue()));
+        Assertions.assertThat(tableInfo.getDataModel()).usingRecursiveComparison().isEqualTo(expectedDataModel);
+    }
+
+    private void fetchAndVerifyTableData(String tableName, DataModel expectedDataModel) throws IOException {
+        Table tableData = dataConnectApiGetRequest("/table/" + tableName + "/data", 200, Table.class);
+        assertThat(tableData, not(nullValue()));
+        dataConnectApiGetAllPages(tableData);
+        Assertions.assertThat(tableData.getDataModel()).usingRecursiveComparison().isEqualTo(expectedDataModel);
     }
 
     @Test
