@@ -349,7 +349,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
     @EnabledIfEnvironmentVariable(named = "E2E_INDEXING_SERVICE_ENABLED", matches = "true", disabledReason = "This test requires data-connect-trino to be hooked up to indexing-service")
     @Test
-    public void getTableInfo_should_returnTableAndSchema() throws IOException {
+    public void getTableInfo_should_returnCustomSchema() throws IOException {
         final String indexingServiceBearerToken = getToken(INDEXING_SERVICE_URI, List.of("ins:library:write"), List.of(INDEXING_SERVICE_URI + "library/") );
 
         log.info("Verifying table info for [{}]", trinoPaginationTestTableName);
