@@ -3,6 +3,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.trino;
 import brave.Span;
 import brave.Tracer;
 import brave.Tracing;
+import brave.propagation.B3SingleFormat;
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.AuthRequiredException;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.DataConnectAuthRequest;
@@ -247,9 +248,11 @@ public class TrinoHttpClient implements TrinoClient {
     private Response execute(final Request.Builder request, Map<String, String> extraCredentials) throws IOException {
         request.header("X-Trino-User", getUserNameForRequest());
         request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
-        String b3Header = String.format("%s-%s-%s-%s", tracing.currentTraceContext().get().traceIdString(), tracing.currentTraceContext().get().spanIdString(),
-            1, tracing.currentTraceContext().get().parentIdString());
-        request.header("X-Trino-Extra-Credential", "b3=" + b3Header); // We're adding the b3 contents to this header, so we can extract it inside the SAC plugin & ga4gh-tables-connector
+        if (tracing.currentTraceContext().get() != null) {
+            request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
+            // We're adding the b3 contents to the Extra-Credential header, so we can extract it inside the SAC plugin & ga4gh-tables-connector
+            request.header("X-Trino-Extra-Credential", "b3=" + B3SingleFormat.writeB3SingleFormat(tracing.currentTraceContext().get()));
+        }
         extraCredentials.forEach((k, v) -> request.addHeader("X-Trino-Extra-Credential", k + "=" + v));
 
         if (!authenticator.requiresAuthentication()) {
