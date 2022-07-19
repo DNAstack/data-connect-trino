@@ -34,9 +34,6 @@ public abstract class BaseE2eTest {
     protected static String walletClientSecret = optionalEnv("E2E_WALLET_CLIENT_SECRET", "dev-secret-never-use-in-prod");
     protected static String dataConnectAdapterAudience = optionalEnv("E2E_WALLET_AUDIENCE", "http://localhost:8089");
 
-    protected static String DATA_CONNECT_TRINO_PUBLIC_APP_NAME = "data-connect-trino-public";
-    protected static String DATA_CONNECT_TRINO_PUBLIC_TEST_VALIDATION_MESSAGE = "This test is run for 'data-connect-trino-public' ONLY";
-
     protected List<Runnable> cleanupOperations = new LinkedList<>();
 
     @AfterEach
@@ -127,7 +124,7 @@ public abstract class BaseE2eTest {
     protected static String requiredEnv(String name) {
         String val = System.getenv(name);
         if (val == null) {
-            Assertions.fail("Environnment variable `" + name + "` is required");
+            Assertions.fail("Environment variable `" + name + "` is required");
         }
         return val;
     }
