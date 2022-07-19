@@ -694,7 +694,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         DataConnectRequest dataConnectRequest = new DataConnectRequest(query);
         log.info("Running query {}", query);
         Table result = dataConnectApiRequest(Method.POST, "/search", dataConnectRequest, 200, Table.class);
-        result = dataConnectApiGetAllPages(result);
+        dataConnectApiGetAllPages(result);
 
         if (result.getData() == null) {
             throw new RuntimeException("Expected results for query " + query + ", but none were found.");
@@ -812,7 +812,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     public void getTableData_should_returnDataAndDataModel() throws Exception {
         Table tableData = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/data", 200, Table.class);
         assertThat(tableData, not(nullValue()));
-        tableData = dataConnectApiGetAllPages(tableData);
+        dataConnectApiGetAllPages(tableData);
         assertThat(tableData.getData(), not(nullValue()));
         assertThat(tableData.getData(), not(empty()));
         assertThat(tableData.getDataModel(), not(nullValue()));
@@ -882,7 +882,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         log.info("Running query {}", query);
 
         Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
-        result = dataConnectApiGetAllPages(result);
+        dataConnectApiGetAllPages(result);
 
         assertThat("Expected results for query " + query.getQuery() + ", but none were found.", result.getData(), not(nullValue()));
 
@@ -899,7 +899,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         log.info("Running query {}", query);
 
         Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
-        result = dataConnectApiGetAllPages(result);
+        dataConnectApiGetAllPages(result);
 
         assertThat("Expected results for query " + query.getQuery() + ", but none were found.", result.getData(), not(nullValue()));
 
@@ -918,13 +918,11 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     /**
-     * Retrieves all rows of the given table by following pagination links page by page.
+     * Retrieves all rows of the given table by following pagination links page by page, and appends to the given table object.
      *
      * @param table the table with the initial row set and pagination link.
-     * @return A table containing the concatenation of all rows returned over all the pagination links, as well as the
-     * first non-null data model encountered.  null only if original table parameter is null.
      */
-    static Table dataConnectApiGetAllPages(Table table) throws IOException {
+    static void dataConnectApiGetAllPages(Table table) throws IOException {
         while (table.getPagination() != null && table.getPagination().getNextPageUrl() != null) {
             String nextPageUri = table.getPagination().getNextPageUrl().toString();
             Table nextResult = dataConnectApiGetRequest(nextPageUri, 200, Table.class);
@@ -933,7 +931,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
             }
             table.append(nextResult);
         }
-        return table;
     }
 
     /**
