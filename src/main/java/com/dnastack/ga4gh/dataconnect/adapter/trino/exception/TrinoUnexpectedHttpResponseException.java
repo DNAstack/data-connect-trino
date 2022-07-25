@@ -5,17 +5,14 @@ import lombok.Getter;
 @Getter
 public class TrinoUnexpectedHttpResponseException extends RuntimeException {
     private final int code;
-    private final String logMessage;
 
-    public TrinoUnexpectedHttpResponseException(int code, String message, String logMessage) {
+    public TrinoUnexpectedHttpResponseException(int code, String message) {
         super(message);
         this.code = code;
-        this.logMessage = logMessage;
     }
 
-    public TrinoUnexpectedHttpResponseException(int code, String message, String logMessage, Throwable cause) {
+    public TrinoUnexpectedHttpResponseException(int code, String message, Throwable cause) {
         super(message, cause);
         this.code = code;
-        this.logMessage = logMessage;
     }
 }

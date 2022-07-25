@@ -185,20 +185,18 @@ public class TrinoHttpClient implements TrinoClient {
         if (httpResponse.body() == null) {
             throw new TrinoUnexpectedHttpResponseException(
                 httpResponse.code(),
-                "Unable to fetch query results",
-                "No response body received from backend - status line was " + httpResponse.code() + " " + httpResponse
-                    .message());
+                "No response body received from backend - status line was " + httpResponse.code() + " " + httpResponse.message());
         }
 
         String httpResponseBody;
         try {
             httpResponseBody=httpResponse.body().string();
         } catch (IOException ie) {
-            throw new TrinoUnexpectedHttpResponseException(httpResponse.code(), "Failed to complete database query: problem with response", "IOException while extracting http response body from Trino", ie);
+            throw new TrinoUnexpectedHttpResponseException(httpResponse.code(), "Unable to read backend response", ie);
         }
 
         if (!httpResponse.isSuccessful()) {
-            throw new TrinoUnexpectedHttpResponseException(httpResponse.code(), "An error occurred during query execution", "Trino Http response was not successful: " + httpResponseBody);
+            throw new TrinoUnexpectedHttpResponseException(httpResponse.code(), "Error in query execution: " + httpResponseBody);
         }
 
         try {
@@ -221,10 +219,10 @@ public class TrinoHttpClient implements TrinoClient {
                 if (error == null) {
                     error = httpResponseBody;
                 }
-                throw new TrinoUnexpectedHttpResponseException(httpResponse.code(), "An errr ocurred during query execution.", "Processing failure, trinoState:" + trinoState + " -- " + error.toString());
+                throw new TrinoUnexpectedHttpResponseException(httpResponse.code(), "Query processing failure. trinoState:" + trinoState + " -- " + error);
             }
         } catch (JsonParseException jpe) {
-            throw new TrinoUnexpectedHttpResponseException(httpResponse.code(), "An errr ocurred during query execution.", "Error while parsing JSON response from database", jpe);
+            throw new TrinoUnexpectedHttpResponseException(httpResponse.code(), "Error while parsing JSON response from backend", jpe);
         } catch (IOException iex) {
             // should never happen: no I/O is performed by objectMapper.readTree
             throw new AssertionError("IOException when parsing http body string response.");
