@@ -35,10 +35,18 @@ app:
       # client-secret: <kubernetes_secret>
       # audience: https://ga4gh-tables-registry.staging.dnastack.com
   indexing-service:
-    enabled: false
+    enabled: true
     base-uri: http://localhost:8094
     oauth-client:
-      resource: "${app.indexing-service.base-uri}"
+      client-id: data-connect-trino
+      client-secret: dev-secret-never-use-in-prod
+      scopes: ins:library:read
+      resource: "${app.indexing-service.base-uri}/"
+      actions: [ "ins:library:read" ]
+      token-uri: http://localhost:8081/oauth/token
+      token-issuers-uris: [ "http://localhost:8081" ]
+      policy-evaluation-requester: "${app.url}"
+      policy-evaluation-uri: "http://localhost:8081/policies/evaluations"
     publisher-catalog-name: publisher_data
   query-cleanup:
     cron-interval: "*/10 * * ? * *" # Every 10 seconds
