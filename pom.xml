@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>2.6.7</version>
+    <version>2.7.2</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -18,6 +18,13 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>${spring-boot.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
       <dependency>
         <groupId>org.springframework.cloud</groupId>
         <artifactId>spring-cloud-dependencies</artifactId>
@@ -57,31 +64,31 @@
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
     <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
     <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
-    <spring-cloud.version>2021.0.2</spring-cloud.version>
+    <spring-cloud.version>2021.0.3</spring-cloud.version>
+    <spring-boot.version>2.7.2</spring-boot.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jdbi.version>3.21.0</jdbi.version>
-    <version.okhttp>3.14.0</version.okhttp>
-    <version.micrometer>1.4.1</version.micrometer>
+    <jdbi.version>3.32.0</jdbi.version>
+    <version.okhttp>4.10.0</version.okhttp>
     <version.trino>359</version.trino>
-    <version.spring.boot>2.3.8.RELEASE</version.spring.boot>
-    <version.guava>30.0-jre</version.guava>
-    <version.nimbus>9.22</version.nimbus>
-    <version.joda>2.10.3</version.joda>
-    <version.bouncy.castle>1.67</version.bouncy.castle>
-    <feign.version>10.10.1</feign.version>
+    <version.spring.boot>2.7.2</version.spring.boot>
+    <version.guava>31.1-jre</version.guava>
+    <version.nimbus>9.23</version.nimbus>
+    <version.joda>2.10.14</version.joda>
+    <version.bouncy.castle>1.70</version.bouncy.castle>
+    <feign.version>11.9.1</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <dnastack-token-validator.version>1.0.3</dnastack-token-validator.version>
-    <audit-event-logger.version>1.0.4</audit-event-logger.version>
-    <oauth-client-factory.version>0.1.4</oauth-client-factory.version>
+    <audit-event-logger.version>1.0.5</audit-event-logger.version>
+    <oauth-client-factory.version>0.1.6</oauth-client-factory.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
-    <logback.version>1.2.10</logback.version>
+    <logback.version>1.2.11</logback.version>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.20</version>
+      <version>1.18.24</version>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
