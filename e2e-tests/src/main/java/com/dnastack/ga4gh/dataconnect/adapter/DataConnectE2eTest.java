@@ -200,7 +200,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
         Properties properties = new Properties();
         properties.setProperty("user", "e2etestuser");
-        properties.setProperty("SSL", trinoTestUri.contains("localhost") ? "false" : "true");
+        properties.setProperty("SSL", trinoTestUri.contains("localhost") ? "false" : optionalEnv("E2E_TRINO_JDBCSSL", "true"));
 
         log.info("Fetching a wallet token using audience {} and scopes {} to setup a JDBC connection to trino.", trinoAudience, trinoScopes);
         if (trinoAudience != null) {
