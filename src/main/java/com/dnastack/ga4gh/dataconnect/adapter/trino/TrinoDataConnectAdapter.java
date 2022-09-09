@@ -590,12 +590,19 @@ public class TrinoDataConnectAdapter {
         URI nextPageUri = null;
         URI trinoNextPageUri = null;
         if (trinoResponse.hasNonNull("nextUri")) {
+            log.debug("generatePagination: ***** BEGIN with nextUri *****");
             final String rawTrinoResponseUri = trinoResponse.get("nextUri").asText();
+            log.debug("generatePagination: rawTrinoResponseUri => {}", rawTrinoResponseUri);
             final String rawTrinoRelayedPath = URI.create(rawTrinoResponseUri).getPath().replaceFirst("^/+", "");
+            log.debug("generatePagination: rawTrinoRelayedPath => {}", rawTrinoRelayedPath);
             final String localForwardedPath = String.format(template, rawTrinoRelayedPath);
+            log.debug("generatePagination: localForwardedPath => {}", localForwardedPath);
 
             nextPageUri = URI.create(callbackBaseUrl(request) + localForwardedPath);
+            log.debug("generatePagination: nextPageUri => {}", nextPageUri);
             trinoNextPageUri = ServletUriComponentsBuilder.fromHttpUrl(rawTrinoResponseUri).build().toUri();
+            log.debug("generatePagination: trinoNextPageUri => {}", trinoNextPageUri);
+            log.debug("generatePagination: ***** END *****");
         }
 
         return new Pagination(queryJob.getId(), nextPageUri, trinoNextPageUri);
