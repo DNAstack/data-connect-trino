@@ -126,6 +126,18 @@ public class ApplicationConfig {
         @Override
         protected void configure(HttpSecurity http) throws Exception {
             http.cors().and()
+                .headers()
+                .frameOptions().deny()
+                .xssProtection().and()
+                .contentSecurityPolicy(
+                    "default-src 'self'; " +
+                    "style-src 'self'; " +
+                    "font-src 'self'; " +
+                    "script-src 'self';" +
+                    "img-src 'self'; " +
+                    "connect-src 'self';"
+                ).and()
+                .and()
                 .authorizeRequests()
                 .antMatchers("/actuator/health", "/actuator/info", "/service-info").permitAll()
                 .antMatchers("/**")
@@ -160,6 +172,18 @@ public class ApplicationConfig {
         @Override
         protected void configure(HttpSecurity http) throws Exception {
             http.cors().and()
+                .headers()
+                .frameOptions().deny()
+                .xssProtection().and()
+                .contentSecurityPolicy(
+                    "default-src 'self'; " +
+                    "style-src 'self'; " +
+                    "font-src 'self'; " +
+                    "script-src 'self';" +
+                    "img-src 'self'; " +
+                    "connect-src 'self';"
+                ).and()
+                .and()
                 .authorizeRequests()
                 .antMatchers("/actuator/health", "/actuator/info", "/service-info").permitAll()
                 .antMatchers("/**")
@@ -239,6 +263,18 @@ public class ApplicationConfig {
         @Override
         protected void configure(HttpSecurity http) throws Exception {
             http.cors().and()
+                .headers()
+                .frameOptions().deny()
+                .xssProtection().and()
+                .contentSecurityPolicy(
+                    "default-src 'self'; " +
+                    "style-src 'self'; " +
+                    "font-src 'self'; " +
+                    "script-src 'self';" +
+                    "img-src 'self'; " +
+                    "connect-src 'self';"
+                ).and()
+                .and()
                 .authorizeRequests()
                 .antMatchers("/api/**")
                 .authenticated()
