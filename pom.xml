@@ -77,8 +77,8 @@
     <version.bouncy.castle>1.70</version.bouncy.castle>
     <feign.version>11.9.1</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
-    <dnastack-token-validator.version>1.0.3</dnastack-token-validator.version>
-    <audit-event-logger.version>1.0.5</audit-event-logger.version>
+    <dnastack-token-validator.version>1.0.5</dnastack-token-validator.version>
+    <audit-event-logger.version>1.0.6</audit-event-logger.version>
     <oauth-client-factory.version>0.1.7</oauth-client-factory.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
     <logback.version>1.2.11</logback.version>
