@@ -4,7 +4,7 @@
 ## Stage 1: Build and test the Java Sources
 ##
 
-FROM openjdk:11-jdk-slim AS build
+FROM azul/zulu-openjdk:17.0.3 AS build
 ARG APP_NAME
 ARG APP_VERSION
 WORKDIR /build
@@ -34,7 +34,7 @@ RUN ./mvnw -B -X package
 
 # This stage uses a JRE rather than JDK because it doesn't have to build anything; it just runs the fat jar
 # produced by the previous stage.
-FROM openjdk:11-slim
+FROM azul/zulu-openjdk:17.0.3-jre
 ARG APP_NAME
 ARG APP_VERSION
 

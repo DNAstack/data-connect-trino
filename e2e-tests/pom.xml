@@ -10,7 +10,7 @@
 	<name>Data Connect End-to-end tests</name>
 
 	<properties>
-		<java.version>11</java.version>
+		<java.version>17</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<actuator-e2e-test.version>1.0.3</actuator-e2e-test.version>

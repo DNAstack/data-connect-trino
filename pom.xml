@@ -58,12 +58,12 @@
   </dependencyManagement>
 
   <properties>
-    <java.version>11</java.version>
+    <java.version>17</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
-    <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
-    <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
+    <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
+    <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
     <spring-cloud.version>2021.0.3</spring-cloud.version>
     <spring-boot.version>2.7.2</spring-boot.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
