@@ -157,7 +157,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
      */
     private static final String showTableForCatalogSchemaName = requiredEnv("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME");
 
-    private static final String COLLECTION_SERVICE_URI = optionalEnv("E2E_COLLECTION_SERVICE_URI", "http://localhost:8093");
+    private static final String COLLECTION_SERVICE_RESOURCE_URI = optionalEnv("E2E_COLLECTION_SERVICE_RESOURCE_URI", "http://localhost:8093/");
     private static final String INDEXING_SERVICE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
     private static final String INDEXING_SERVICE_RESOURCE_URI = optionalEnv("E2E_INS_RESOURCE_URI", "http://localhost:8094/");
 
@@ -334,9 +334,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     private ListTableResponse getListTableResponse(String url) {
-        String bearerToken = getToken(dataConnectAdapterAudience, dataConnectScopes.toArray(new String[dataConnectScopes.size()]));
-
-        String searchAuthorizationToken = getToken(COLLECTION_SERVICE_URI, dataConnectScopes.toArray(new String[dataConnectScopes.size()]));
+        String bearerToken = getToken(null, dataConnectScopes, List.of(dataConnectAdapterResource));
+        String searchAuthorizationToken = getToken(null, dataConnectScopes, List.of(COLLECTION_SERVICE_RESOURCE_URI));
 
         Map<String, Object> headers = new HashMap<>();
         headers.put("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
@@ -1118,8 +1117,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
             .config(config);
 
         // Add auth if auth properties are configured
-        if (globalMethodSecurityEnabled && walletClientId != null && walletClientSecret != null && dataConnectAdapterAudience != null) {
-            String accessToken = getToken(null, List.of(scopes), List.of(URI.create(dataConnectAdapterAudience).resolve("/").toString()));
+        if (globalMethodSecurityEnabled && walletClientId != null && walletClientSecret != null && dataConnectAdapterResource != null) {
+            String accessToken = getToken(null, List.of(scopes), List.of(dataConnectAdapterResource));
             req.auth().oauth2(accessToken);
             if (optionalEnv("E2E_LOG_TOKENS", "false").equalsIgnoreCase("true")) {
                 log.info("Using access token {}", accessToken);
