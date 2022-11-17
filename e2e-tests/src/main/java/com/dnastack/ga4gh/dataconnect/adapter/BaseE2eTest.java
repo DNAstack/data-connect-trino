@@ -163,13 +163,17 @@ public abstract class BaseE2eTest {
             .auth().basic(walletClientId, walletClientSecret)
             .formParam("grant_type", "client_credentials")
             .formParam("client_id", walletClientId)
-            .formParam("client_secret", walletClientSecret)
-            .formParam("resource", audience + "/");
+            .formParam("client_secret", walletClientSecret);
+
+        if (audience != null) {
+            requestSpecification.formParam("audience", audience);
+        }
+
         if (scopes.size() > 0) {
             requestSpecification.formParam("scope", String.join(" ", scopes));
         }
 
-        if (resources != null) {
+        if (resources.size() > 0) {
             for (String resource : resources) {
                 requestSpecification.formParam("resource", resource);
             }

@@ -159,6 +159,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     private static final String COLLECTION_SERVICE_URI = optionalEnv("E2E_COLLECTION_SERVICE_URI", "http://localhost:8093");
     private static final String INDEXING_SERVICE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
+    private static final String INDEXING_SERVICE_RESOURCE_URI = optionalEnv("E2E_INS_RESOURCE_URI", "http://localhost:8094/");
 
     private static boolean globalMethodSecurityEnabled;
     private static boolean scopeCheckingEnabled;
@@ -350,7 +351,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     @EnabledIfEnvironmentVariable(named = "E2E_INDEXING_SERVICE_ENABLED", matches = "true", disabledReason = "This test requires data-connect-trino to be hooked up to indexing-service")
     @Test
     public void getTableInfo_should_returnCustomSchema_from_indexingService() throws IOException {
-        final String indexingServiceBearerToken = getToken(INDEXING_SERVICE_URI, List.of("ins:library:write"), List.of(INDEXING_SERVICE_URI + "library/") );
+        final String indexingServiceBearerToken = getToken(null, List.of("ins:library:write"), List.of(INDEXING_SERVICE_RESOURCE_URI + "library/") );
 
         log.info("Verifying table info for [{}]", trinoPaginationTestTableName);
         TableInfo tableInfo = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/info", 200, TableInfo.class);
