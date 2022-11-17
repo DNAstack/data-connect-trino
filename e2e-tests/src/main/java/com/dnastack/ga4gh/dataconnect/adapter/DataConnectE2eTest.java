@@ -1119,7 +1119,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
         // Add auth if auth properties are configured
         if (globalMethodSecurityEnabled && walletClientId != null && walletClientSecret != null && dataConnectAdapterAudience != null) {
-            String accessToken = getToken(dataConnectAdapterAudience, scopes);
+            String accessToken = getToken(null, List.of(scopes), List.of(URI.create(dataConnectAdapterAudience).resolve("/").toString()));
             req.auth().oauth2(accessToken);
             if (optionalEnv("E2E_LOG_TOKENS", "false").equalsIgnoreCase("true")) {
                 log.info("Using access token {}", accessToken);
