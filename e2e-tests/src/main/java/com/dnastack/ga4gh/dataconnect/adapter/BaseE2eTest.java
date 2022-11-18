@@ -28,11 +28,11 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Slf4j
 public abstract class BaseE2eTest {
     protected static final ObjectMapper objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    protected static Boolean useSSL;
     protected static RestAssuredConfig config;
     protected static String walletClientId = optionalEnv("E2E_WALLET_CLIENT_ID", "data-connect-trino-e2e-test");
     protected static String walletClientSecret = optionalEnv("E2E_WALLET_CLIENT_SECRET", "dev-secret-never-use-in-prod");
     protected static String dataConnectAdapterResource = optionalEnv("E2E_WALLET_RESOURCE", "http://localhost:8089/");
+    protected static String trinoJdbcSSL = optionalEnv("E2E_TRINO_JDBCSSL", "true");
 
     protected List<Runnable> cleanupOperations = new LinkedList<>();
 
@@ -67,9 +67,8 @@ public abstract class BaseE2eTest {
             if (new URI(RestAssured.baseURI).getHost().equalsIgnoreCase("localhost")) {
                 log.info("E2E BASE URI is at localhost, allowing localhost to occur within URLs of JSON responses.");
                 IsUrl.setAllowLocalhost(true);
-                useSSL=false;
-            } else {
-                useSSL=true;
+            } else if (trinoJdbcSSL.equals("false")) {
+                log.info("SSL has been disabled explicitly.");
             }
         } catch (URISyntaxException use) {
             throw new RuntimeException(String.format("Error initializing tests -- E2E_BASE_URI (%s) is invalid", RestAssured.baseURI));
