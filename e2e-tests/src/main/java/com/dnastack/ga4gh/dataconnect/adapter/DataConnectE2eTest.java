@@ -52,7 +52,6 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Slf4j
 public class DataConnectE2eTest extends BaseE2eTest {
-
     // Expected values for the 'format' field of the JSON schema returned accompanying various fields of the
     // date-time test table.
     private static final Map<String, String> EXPECTED_FORMATS = Map.of(
@@ -199,9 +198,14 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
         DriverManager.drivers().forEach(driver -> log.info("Got driver " + driver.toString()));
 
+        final String trinoJdbcSslProperty = trinoTestUri.contains("localhost") ? "false" : trinoJdbcSSL;
+
         Properties properties = new Properties();
         properties.setProperty("user", "e2etestuser");
-        properties.setProperty("SSL", trinoTestUri.contains("localhost") ? "false" : trinoJdbcSSL);
+        properties.setProperty("SSL", trinoJdbcSslProperty);
+
+        log.info("Trino JDBC URI → {}", trinoTestUri);
+        log.info("Trino JDBC SSL enabled → {}", trinoJdbcSslProperty);
 
         log.info("Fetching a wallet token using audience {} and scopes {} to setup a JDBC connection to trino.", trinoAudience, trinoScopes);
         if (trinoAudience != null) {
@@ -1030,7 +1034,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
             if (response.getStatusCode() == 401) {
                 wwwAuthenticate = extractAuthChallengeHeader(response);
                 log.info("Got auth challenge header {}", wwwAuthenticate);
-                if (!wwwAuthenticate.isPresent()) {
+                if (wwwAuthenticate.isEmpty()) {
                     throw new AssertionError("Got HTTP 401 without WWW-Authenticate header");
                 }
 
@@ -1050,6 +1054,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
                 assertThat("Got re-challenged for the same credential " + dataConnectAuthRequest + ". Is the token bad or expired?",
                     existingCredential, nullValue());
+
+                //noinspection UnnecessaryContinue
                 continue;
             } else {
                 return response;
