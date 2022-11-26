@@ -190,6 +190,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
     static Connection getTestDatabaseConnection() throws SQLException {
         log.info("Driver dump:");
 
+        log.info("Trino JDBC URI → {}", trinoTestUri);
+
         try {
             Class.forName("io.trino.jdbc.TrinoDriver");
         } catch (ClassNotFoundException ce) {
@@ -202,10 +204,15 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
         Properties properties = new Properties();
         properties.setProperty("user", "e2etestuser");
-        properties.setProperty("SSL", trinoJdbcSslProperty);
 
-        log.info("Trino JDBC URI → {}", trinoTestUri);
-        log.info("Trino JDBC SSL enabled → {}", trinoJdbcSslProperty);
+        if (trinoTestUri.contains("localhost")) {
+            log.info("Trino JDBC SSL enabled → false (assumed default for localhost)");
+        } else if (trinoJdbcSSL.equals("true")) {
+            log.info("Trino JDBC SSL enabled → true");
+            properties.setProperty("SSL", trinoJdbcSslProperty);
+        } else {
+            log.info("Trino JDBC SSL enabled → false");
+        }
 
         log.info("Fetching a wallet token using audience {} and scopes {} to setup a JDBC connection to trino.", trinoAudience, trinoScopes);
         if (trinoAudience != null) {
