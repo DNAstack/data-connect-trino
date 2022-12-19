@@ -14,4 +14,5 @@ public class ListTableResponse {
     private Pagination pagination;
     private List<PageIndexEntry> index;
     private List<Map<String, String>> errors;
+    private Map<String, String> error;
 }

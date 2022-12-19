@@ -355,7 +355,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 .auth().oauth2(bearerToken)
                 .headers(headers)
                 .get(url)
-                .getBody()
+                .then().log().ifValidationFails()
+                .status(200)
+                .extract()
                 .as(ListTableResponse.class);
     }
     @EnabledIfEnvironmentVariable(named = "E2E_INDEXING_SERVICE_ENABLED", matches = "true", disabledReason = "This test requires data-connect-trino to be hooked up to indexing-service")
