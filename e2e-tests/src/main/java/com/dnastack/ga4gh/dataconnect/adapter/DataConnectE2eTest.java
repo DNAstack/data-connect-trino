@@ -356,7 +356,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 .headers(headers)
                 .get(url)
                 .then().log().ifValidationFails()
-                .status(200)
+                .statusCode(200)
                 .extract()
                 .as(ListTableResponse.class);
     }
