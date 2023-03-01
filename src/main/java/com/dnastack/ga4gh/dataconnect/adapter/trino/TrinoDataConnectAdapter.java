@@ -274,7 +274,6 @@ public class TrinoDataConnectAdapter {
         DataModel dataModel
     ) {
 
-        log.info("Received query: " + query + ".");
         String rewrittenQuery = rewriteQuery(query, "ga4gh_type", 0);
         JsonNode response = client.query(rewrittenQuery, extraCredentials);
         QueryJob queryJob = createQueryJob(response.get("id").asText(), query, dataModel, response.get("nextUri").asText());
