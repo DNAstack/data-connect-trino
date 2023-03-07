@@ -82,10 +82,6 @@
     <oauth-client-factory.version>0.1.7</oauth-client-factory.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
     <logback.version>1.2.11</logback.version>
-    <sonar.dependencyCheck.jsonReportPath>target/dependency-check-report.json</sonar.dependencyCheck.jsonReportPath>
-    <sonar.dependencyCheck.htmlReportPath>target/dependency-check-report.html</sonar.dependencyCheck.htmlReportPath>
-    <sonar.dependencyCheck.summarize>true</sonar.dependencyCheck.summarize>
-    <dependency-check-plugin.version>7.4.1</dependency-check-plugin.version>
   </properties>
 
   <dependencies>
@@ -268,18 +264,6 @@
   </dependencies>
 
   <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.owasp</groupId>
-          <artifactId>dependency-check-maven</artifactId>
-          <version>${dependency-check-plugin.version}</version>
-          <configuration>
-            <format>ALL</format>
-          </configuration>
-        </plugin>
-      </plugins>
-    </pluginManagement>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
