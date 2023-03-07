@@ -12,7 +12,7 @@ Any structural changes to this README should be checked against the README_TEMPL
 # Quick Start
 Get started in 30s.
 ### Prerequisites
-- Java 11+
+- Java 17+
 - A trino server you can access anonymously over HTTP(S).
 
 ### Build
