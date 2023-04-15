@@ -785,8 +785,13 @@ public class DataConnectE2eTest extends BaseE2eTest {
         ListTableResponse listTableResponse = globalMethodSecurityEnabled ? getListTableResponse("/tables") :
                 dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
 
-        assertThat(listTableResponse, not(nullValue()));
-        assertThat(listTableResponse.getTables(), hasSize(greaterThan(0)));
+        if (listTableResponse.getErrors() != null) {
+            // either(empty()).or(nullValue()) would be better, but it was giving compile errors
+            // oneOf(empty(), nullValue()) would be better, but it was failing the assertion when errors was null!
+            assertThat("GET /tables returned an error", listTableResponse.getErrors(), empty());
+        }
+        assertThat("GET /tables returned null response", listTableResponse, not(nullValue()));
+        assertThat("GET /tables returned no tables", listTableResponse.getTables(), hasSize(greaterThan(0)));
     }
 
     @Test
