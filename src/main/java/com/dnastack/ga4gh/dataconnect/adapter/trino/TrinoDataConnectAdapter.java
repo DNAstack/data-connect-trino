@@ -60,7 +60,7 @@ public class TrinoDataConnectAdapter {
 
     private final ApplicationConfig applicationConfig;
 
-    private final DataModelSupplier[] dataModelSuppliers;
+    private final List<DataModelSupplier> dataModelSuppliers;
 
     private final ObjectMapper objectMapper;
 
@@ -71,7 +71,7 @@ public class TrinoDataConnectAdapter {
         Jdbi jdbi,
         ThrowableTransformer throwableTransformer,
         ApplicationConfig applicationConfig,
-        DataModelSupplier[] dataModelSuppliers,
+        List<DataModelSupplier> dataModelSuppliers,
         Tracing tracer
     ) {
         this.client = client;
@@ -291,7 +291,7 @@ public class TrinoDataConnectAdapter {
         QueryJob queryJob = getQueryJobBy(queryJobId, "No query job with id " + queryJobId);
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob, request);
         log.debug("[getNextSearchPage]tableData = {}", tableData);
-        populateTableSchemaIfAvailable(queryJobId, tableData);
+        populateTableSchemaIfAvailable(queryJob, tableData);
 
         Instant currentTime = Instant.now();
         jdbi.useExtension(QueryJobDao.class, dao -> dao.setLastActivityAt(currentTime, queryJobId));
@@ -633,7 +633,7 @@ public class TrinoDataConnectAdapter {
         final var forwardedHost = request.getHeader("X-Forwarded-Host");
         final var forwardedPort = request.getHeader("X-Forwarded-Port");
         final var forwardedPrefix = request.getHeader("X-Forwarded-Prefix");
-        log.info("Forwarded headers: protocol={}, host={}, port={}, prefix={}", forwardedProtocol, forwardedHost, forwardedPort, forwardedPrefix);
+        log.debug("Forwarded headers: protocol={}, host={}, port={}, prefix={}", forwardedProtocol, forwardedHost, forwardedPort, forwardedPrefix);
 
         ServletUriComponentsBuilder urlBuilder = ServletUriComponentsBuilder.fromContextPath(request);
         if (forwardedProtocol != null) {
@@ -655,7 +655,7 @@ public class TrinoDataConnectAdapter {
         }
 
         String result = urlBuilder.build().toUriString();
-        log.info("Final callback URL: " + result);
+        log.debug("Final callback URL: " + result);
         return result;
     }
 
@@ -880,38 +880,29 @@ public class TrinoDataConnectAdapter {
 
     private DataModel getDataModelFromSupplier(String tableName) {
         for (DataModelSupplier dataModelSupplier : dataModelSuppliers) {
+            log.debug("Trying to get data model for {} from {}", tableName, dataModelSupplier.getClass());
             final var dataModel = dataModelSupplier.supply(tableName);
             if (dataModel != null) {
+                log.debug("Using data model from {}", dataModelSupplier.getClass());
                 return dataModel;
+            } else {
+                log.debug("Got null data model from {}", dataModelSupplier.getClass());
             }
         }
+        log.info("No DataModelSupplier had a data model for {}. Returning null.", tableName);
         return null;
     }
 
-    private void populateTableSchemaIfAvailable(String queryJobId, TableData tableData) {
-
-        if (!tableData.getData().isEmpty()) {
-            // Retrieve the table schema stored in query_job table - the one fetched from tables-registry
-            // Use this table schema to populate the dataModel
-            DataModel dataModel = null;
-            if (queryJobId != null) {
-                QueryJob queryJob = getQueryJobBy(queryJobId, "The entry in query_job table corresponding to this search could not be located.");
-
-                try {
-                    if (queryJob.getSchema() != null) {
-                        dataModel = new ObjectMapper().readValue(queryJob.getSchema(), DataModel.class);
-                        log.info("Table schema (from tables-registry) retrieved successfully from 'query_job' postgres table.");
-                        tableData.setDataModel(dataModel);
-                    }
-                } catch (IOException ex) {
-                    throw new UncheckedIOException("Exception while reading table schema from 'query_job' table.", ex);
-                }
+private void populateTableSchemaIfAvailable(QueryJob queryJob, TableData tableData) {
+        if (queryJob.getSchema() != null) {
+            try {
+                log.debug("Using table schema from queryJob");
+                tableData.setDataModel(objectMapper.readValue(queryJob.getSchema(), DataModel.class));
+            } catch (IOException ex) {
+                throw new UncheckedIOException("Exception while reading table schema from queryJob", ex);
             }
         }
-        // There is no need to populate the dataModel if there is no tableData
-        else {
-            tableData.setDataModel(null);
-        }
+        log.debug("No table schema from queryJob");
     }
 
     private QueryJob getQueryJobBy(String id, String errorMessage) {
