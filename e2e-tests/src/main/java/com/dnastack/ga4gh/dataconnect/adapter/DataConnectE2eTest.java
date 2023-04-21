@@ -9,6 +9,7 @@ import io.restassured.filter.log.LogDetail;
 import io.restassured.http.ContentType;
 import io.restassured.http.Method;
 import io.restassured.response.Response;
+import io.restassured.response.ValidatableResponse;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.Method.GET;
 import static io.restassured.http.Method.POST;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -148,20 +150,21 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static final String inMemorySchema = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default"); //default;
 
     /**
-     * Set this test env variable to name of a valid catalog eg: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME="publisher"
+     * [Optional] Name of a catalog that's expected to contain ar least one schema. eg: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME="publisher"
      */
-    private static final String showSchemaForCatalogName = requiredEnv("E2E_SHOW_SCHEMA_FOR_CATALOG_NAME");
-    /**
-     * Set this test env variable to name of a valid schema of a catalog eg: E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME="publisher.public"
-     */
-    private static final String showTableForCatalogSchemaName = requiredEnv("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME");
+    private static final String showSchemaForCatalogName = optionalEnv("E2E_SHOW_SCHEMA_FOR_CATALOG_NAME", null);
 
-    private static final String COLLECTION_SERVICE_RESOURCE_URI = optionalEnv("E2E_COLLECTION_SERVICE_RESOURCE_URI", "http://localhost:8093/");
+    /**
+     * [Optional] Name of a catalog.schema that's expected to contain at least one table. eg: E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME="publisher.public"
+     */
+    private static final String showTableForCatalogSchemaName = optionalEnv("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME", null);
+
+    private static final String PUBLISHER_DATA_RESOURCE_URI = optionalEnv("E2E_PUBLISHER_DATA_RESOURCE_URI", "http://localhost:8095/");
     private static final String INDEXING_SERVICE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
     private static final String INDEXING_SERVICE_RESOURCE_URI = optionalEnv("E2E_INS_RESOURCE_URI", "http://localhost:8094/");
 
-    private static boolean globalMethodSecurityEnabled;
-    private static boolean scopeCheckingEnabled;
+    private static final boolean globalMethodSecurityEnabled = Boolean.parseBoolean(optionalEnv("E2E_GLOBAL_METHOD_SECURITY_ENABLED", "false"));
+    private static final boolean scopeCheckingEnabled = Boolean.parseBoolean(optionalEnv("E2E_SCOPE_CHECKING_ENABLED", "false"));
 
 
     /**
@@ -175,13 +178,10 @@ public class DataConnectE2eTest extends BaseE2eTest {
      */
     private static final Map<String, String> extraCredentials = new HashMap<>();
 
-    private final List<String> dataConnectScopes = List.of("data-connect:query", "data-connect:data", "data-connect:info");
+    private static final List<String> dataConnectScopes = List.of("data-connect:query", "data-connect:data", "data-connect:info");
 
     @BeforeAll
     public static void beforeClass() {
-        globalMethodSecurityEnabled = Boolean.parseBoolean(optionalEnv("E2E_GLOBAL_METHOD_SECURITY_ENABLED", "false"));
-        scopeCheckingEnabled = Boolean.parseBoolean(optionalEnv("E2E_SCOPE_CHECKING_ENABLED", "false"));
-
         log.info("Setting up test tables");
         setupTestTables();
         log.info("Done setting up test tables");
@@ -346,7 +346,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     private ListTableResponse getListTableResponse(String url) {
         String bearerToken = getToken(null, dataConnectScopes, List.of(dataConnectAdapterResource));
-        String searchAuthorizationToken = getToken(null, dataConnectScopes, List.of(COLLECTION_SERVICE_RESOURCE_URI));
+        String searchAuthorizationToken = getToken(null, dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
 
         Map<String, Object> headers = new HashMap<>();
         headers.put("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
@@ -791,7 +791,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
             assertThat("GET /tables returned an error", listTableResponse.getErrors(), empty());
         }
         assertThat("GET /tables returned null response", listTableResponse, not(nullValue()));
-        assertThat("GET /tables returned no tables", listTableResponse.getTables(), hasSize(greaterThan(0)));
+        assertThat("GET /tables returned no tables", listTableResponse.getTables(), not(empty()));
     }
 
     @Test
@@ -895,37 +895,49 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void show_schemas_from_catalog_should_return_schemas() throws IOException {
+    public void search_showSchemasFromCatalog_should_returnSchemas() throws IOException {
+        assumeThat(showTableForCatalogSchemaName)
+                .as("SHOW SCHEMAS FROM {catalog} test is not configured. Skipping.")
+                .isNotNull();
+
         DataConnectRequest query = new DataConnectRequest("SHOW SCHEMAS FROM " + showSchemaForCatalogName);
+        assertQueryReturnsRows(query, "Schema");
+    }
+
+    /**
+     * Executes the query and requires that it includes at least one result row, and has a column with the given name.
+     *
+     * @param query the SQL query to post to the /search endpoint
+     * @param expectedColumnName the name of a column that must appear in the result set
+     * @throws IOException if an HTTP call to the server errors out
+     */
+    private static void assertQueryReturnsRows(DataConnectRequest query, String expectedColumnName) throws IOException {
         log.info("Running query {}", query);
 
         Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
 
-        assertThat("Expected results for query " + query.getQuery() + ", but none were found.", result.getData(), not(nullValue()));
+        assertThat("Expected results for query " + query.getQuery() + ", but none were found.",
+                result.getData(), not(nullValue()));
 
-        assertThat(result.getDataModel(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties(), not(nullValue()));
+        assertThat("No data model found in query result from " + query.getQuery(),
+                result.getDataModel(), not(nullValue()));
+        assertThat("No properties in data model found in query result from " + query.getQuery(),
+                result.getDataModel().getProperties(), not(nullValue()));
 
-        assertTrue(result.getDataModel().getProperties().containsKey("Schema"));
-        assertTrue(result.getData().size() > 0);
+        assertThat("No properties in data model found in query result from " + query.getQuery(),
+                result.getDataModel().getProperties(), hasKey(expectedColumnName));
+        assertThat("No rows in query result from " + query.getQuery(),
+                result.getData(), not(empty()));
     }
 
     @Test
-    public void show_tables_from_catalog_schema_should_return_tables() throws IOException {
+    public void search_showTablesFromCatalogSchema_should_returnTables() throws IOException {
+        assumeThat(showTableForCatalogSchemaName)
+                .as("SHOW TABLES FROM {catalog.schema} test is not configured. Skipping.")
+                .isNotNull();
         DataConnectRequest query = new DataConnectRequest("SHOW TABLES FROM " + showTableForCatalogSchemaName);
-        log.info("Running query {}", query);
-
-        Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
-        dataConnectApiGetAllPages(result);
-
-        assertThat("Expected results for query " + query.getQuery() + ", but none were found.", result.getData(), not(nullValue()));
-
-        assertThat(result.getDataModel(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties(), not(nullValue()));
-
-        assertTrue(result.getDataModel().getProperties().containsKey("Table"));
-        assertTrue(result.getData().size() > 0);
+        assertQueryReturnsRows(query, "Table");
     }
 
     static void runBasicAssertionOnTableErrorList(List<TableError> errors) {
@@ -1056,7 +1068,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
                     log.info("Try running again with E2E_LOG_TOKENS=true to see what's wrong");
                 }
 
-                assertThat(wwwAuthenticate.get().getScheme(), is("GA4GH-Search"));
+                assertThat("Unexpected auth challenge. You may need to set E2E_GLOBAL_METHOD_SECURITY_ENABLED=true.",
+                        wwwAuthenticate.get().getScheme(), is("GA4GH-Search"));
 
                 DataConnectAuthChallengeBody challengeBody = response.as(DataConnectAuthChallengeBody.class);
                 DataConnectAuthRequest dataConnectAuthRequest = challengeBody.getAuthorizationRequest();
@@ -1143,6 +1156,11 @@ public class DataConnectE2eTest extends BaseE2eTest {
             if (optionalEnv("E2E_LOG_TOKENS", "false").equalsIgnoreCase("true")) {
                 log.info("Using access token {}", accessToken);
             }
+        }
+
+        if (PUBLISHER_DATA_RESOURCE_URI != null) {
+            String searchAuthorizationToken = getToken(null, dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
+            req.header("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
         }
 
         // add extra credentials
