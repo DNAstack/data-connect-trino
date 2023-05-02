@@ -54,5 +54,6 @@ CMD container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memor
     --total-memory=$([ "$container_mem" = "max" -o -z "$container_mem" -o "$container_mem" -eq 9223372036854771712 ] && echo "2097152000" || echo "$container_mem")B \
     --loaded-class-count="${ESTIMATED_LOADED_CLASSES:-15000}" \
     --thread-count="${ESTIMATED_THREADS:-130}" \
+    --head-room="${HEAD_ROOM:-10}" \
     --jvm-options="${JAVA_OPTS}") ${JAVA_OPTS} \
     -jar app.jar
