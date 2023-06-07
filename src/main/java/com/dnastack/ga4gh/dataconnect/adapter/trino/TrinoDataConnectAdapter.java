@@ -9,7 +9,6 @@ import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -288,7 +287,7 @@ public class TrinoDataConnectAdapter {
     ) {
         JsonNode response = client.next(page, extraCredentials);
         log.debug("[getNextSearchPage]response = {}", response);
-        QueryJob queryJob = getQueryJobBy(queryJobId, "No query job with id " + queryJobId);
+        QueryJob queryJob = getQueryJob(queryJobId);
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob, request);
         log.debug("[getNextSearchPage]tableData = {}", tableData);
         populateTableSchemaIfAvailable(queryJob, tableData);
@@ -300,6 +299,14 @@ public class TrinoDataConnectAdapter {
         }
 
         return tableData;
+    }
+
+    public void deleteQueryJob(String queryJobId) {
+        QueryJob queryJob = getQueryJob(queryJobId);
+        client.killQuery(queryJob.getNextPageUrl());
+        jdbi.useExtension(QueryJobDao.class, dao -> {
+            dao.setQueryFinishedAndLastActivityTime(queryJobId);
+        });
     }
 
     private QueryJob createQueryJob(String queryId, String query, DataModel dataModel, String nextPageUrl) {
@@ -905,9 +912,9 @@ private void populateTableSchemaIfAvailable(QueryJob queryJob, TableData tableDa
         log.debug("No table schema from queryJob");
     }
 
-    private QueryJob getQueryJobBy(String id, String errorMessage) {
+    private QueryJob getQueryJob(String id) {
         return jdbi.withExtension(QueryJobDao.class, dao -> dao.get(id))
-            .orElseThrow(() -> new InvalidQueryJobException(id, errorMessage));
+            .orElseThrow(() -> new InvalidQueryJobException(id, "No query job with id " + id));
     }
 
 }

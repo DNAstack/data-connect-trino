@@ -1,6 +1,9 @@
 package com.dnastack.ga4gh.dataconnect.controller;
 
-import com.dnastack.audit.aspect.*;
+import com.dnastack.audit.aspect.AuditActionUri;
+import com.dnastack.audit.aspect.AuditEventCustomize;
+import com.dnastack.audit.aspect.AuditIgnore;
+import com.dnastack.audit.aspect.AuditIgnoreHeaders;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.QueryJobAppenderAuditEventCustomizer;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.DataConnectRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
@@ -10,6 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -91,7 +95,6 @@ public class DataConnectController {
 
             if(log.isTraceEnabled()) {
                 try {
-
                     String json = objectMapper.writeValueAsString(tableData);
                     log.debug("Returning " + tableDataLength + " rows with nextURL=" + nextURL + " and trinoNextURL=" + trinoNextURL + " json: " + json);
                 } catch (JsonProcessingException e) {
@@ -102,6 +105,20 @@ public class DataConnectController {
             }
         }
         return tableData;
+    }
+
+    //TODO: Update the actions/scopes to data-connect:delete?
+    @AuditActionUri("data-connect:next-page")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
+    @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
+    @PreAuthorize("hasAuthority('SCOPE_data-connect:query') && hasAuthority('SCOPE_data-connect:data') && @accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
+    @DeleteMapping(value = "/search/**")
+    public ResponseEntity<?> deleteSearchQuery(@RequestParam("queryJobId") String queryJobId, HttpServletRequest request) {
+        log.info("Terminating query with ID: {}", queryJobId);
+
+        trinoDataConnectAdapter.deleteQueryJob(queryJobId);
+
+        return ResponseEntity.noContent().build();
     }
 
     // TODO make this method into a Spring MVC parameter provider
