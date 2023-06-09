@@ -9,7 +9,6 @@ import io.restassured.filter.log.LogDetail;
 import io.restassured.http.ContentType;
 import io.restassured.http.Method;
 import io.restassured.response.Response;
-import io.restassured.response.ValidatableResponse;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -37,8 +36,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.restassured.RestAssured.given;
-import static io.restassured.http.Method.GET;
-import static io.restassured.http.Method.POST;
+import static io.restassured.http.Method.*;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -687,6 +685,25 @@ public class DataConnectE2eTest extends BaseE2eTest {
         }
     }
 
+    @Test
+    public void sending_delete_request_to_next_page_url_should_terminate_query() throws IOException {
+        DataConnectRequest query = new DataConnectRequest(String.format("SELECT * FROM " + trinoJsonTestTable));
+        log.info("Running query {} and following the next page URL", query);
+        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
+        String nextPageUrl = result.getPagination().getNextPageUrl().toString();
+        result = dataConnectApiGetRequest(nextPageUrl, 200, Table.class);
+        nextPageUrl = result.getPagination().getNextPageUrl().toString();
+
+        log.info("Sending a DELETE request to the next page URL, then asserting that the right error response is returned when retrying the GET request to the next page URL");
+        sendDeleteRequest(nextPageUrl);
+        result = dataConnectApiGetRequest(nextPageUrl, 400, Table.class);
+        assertThat("Following next page URL of a cancelled query doesn't return errors", result.getErrors().size(), equalTo(1));
+        assertThat(
+            "Following next page URL of a cancelled query doesn't mention that it was cancelled",
+            result.getErrors().get(0).getTitle().toLowerCase(),
+            containsString("canceled")); // Trino uses the american spelling
+    }
+
 
     private Table executeSearchQueryOnVariedTypes() throws Exception {
         String query = "SELECT ("+
@@ -979,6 +996,13 @@ public class DataConnectE2eTest extends BaseE2eTest {
      */
     static <T> T dataConnectApiGetRequest(String path, int expectedStatus, Class<T> responseType) throws IOException {
         return dataConnectApiRequest(GET, path, null, expectedStatus, responseType);
+    }
+
+    public void sendDeleteRequest(String path) throws IOException {
+        getResponse(DELETE, path, null)
+            .then()
+            .log().ifValidationFails(LogDetail.ALL)
+            .statusCode(204);
     }
 
     /**
