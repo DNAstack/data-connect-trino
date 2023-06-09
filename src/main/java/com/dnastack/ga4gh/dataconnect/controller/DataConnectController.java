@@ -107,17 +107,14 @@ public class DataConnectController {
         return tableData;
     }
 
-    //TODO: Update the actions/scopes to data-connect:delete?
-    @AuditActionUri("data-connect:next-page")
+    @AuditActionUri("data-connect:delete-query")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
     @PreAuthorize("hasAuthority('SCOPE_data-connect:query') && hasAuthority('SCOPE_data-connect:data') && @accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @DeleteMapping(value = "/search/**")
     public ResponseEntity<?> deleteSearchQuery(@RequestParam("queryJobId") String queryJobId, HttpServletRequest request) {
         log.info("Terminating query with ID: {}", queryJobId);
-
         trinoDataConnectAdapter.deleteQueryJob(queryJobId);
-
         return ResponseEntity.noContent().build();
     }
 
