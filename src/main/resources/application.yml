@@ -35,14 +35,14 @@ app:
       # client-secret: <kubernetes_secret>
       # audience: https://ga4gh-tables-registry.staging.dnastack.com
   indexing-service:
-    enabled: true
+    enabled: false
     base-uri: http://localhost:8094
     oauth-client:
       scopes: ins:library:read
       resource: "${app.indexing-service.base-uri}/"
     publisher-catalog-name: publisher_data
   collection-service:
-    enabled: true
+    enabled: false
     base-uri: http://localhost:8093
     oauth-client:
       scopes: collection_item:read
@@ -198,7 +198,7 @@ spring:
   security:
     enabled: false
   liquibase:
-    enabled: true
+    enabled: false
   datasource:
     continue-on-error: true
 management:
