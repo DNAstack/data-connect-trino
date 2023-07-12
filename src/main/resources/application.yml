@@ -237,3 +237,15 @@ spring:
 management:
   endpoints:
     web.exposure.include: info, health, prometheus
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: cloud
+  # for cloud deployments, we run the Liquibase migration as part of the deployment pipeline
+  # which makes applications start in a more predictable amount of time and prevents lockout
+  # in cases where the app was killed during DB upgrade.
+  liquibase:
+    enabled: false
