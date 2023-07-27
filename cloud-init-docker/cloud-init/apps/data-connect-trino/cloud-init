@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+set -e
+set -x
+
+# This client's runtime credentials within the cluster - allows it to call out to other services
+createWalletServiceClient "${APP_NAME}" "OAuth Client representing GA4GH Data Connect Service" "app_wallet_client-credential"
+createWalletServiceClientGrant "${APP_NAME}" ${TRINO_AUDIENCE} "full_access"
+createWalletServiceClientGrant "${APP_NAME}" "${APP_AUDIT_LOG_SERVICE_HOSTNAME}" "audit:create"
+createWalletServiceClientGrant "${APP_NAME}" "${APP_INDEXING_SERVICE_HOSTNAME}" "ins:library:read"
+createWalletServiceClientGrant "${APP_NAME}" "${APP_COLLECTION_SERVICE_HOSTNAME}" "collection_item:read"
+
+# Client used by the E2E tests - allows the tests to call to this service
+createWalletServiceClient "${APP_NAME}-e2e-test" "Client for end-to-end testing of ${APP_NAME}" "test_wallet_client-credential"
+createWalletServiceClientGrant "${APP_NAME}-e2e-test" "${APP_DATA_CONNECT_TRINO_HOSTNAME}" "data-connect:info data-connect:data data-connect:query junk_scope"
+createWalletServiceClientGrant "${APP_NAME}-e2e-test" "${APP_PUBLISHER_DATA_HOSTNAME}" "data-connect:info data-connect:data data-connect:query"
+createWalletServiceClientGrant "${APP_NAME}-e2e-test" "${APP_INDEXING_SERVICE_HOSTNAME}" "ins:library:read ins:library:write"
+#   also allow the e2e tests to create tables via Trino JDBC.
+createWalletServiceClientGrant "${APP_NAME}-e2e-test" "${TRINO_AUDIENCE}" "full_access"
+
+setupAppDatabase
+
+createWalletPolicy "$(renderJsonFile bootstrap-config/data-connect-trino-policy.json)"

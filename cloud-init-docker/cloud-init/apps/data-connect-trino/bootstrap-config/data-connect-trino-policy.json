@@ -1,0 +1,108 @@
+{
+  "id": "${APP_NAME}-access-policy",
+  "name": "Access Policy for Data Connect Trino",
+  "description": "Permissions required by data-connect-trino",
+  "statements": [
+    {
+      "principals": [
+        {
+          "type": "service",
+          "id": "${APP_NAME}-e2e-test"
+        }
+      ],
+      "actions": [
+        "data-connect:info",
+        "data-connect:data",
+        "data-connect:query"
+      ],
+      "resources": [
+        {
+          "uri": "${APP_DATA_CONNECT_TRINO_HOSTNAME}"
+        },
+        {
+          "uri": "${APP_DATA_CONNECT_TRINO_HOSTNAME}/"
+        },
+        {
+          "uri": "${APP_PUBLISHER_DATA_HOSTNAME}/data-connect/table/publisher"
+        },
+        {
+          "uri": "${APP_PUBLISHER_DATA_HOSTNAME}/data-connect/table/publisher/public"
+        },
+        {
+          "$comment": "This URI and the two above should match the table in E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME",
+          "uri": "${APP_PUBLISHER_DATA_HOSTNAME}/data-connect/table/publisher/public/library"
+        }
+      ]
+    },
+    {
+      "principals": [
+        {
+          "type": "service",
+          "id": "${APP_NAME}"
+        }
+      ],
+      "actions": [
+        "audit:create"
+      ],
+      "resources": [
+        {
+          "uri": "${APP_AUDIT_LOG_SERVICE_HOSTNAME}"
+        },
+        {
+          "uri": "${APP_AUDIT_LOG_SERVICE_HOSTNAME}/"
+        }
+      ]
+    },
+    {
+      "principals": [
+        {
+          "type": "service",
+          "id": "${APP_NAME}-e2e-test"
+        }
+      ],
+      "actions": [
+        "ins:library:read",
+        "ins:library:write"
+      ],
+      "resources": [
+        {
+          "uri": "${APP_INDEXING_SERVICE_HOSTNAME}/library/"
+        }
+      ]
+    },
+    {
+      "$comment": "For resolving schemas from indexing-service based on preferredName (deprecated)",
+      "principals": [
+        {
+          "type": "service",
+          "id": "${APP_NAME}"
+        }
+      ],
+      "actions": [
+        "ins:library:read"
+      ],
+      "resources": [
+        {
+          "uri": "${APP_INDEXING_SERVICE_HOSTNAME}/library/"
+        }
+      ]
+    },
+    {
+      "$comment": "For resolving schemas from collection-service based on dbSchemaName and displayName",
+      "principals": [
+        {
+          "type": "service",
+          "id": "${APP_NAME}"
+        }
+      ],
+      "actions": [
+        "collection_item:read"
+      ],
+      "resources": [
+        {
+          "uri": "${APP_COLLECTION_SERVICE_HOSTNAME}/collection/"
+        }
+      ]
+    }
+  ]
+}
