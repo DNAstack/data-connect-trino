@@ -1,0 +1,332 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app: {{ .Values.app.name }}
+    configVersion: {{ .Values.app.configVersion }}
+    secretsHash: {{ .Values.app.secretHash }}
+    tags.datadoghq.com/env: "dnastack-us-central-cluster_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}" # Unified service tag - Pod Env tag
+    tags.datadoghq.com/service: "{{ .Values.app.name }}" # Unified service tag - Pod Service tag
+    tags.datadoghq.com/version: '{{- template  "dnastack.app.version" . }}'
+    product: "data-connect"
+  annotations:
+    meta.helm.sh/release-name: {{ .Values.app.name }}
+    meta.helm.sh/release-namespace: {{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+      configVersion: {{ .Values.app.configVersion }}
+      secretsHash: {{ .Values.app.secretHash }}
+  template:
+    metadata:
+      annotations:
+        # forces rolling deployments on app upgrades
+        rollme: {{ randAlphaNum 5 | quote }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+        ad.datadoghq.com/{{ .Values.app.name }}.logs: '[{"source":"java"}]'
+        admission.datadoghq.com/java-lib.version: "v1.4.0"
+      labels:
+        app: {{ .Values.app.name }}
+        version: '{{- template  "dnastack.app.version" . }}'
+        configVersion: {{ .Values.app.configVersion }}
+        secretsHash: {{ .Values.app.secretHash }}
+        product: "data-connect_spec"
+        tags.datadoghq.com/env: "dnastack-us-central-cluster_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}" # Unified service tag - Pod Env tag
+        tags.datadoghq.com/service: "{{ .Values.app.name }}" # Unified service tag - Pod Service tag
+        tags.datadoghq.com/version: '{{- template  "dnastack.app.version" . }}'
+        admission.datadoghq.com/enabled: "true" # Enable Admission Controller to mutate new pods part of this deployment
+    spec:
+      initContainers:
+        - name: {{ .Values.app.name }}-cloud-init
+          imagePullPolicy: Always
+          image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/{{ .Values.app.name }}-cloud-init-job:{{- template  "dnastack.cloudinit.version" . }}'
+          command: [ "/cloud-init/run_cloud_init.sh" ]
+          args: []
+          env:
+            - name: APP_NAME
+              value: '{{ .Values.app.name }}'
+            - name: DEPLOYMENT_ROOT_DIR
+              value: '/cloud-init'
+            - name: NAMESPACE
+              value: '{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}'
+            - name: CONFIG_VERSION
+              value: '{{ .Values.app.configVersion }}'
+            - name: SKIP_FILE_CONFIGS
+              value: "true"
+            - name: SKIP_REPO_CHECK
+              value: "true"
+            - name: CLOUD_PLATFORM
+              value: '{{coalesce .Values.cloud.platform ((.Values.global).cloud).platform }}'
+            - name: GCLOUD_PROJECT
+              value: '{{ coalesce .Values.cloud.project ((.Values.global).cloud).project }}'
+            - name: GCLOUD_ZONE
+              value: '{{ coalesce .Values.cloud.zone ((.Values.global).cloud).zone }}'
+            - name: GCLOUD_REGION
+              value: '{{ coalesce .Values.cloud.region ((.Values.global).cloud).region }}'
+            - name: USE_LOCAL_HTTPIE
+              value: "true"
+            - name: USE_LOCAL_PSQL
+              value: "false"
+            - name: SHARED_POSTGRES_INSTANCE
+              value: '{{ coalesce .Values.database.postgresInstance (((.Values.global).database).postgres).instance }}'
+            - name: APP_POSTGRES_VERSION
+              value: '{{ coalesce .Values.database.postgresVersion (((.Values.global).database).postgres).version }}'
+            - name: USE_USER_TOKEN_FOR_ADMIN_ACTIONS
+              value: "false"
+            - name: TRINO_AUDIENCE
+              value: '{{- include "dnastack.trino.resourceUrl" . }}'
+            - name: APP_AUDIT_LOG_SERVICE_HOSTNAME
+              value: '{{- include "dnastack.auditLogService.externalUrl" . }}'
+            - name: APP_INDEXING_SERVICE_HOSTNAME
+              value: '{{- include "dnastack.indexingService.externalUrl" . }}'
+            - name: APP_COLLECTION_SERVICE_HOSTNAME
+              value: '{{- include "dnastack.collectionService.externalUrl" . }}'
+            - name: APP_DATA_CONNECT_TRINO_HOSTNAME
+              value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
+            - name: APP_PUBLISHER_DATA_HOSTNAME
+              value: '{{- include "dnastack.publisherData.externalUrl" . }}'
+            - name: WALLET_URL
+              value: '{{- include "dnastack.wallet.internalUrl" . }}'
+            - name: WALLET_RESOURCE
+              value: '{{- include "dnastack.wallet.resourceUrl" . }}/'
+            - name: WALLET_ADMIN_KUBEKEY
+              value: '{{ coalesce .Values.wallet.adminKubeKey (.Values.global).walletAdminKubeKey }}'
+            # Optional cloud-init environment variables
+            {{- range .Values.cloudInitEnv }}
+            - name: {{ .name }}
+              {{- if .valueFrom  }}
+              valueFrom:
+                {{- if .valueFrom.fieldRef  }}
+                fieldRef:
+                  fieldPath: '{{ .valueFrom.fieldRef.fieldPath }}'
+                {{- else}}
+                secretKeyRef:
+                  name: '{{ .valueFrom.secretKeyRef.name }}'
+                  key: '{{ .valueFrom.secretKeyRef.key }}'
+                {{- end}}
+              {{- else }}
+              value: '{{ .value }}'
+              {{- end }}
+            {{- end }}
+        - name: {{ .Values.app.name }}-predeploy-job
+          image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/{{ .Values.app.name }}-predeploy-job:{{- template  "dnastack.app.version" . }}'
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              liquibase \
+               --driver=org.postgresql.Driver \
+               --changeLogFile=/db.changelog-master.xml \
+               --url={{ .Values.database.jdbcUri }} \
+               --username=$(SPRING_DATASOURCE_USERNAME) \
+               --password=$(SPRING_DATASOURCE_PASSWORD) \
+               --logLevel debug \
+               update
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.database.userSecretName }}'
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.database.userSecretName }}'
+                  key: password
+      containers:
+        - name: {{ .Values.app.name }}
+          image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/{{ .Values.app.name }}:{{- template  "dnastack.app.version" . }}'
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            limits:
+              memory: {{ .Values.app.memoryLimit }}
+            requests:
+              memory: {{ .Values.app.memoryRequest }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 610
+            periodSeconds: 5
+            timeoutSeconds: 60
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 10
+          env:
+            - name: JAVA_OPTS
+              value: "-XX:+PrintFlagsFinal -XX:+ExitOnOutOfMemoryError"
+            - name: APP_URL
+              value: 'https://{{ .Values.app.name }}.{{ coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName }}'
+            - name: SPRING_PROFILES_ACTIVE
+              value: '{{ .Values.app.spring.profile }}'
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: '{{ .Values.app.spring.datasource.hikari.maxPoolSize }}'
+            - name: SPRING_LIQUIBASE_ENABLED
+              value: "false"
+            - name: TRINO_DATASOURCE_URL
+              value: '{{- include "dnastack.trino.externalUrl" . }}'
+            - name: TRINO_RESULTS_LIMIT_MAX
+              value: "100"
+            - name: TRINO_HIDDEN_CATALOGS
+              value: "system,memory"
+            - name: SERVER_PORT
+              value: "8080"
+            - name: APP_AUTH_TRINOOAUTHCLIENT_TOKENURI
+              value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
+            - name: APP_AUTH_TRINOOAUTHCLIENT_CLIENTID
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  key: clientId
+            - name: APP_AUTH_TRINOOAUTHCLIENT_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  key: clientSecret
+            - name: APP_AUTH_TRINOOAUTHCLIENT_AUDIENCE
+              value: '{{- include "dnastack.trino.resourceUrl" . }}'
+            - name: APP_AUTH_TOKENISSUERS_0_ISSUERURI
+              value: '{{- include "dnastack.wallet.externalUrl" . }}'
+            - name: APP_AUTH_TOKENISSUERS_0_JWKSETURI
+              value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/jwks'
+            - name: APP_AUTH_TOKENISSUERS_0_AUDIENCES_0
+              value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
+            - name: APP_SERVICE_INFO_ID
+              value: "com.dnastack.data-connect"
+            - name: APP_SERVICE_INFO_NAME
+              value: '{{ .Values.app.name }}'
+            - name: APP_SERVICE_INFO_VERSION
+              value: '{{- template  "dnastack.app.version" . }}'
+            - name: APP_SERVICE_INFO_DOCUMENTATION_URL
+              value: "https://github.com/ga4gh-discovery/data-connect"
+            - name: APP_SERVICE_INFO_CONTACT_URL
+              value: "mailto:support@dnastack.com"
+            - name: APP_SERVICE_INFO_DESCRIPTION
+              value: "Supports data discovery by searching heterogeneous genomic and clinical data using a uniform query language."
+            # Indexing service client
+            - name: APP_INDEXING_SERVICE_ENABLED
+              value: "true"
+            - name: APP_INDEXING_SERVICE_BASE_URI
+              value: '{{- include "dnastack.indexingService.internalUrl" . }}'
+            - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  key: clientId
+            - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  key: clientSecret
+            - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_RESOURCE
+              value: '{{- include "dnastack.indexingService.resourceUrl" . }}'
+            - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_TOKEN_URI
+              value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
+            - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_TOKEN_ISSUERS_URIS
+              value: '{{- include "dnastack.wallet.externalUrl" . }}'
+            - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_POLICY_EVALUATION_REQUESTER
+              value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
+            - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_POLICY_EVALUATION_URI
+              value: '{{- include "dnastack.wallet.internalUrl" . -}}/policies/evaluations'
+            # Collection service client
+            - name: APP_COLLECTION_SERVICE_ENABLED
+              value: "true"
+            - name: APP_COLLECTION_SERVICE_BASE_URI
+              value: '{{- include "dnastack.collectionService.internalUrl" . }}'
+            - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  key: clientId
+            - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  key: clientSecret
+            - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_RESOURCE
+              value: "https://${APP_COLLECTION_SERVICE_HOSTNAME}/"
+            - name: SPRING_DATASOURCE_URL
+              value: '{{- include "dnastack.collectionService.resourceUrl" . }}'
+            - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_TOKEN_URI
+              value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
+            - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_TOKEN_ISSUERS_URIS
+              value: '{{- include "dnastack.wallet.externalUrl" . }}'
+            - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_POLICY_EVALUATION_REQUESTER
+              value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
+            - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_POLICY_EVALUATION_URI
+              value: '{{- include "dnastack.wallet.internalUrl" . -}}/policies/evaluations'
+            - name: LOGGING_LEVEL_IO_MICROMETER
+              value: INFO
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.database.userSecretName }}'
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: '{{ .Values.database.userSecretName }}'
+                  key: password
+            # Auditing
+            - name: AUDITING_ENABLED
+              value: '{{ .Values.auditLogService.enabled }}'
+            - name: AUDITING_PUBLISH_EXTERNAL
+              value: '{{ .Values.auditLogService.enabled }}'
+            # Datadog Config
+            - name: DD_PROFILING_ENABLED
+              value: "false"
+            - name: DD_APPSEC_ENABLED
+              value: "false"
+            - name: DD_PROPAGATION_STYLE_EXTRACT
+              value: "Datadog,B3"
+            - name: DD_TRACE_PARTIAL_FLUSH_MIN_SPANS
+              value: "400"
+            # Optional environment variables
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              {{- if .valueFrom  }}
+              valueFrom:
+                {{- if .valueFrom.fieldRef  }}
+                fieldRef:
+                  fieldPath: '{{ .valueFrom.fieldRef.fieldPath }}'
+                {{- else}}
+                secretKeyRef:
+                  name: '{{ .valueFrom.secretKeyRef.name }}'
+                  key: '{{ .valueFrom.secretKeyRef.key }}'
+                {{- end}}
+              {{- else }}
+              value: '{{ .value }}'
+              {{- end }}
+            {{- end }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.app.name }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    name: {{ .Values.app.name }}
+  annotations:
+    meta.helm.sh/release-name: {{ .Values.app.name }}
+    meta.helm.sh/release-namespace: {{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}
+spec:
+  selector:
+    app: {{ .Values.app.name }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
