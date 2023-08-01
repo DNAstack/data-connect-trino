@@ -20,47 +20,47 @@ app:
 
 dataConnectTrino:
   appName: data-connect-trino # Host portion of the data-connect-trino URL to be used for authorization e.g. data-connect-trino
-  resourceUrl:
-  externalUrl:
-  internalUrl:
+  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
+  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
+  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 wallet:
   appName: wallet # Host portion of the wallet URL to be used for authorization e.g. wallet
-  resourceUrl:
-  externalUrl:
-  internalUrl:
+  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
+  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
+  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
   adminKubeKey: wallet-cloud-init-client-credentials # Name of k8s secret containing wallet clientId and clientSecret
 
 auditLogService:
   appName: "audit-log-service" # Host portion of the audit-log-service URL e.g. audit-log-service
-  resourceUrl:
-  externalUrl:
-  internalUrl:
+  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
+  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
+  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
   enabled: false
 
 indexingService:
   appName: indexing-service # Host portion of the indexing-service URL to be used for authorization e.g. indexing-service
-  resourceUrl:
-  externalUrl:
-  internalUrl:
+  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
+  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
+  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 collectionService:
   appName: collection-service # Host portion of the collection-service URL to be used for authorization e.g. collection-service
-  resourceUrl:
-  externalUrl:
-  internalUrl:
+  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
+  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
+  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 publisherData:
   appName: publisher-data # Host portion of the publisher-data URL to be used for authorization e.g. publisher-data
-  resourceUrl:
-  externalUrl:
-  internalUrl:
+  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
+  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
+  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 trino:
   appName: trino # Host portion of the trino URL to be used for authorization e.g. trino
-  resourceUrl:
-  externalUrl:
-  internalUrl:
+  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
+  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
+  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 database:
   jdbcUri: # JDBC Url for the application's main database e.g. "jdbc:postgresql://postgres/dataconnecttrinoservice"
@@ -82,6 +82,3 @@ test:
   inMemoryTestSchema: "default"  # Name of the test schema e.g. "default"
   showSchemaForCatalogName: # Name of a catalog that's expected to contain ar least one schema e.g. "publisher"
   showTableForCatalogSchemaName: # Name of a catalog.schema that's expected to contain at least one table e.g. "publisher.data"
-  keepalive:
-    enabled: false" # boolean indicating whether e2e test pod should be kept alive to allow copy resources from it
-    duration: 1800 # amount of time in seconds test pod will be kept alive
