@@ -1,5 +1,4 @@
 apiVersion: v2
-appVersion: foo__bar
 name: data-connect-trino
 description: A Helm chart installing the DNAstack data-connect-trino
 type: application

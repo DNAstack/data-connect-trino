@@ -36,15 +36,19 @@ spec:
             - name: E2E_SCOPE_CHECKING_ENABLED
               value: "true"
             - name: E2E_INMEMORY_TESTCATALOG
-              value: "memory"
+              value: '{{ .Values.test.inMemoryTestCatalog }}'
             - name: E2E_INMEMORY_TESTSCHEMA
-              value: "default"
+              value: '{{ .Values.test.inMemoryTestSchema }}'
             - name: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME
-              value: "publisher"
+              value: '{{ .Values.test.showSchemaForCatalogName }}'
             - name: E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME
-              value: "publisher.public"
+              value: '{{ .Values.test.showTableForCatalogSchemaName }}'
+            - name: E2E_TRINO_JDBCSSL
+              value: "true"
             - name: E2E_TRINO_AUDIENCE
               value: '{{- include "dnastack.trino.resourceUrl" . -}}'
+            - name: E2E_TRINO_JDBCURI
+              value: 'jdbc:trino://{{ .Values.trino.appName }}.{{ coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName }}:443'
             - name: E2E_TRINO_SCOPES
               value: "full_access"
             - name: E2E_INDEXING_SERVICE_ENABLED

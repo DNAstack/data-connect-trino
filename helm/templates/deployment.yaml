@@ -91,7 +91,7 @@ spec:
             - name: APP_PUBLISHER_DATA_HOSTNAME
               value: '{{- include "dnastack.publisherData.externalUrl" . }}'
             - name: WALLET_URL
-              value: '{{- include "dnastack.wallet.internalUrl" . }}'
+              value: '{{- include "dnastack.wallet.externalUrl" . }}'
             - name: WALLET_RESOURCE
               value: '{{- include "dnastack.wallet.resourceUrl" . }}/'
             - name: WALLET_ADMIN_KUBEKEY
@@ -120,7 +120,7 @@ spec:
             - |
               liquibase \
                --driver=org.postgresql.Driver \
-               --changeLogFile=/db.changelog-master.xml \
+               --changeLogFile=/db.changelog-master.yaml \
                --url={{ .Values.database.jdbcUri }} \
                --username=$(SPRING_DATASOURCE_USERNAME) \
                --password=$(SPRING_DATASOURCE_PASSWORD) \
@@ -176,7 +176,7 @@ spec:
             - name: SPRING_LIQUIBASE_ENABLED
               value: "false"
             - name: TRINO_DATASOURCE_URL
-              value: '{{- include "dnastack.trino.externalUrl" . }}'
+              value: '{{- include "dnastack.trino.internalUrl" . }}'
             - name: TRINO_RESULTS_LIMIT_MAX
               value: "100"
             - name: TRINO_HIDDEN_CATALOGS
@@ -231,7 +231,7 @@ spec:
                   name: '{{ .Values.app.oauth.clientSecretName }}'
                   key: clientSecret
             - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_RESOURCE
-              value: '{{- include "dnastack.indexingService.resourceUrl" . }}'
+              value: '{{- include "dnastack.indexingService.resourceUrl" . }}/'
             - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_TOKEN_URI
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
             - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_TOKEN_ISSUERS_URIS
@@ -258,7 +258,7 @@ spec:
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_RESOURCE
               value: "https://${APP_COLLECTION_SERVICE_HOSTNAME}/"
             - name: SPRING_DATASOURCE_URL
-              value: '{{- include "dnastack.collectionService.resourceUrl" . }}'
+              value: '{{ .Values.database.jdbcUri }}'
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_TOKEN_URI
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_TOKEN_ISSUERS_URIS
@@ -293,23 +293,6 @@ spec:
               value: "Datadog,B3"
             - name: DD_TRACE_PARTIAL_FLUSH_MIN_SPANS
               value: "400"
-            # Optional environment variables
-            {{- range .Values.env }}
-            - name: {{ .name }}
-              {{- if .valueFrom  }}
-              valueFrom:
-                {{- if .valueFrom.fieldRef  }}
-                fieldRef:
-                  fieldPath: '{{ .valueFrom.fieldRef.fieldPath }}'
-                {{- else}}
-                secretKeyRef:
-                  name: '{{ .valueFrom.secretKeyRef.name }}'
-                  key: '{{ .valueFrom.secretKeyRef.key }}'
-                {{- end}}
-              {{- else }}
-              value: '{{ .value }}'
-              {{- end }}
-            {{- end }}
 
 ---
 apiVersion: v1
