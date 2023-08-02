@@ -17,20 +17,20 @@
       ],
       "resources": [
         {
-          "uri": "${APP_DATA_CONNECT_TRINO_HOSTNAME}"
+          "uri": "${APP_DATA_CONNECT_TRINO_URL}"
         },
         {
-          "uri": "${APP_DATA_CONNECT_TRINO_HOSTNAME}/"
+          "uri": "${APP_DATA_CONNECT_TRINO_URL}/"
         },
         {
-          "uri": "${APP_PUBLISHER_DATA_HOSTNAME}/data-connect/table/publisher"
+          "uri": "${APP_PUBLISHER_DATA_URL}/data-connect/table/publisher"
         },
         {
-          "uri": "${APP_PUBLISHER_DATA_HOSTNAME}/data-connect/table/publisher/public"
+          "uri": "${APP_PUBLISHER_DATA_URL}/data-connect/table/publisher/public"
         },
         {
           "$comment": "This URI and the two above should match the table in E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME",
-          "uri": "${APP_PUBLISHER_DATA_HOSTNAME}/data-connect/table/publisher/public/library"
+          "uri": "${APP_PUBLISHER_DATA_URL}/data-connect/table/publisher/public/library"
         }
       ]
     },
@@ -46,10 +46,10 @@
       ],
       "resources": [
         {
-          "uri": "${APP_AUDIT_LOG_SERVICE_HOSTNAME}"
+          "uri": "${APP_AUDIT_LOG_SERVICE_URL}"
         },
         {
-          "uri": "${APP_AUDIT_LOG_SERVICE_HOSTNAME}/"
+          "uri": "${APP_AUDIT_LOG_SERVICE_URL}/"
         }
       ]
     },
@@ -66,7 +66,7 @@
       ],
       "resources": [
         {
-          "uri": "${APP_INDEXING_SERVICE_HOSTNAME}/library/"
+          "uri": "${APP_INDEXING_SERVICE_URL}/library/"
         }
       ]
     },
@@ -83,7 +83,7 @@
       ],
       "resources": [
         {
-          "uri": "${APP_INDEXING_SERVICE_HOSTNAME}/library/"
+          "uri": "${APP_INDEXING_SERVICE_URL}/library/"
         }
       ]
     },
@@ -100,7 +100,7 @@
       ],
       "resources": [
         {
-          "uri": "${APP_COLLECTION_SERVICE_HOSTNAME}/collection/"
+          "uri": "${APP_COLLECTION_SERVICE_URL}/collection/"
         }
       ]
     }

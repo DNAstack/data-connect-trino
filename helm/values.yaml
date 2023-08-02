@@ -10,8 +10,6 @@ app:
   secretHash: secrets-hash
   memoryLimit: "1Gi"
   memoryRequest: "1Gi"
-  oauth:
-    clientSecretName: data-connect-trino-client-credentials # Secret name that contains the oauth client for all app interactions to external services e.g. data-connect-trino-client-credentials
   spring:
     profile: "wallet-auth,metrics-enabled,gcp" # Comma separated list of spring profiles to activate for this application
     datasource:
@@ -45,7 +43,6 @@ database:
   jdbcUri: # JDBC Url for the application's main database e.g. "jdbc:postgresql://postgres/dataconnecttrinoservice"
   postgresVersion: # Version of the postgres server hosting the application's main database
   postgresInstance: # host name of the postgres server hosting the application's main database e.g. "prod-postgres"
-  userSecretName: data-connect-trino-db-credentials # secret name that stores the credentials for the data-connect-trino database e.g. data-connect-trino-db-credentials
 
 cloud:
   platform: # Cloud platform the application is being deployed into, possible values - "gcloud"
@@ -56,7 +53,6 @@ cloud:
   spaceDnsName: # DNS domain being used for applications in this cluster e.g. helm-sandbox.dnastack.com
 
 test:
-  clientSecretName: data-connect-trino-e2e-test-client-credentials # E2E test data-connect-trino client secret name e.g. data-connect-trino-e2e-test-client-credentials
   inMemoryTestCatalog: "memory" # Name of the test catalog e.g. "memory"
   inMemoryTestSchema: "default"  # Name of the test schema e.g. "default"
   showSchemaForCatalogName: # Name of a catalog that's expected to contain ar least one schema e.g. "publisher"

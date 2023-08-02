@@ -5,11 +5,11 @@
 {{- $_ := required "database.jdbcUri is a required value" .Values.database.jdbcUri }}
 {{- $_ := required "database.postgresVersion is a required value" (coalesce .Values.database.postgresVersion (((.Values.global).database).postgres).version) }}
 {{- $_ := required "database.postgresInstance is a required value" (coalesce .Values.database.postgresInstance (((.Values.global).database).postgres).instance) }}
-{{- $_ := required "database.userSecretName is a required value" .Values.database.userSecretName }}
 {{- $_ := required "cloud.platform is a required value" (coalesce .Values.cloud.platform ((.Values.global).cloud).platform) }}
 {{- $_ := required "cloud.project is a required value" (coalesce .Values.cloud.project ((.Values.global).cloud).project) }}
 {{- $_ := required "cloud.zone is a required value" (coalesce .Values.cloud.zone ((.Values.global).cloud).zone) }}
 {{- $_ := required "cloud.region is a required value" (coalesce .Values.cloud.region ((.Values.global).cloud).region) }}
 {{- $_ := required "cloud.clusterNamespace is a required value" (coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace) }}
 {{- $_ := required "cloud.spaceDnsName is a required value" (coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName) }}
-{{- $_ := required "test.clientSecretName is a required value" .Values.test.clientSecretName }}
+{{- $_ := required "test.showSchemaForCatalogName is a required value" .Values.test.showSchemaForCatalogName }}
+{{- $_ := required "test.showTableForCatalogSchemaName is a required value" .Values.test.showTableForCatalogSchemaName }}

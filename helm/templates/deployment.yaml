@@ -80,18 +80,18 @@ spec:
               value: "false"
             - name: TRINO_AUDIENCE
               value: '{{- include "dnastack.trino.resourceUrl" . }}'
-            - name: APP_AUDIT_LOG_SERVICE_HOSTNAME
-              value: '{{- include "dnastack.auditLogService.externalUrl" . }}'
-            - name: APP_INDEXING_SERVICE_HOSTNAME
-              value: '{{- include "dnastack.indexingService.externalUrl" . }}'
-            - name: APP_COLLECTION_SERVICE_HOSTNAME
-              value: '{{- include "dnastack.collectionService.externalUrl" . }}'
-            - name: APP_DATA_CONNECT_TRINO_HOSTNAME
-              value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
-            - name: APP_PUBLISHER_DATA_HOSTNAME
-              value: '{{- include "dnastack.publisherData.externalUrl" . }}'
+            - name: APP_AUDIT_LOG_SERVICE_URL
+              value: '{{- include "dnastack.auditLogService.resourceUrl" . }}'
+            - name: APP_INDEXING_SERVICE_URL
+              value: '{{- include "dnastack.indexingService.resourceUrl" . }}'
+            - name: APP_COLLECTION_SERVICE_URL
+              value: '{{- include "dnastack.collectionService.resourceUrl" . }}'
+            - name: APP_DATA_CONNECT_TRINO_URL
+              value: '{{- include "dnastack.dataConnectTrino.resourceUrl" . }}'
+            - name: APP_PUBLISHER_DATA_URL
+              value: '{{- include "dnastack.publisherData.resourceUrl" . }}'
             - name: WALLET_URL
-              value: '{{- include "dnastack.wallet.externalUrl" . }}'
+              value: '{{- include "dnastack.wallet.internalUrl" . }}'
             - name: WALLET_RESOURCE
               value: '{{- include "dnastack.wallet.resourceUrl" . }}/'
             - name: WALLET_ADMIN_KUBEKEY
@@ -130,12 +130,12 @@ spec:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.database.userSecretName }}'
+                  name: '{{ .Values.app.name }}-db-credentials'
                   key: username
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.database.userSecretName }}'
+                  name: '{{ .Values.app.name }}-db-credentials'
                   key: password
       containers:
         - name: {{ .Values.app.name }}
@@ -168,7 +168,7 @@ spec:
             - name: JAVA_OPTS
               value: "-XX:+PrintFlagsFinal -XX:+ExitOnOutOfMemoryError"
             - name: APP_URL
-              value: 'https://{{ .Values.app.name }}.{{ coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName }}'
+              value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
             - name: SPRING_PROFILES_ACTIVE
               value: '{{ .Values.app.spring.profile }}'
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
@@ -188,12 +188,12 @@ spec:
             - name: APP_AUTH_TRINOOAUTHCLIENT_CLIENTID
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  name: '{{ .Values.app.name }}-client-credentials'
                   key: clientId
             - name: APP_AUTH_TRINOOAUTHCLIENT_CLIENTSECRET
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  name: '{{ .Values.app.name }}-client-credentials'
                   key: clientSecret
             - name: APP_AUTH_TRINOOAUTHCLIENT_AUDIENCE
               value: '{{- include "dnastack.trino.resourceUrl" . }}'
@@ -223,12 +223,12 @@ spec:
             - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  name: '{{ .Values.app.name }}-client-credentials'
                   key: clientId
             - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  name: '{{ .Values.app.name }}-client-credentials'
                   key: clientSecret
             - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_RESOURCE
               value: '{{- include "dnastack.indexingService.resourceUrl" . }}/'
@@ -246,15 +246,15 @@ spec:
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  name: '{{ .Values.app.name }}-client-credentials'
                   key: clientId
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.app.oauth.clientSecretName }}'
+                  name: '{{ .Values.app.name }}-client-credentials'
                   key: clientSecret
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_RESOURCE
-              value: '{{- include "dnastack.collectionService.resourceUrl" .}}/'
+              value: '{{- include "dnastack.collectionService.resourceUrl" . }}/'
             - name: SPRING_DATASOURCE_URL
               value: '{{ .Values.database.jdbcUri }}'
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_TOKEN_URI
@@ -268,12 +268,12 @@ spec:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.database.userSecretName }}'
+                  name: '{{ .Values.app.name }}-db-credentials'
                   key: username
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: '{{ .Values.database.userSecretName }}'
+                  name: '{{ .Values.app.name }}-db-credentials'
                   key: password
             # Auditing
             - name: AUDITING_ENABLED
