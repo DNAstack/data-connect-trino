@@ -236,8 +236,6 @@ spec:
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
             - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_TOKEN_ISSUERS_URIS
               value: '{{- include "dnastack.wallet.externalUrl" . }}'
-            - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_POLICY_EVALUATION_REQUESTER
-              value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
             - name: APP_INDEXING_SERVICE_OAUTH_CLIENT_POLICY_EVALUATION_URI
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/policies/evaluations'
             # Collection service client
@@ -256,15 +254,13 @@ spec:
                   name: '{{ .Values.app.oauth.clientSecretName }}'
                   key: clientSecret
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_RESOURCE
-              value: "https://${APP_COLLECTION_SERVICE_HOSTNAME}/"
+              value: '{{- include "dnastack.collectionService.resourceUrl" .}}/'
             - name: SPRING_DATASOURCE_URL
               value: '{{ .Values.database.jdbcUri }}'
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_TOKEN_URI
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_TOKEN_ISSUERS_URIS
               value: '{{- include "dnastack.wallet.externalUrl" . }}'
-            - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_POLICY_EVALUATION_REQUESTER
-              value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_POLICY_EVALUATION_URI
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/policies/evaluations'
             - name: LOGGING_LEVEL_IO_MICROMETER
