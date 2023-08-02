@@ -289,6 +289,23 @@ spec:
               value: "Datadog,B3"
             - name: DD_TRACE_PARTIAL_FLUSH_MIN_SPANS
               value: "400"
+            # Optional environment variables
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              {{- if .valueFrom  }}
+              valueFrom:
+                {{- if .valueFrom.fieldRef  }}
+                fieldRef:
+                  fieldPath: '{{ .valueFrom.fieldRef.fieldPath }}'
+                {{- else}}
+                secretKeyRef:
+                  name: '{{ .valueFrom.secretKeyRef.name }}'
+                  key: '{{ .valueFrom.secretKeyRef.key }}'
+                {{- end}}
+              {{- else }}
+              value: '{{ .value }}'
+              {{- end }}
+            {{- end }}
 
 ---
 apiVersion: v1
