@@ -1,5 +1,5 @@
 {
-  "id": "${APP_NAME}-access-policy",
+  "id": "data-connect-trino-access-policy",
   "name": "Access Policy for Data Connect Trino",
   "description": "Permissions required by data-connect-trino",
   "statements": [
