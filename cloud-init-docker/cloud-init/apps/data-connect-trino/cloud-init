@@ -20,4 +20,4 @@ createWalletServiceClientGrant "${APP_NAME}-e2e-test" "${TRINO_AUDIENCE}" "full_
 
 setupAppDatabase
 
-createWalletPolicy "$(renderJsonFile bootstrap-config/data-connect-trino-policy.json)"
+createWalletPolicy "$(renderJsonFile bootstrap-config/data-connect-trino-policy.json)" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
