@@ -59,6 +59,20 @@ spec:
               value: '{{- include "dnastack.indexingService.resourceUrl" . -}}/'
             - name: E2E_PUBLISHER_DATA_RESOURCE_URI
               value: '{{- include "dnastack.publisherData.resourceUrl" . -}}/'
+      {{- if .Values.test.keepalive.enabled }}
+          volumeMounts:
+            - mountPath: "/target"
+              name: "reports"
+        - name: "keepalive"
+          image: "busybox"
+          command: ["/bin/sh", "-c", "sleep {{ .Values.test.keepalive.duration }}"]
+          volumeMounts:
+            - mountPath: "/target"
+              name: "reports"
+      volumes:
+        - name: "reports"
+          emptyDir: {}
+      {{- end}}
       restartPolicy: Never
   backoffLimit: 0
 status: {}

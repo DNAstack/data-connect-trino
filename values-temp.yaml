@@ -20,47 +20,26 @@ app:
 
 dataConnectTrino:
   appName: data-connect-trino # Host portion of the data-connect-trino URL to be used for authorization e.g. data-connect-trino
-  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
-  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
-  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 wallet:
   appName: wallet # Host portion of the wallet URL to be used for authorization e.g. wallet
-  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
-  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
-  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
   adminKubeKey: wallet-cloud-init-client-credentials # Name of k8s secret containing wallet clientId and clientSecret
 
 auditLogService:
-  appName: "audit-log-service" # Host portion of the audit-log-service URL e.g. audit-log-service
-  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
-  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
-  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
+  appName: audit-log-service # Host portion of the audit-log-service URL e.g. audit-log-service
   enabled: false
 
 indexingService:
   appName: indexing-service # Host portion of the indexing-service URL to be used for authorization e.g. indexing-service
-  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
-  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
-  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 collectionService:
   appName: collection-service # Host portion of the collection-service URL to be used for authorization e.g. collection-service
-  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
-  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
-  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 publisherData:
   appName: publisher-data # Host portion of the publisher-data URL to be used for authorization e.g. publisher-data
-  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
-  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
-  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 trino:
   appName: trino # Host portion of the trino URL to be used for authorization e.g. trino
-  resourceUrl: # resourceUrl comes from global values and should not be set except in very specific cases
-  externalUrl: # externalUrl comes from global values and should not be set except in very specific cases
-  internalUrl: # internalUrl comes from global values and should not be set except in very specific cases
 
 database:
   jdbcUri: "jdbc:postgresql://postgres/dataconnecttrino" # JDBC Url for the application's main database e.g. "jdbc:postgresql://postgres/dataconnecttrino"
