@@ -1,0 +1,16 @@
+{{- if (coalesce .Values.ingressRoute.enabled ((.Values.global).ingressRoutes).enabled) -}}
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ .Values.app.name }}-ingress-route
+  namespace: "{{ .Values.cloud.clusterNamespace }}"
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`{{ .Values.app.name }}.{{ coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName }}`)
+      kind: Rule
+      services:
+        - name: {{ .Values.app.name }}
+          port: 8080
+{{- end }}

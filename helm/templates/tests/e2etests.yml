@@ -1,0 +1,78 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Values.app.name }}-e2etest"
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      containers:
+        - name: "{{ .Values.app.name }}-e2etest"
+          image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/{{ .Values.app.name }}-e2e-tests:{{ .Chart.Version }}'
+          imagePullPolicy: Always
+          env:
+            - name: _JAVA_OPTIONS
+              value: "-Dlogging.level.root=TRACE"
+            - name: E2E_BASE_URI
+              value: '{{- include "dnastack.dataConnectTrino.internalUrl" . -}}'
+            - name: E2E_WALLET_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: clientId
+                  name: '{{ .Values.app.name }}-e2e-test-client-credentials'
+            - name: E2E_WALLET_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: clientSecret
+                  name: '{{ .Values.app.name }}-e2e-test-client-credentials'
+            - name: E2E_WALLET_TOKEN_URI
+              value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
+            - name: E2E_WALLET_RESOURCE
+              value: '{{- include "dnastack.dataConnectTrino.resourceUrl" . -}}/'
+            - name: E2E_GLOBAL_METHOD_SECURITY_ENABLED
+              value: "true"
+            - name: E2E_SCOPE_CHECKING_ENABLED
+              value: "true"
+            - name: E2E_INMEMORY_TESTCATALOG
+              value: '{{ .Values.test.inMemoryTestCatalog }}'
+            - name: E2E_INMEMORY_TESTSCHEMA
+              value: '{{ .Values.test.inMemoryTestSchema }}'
+            - name: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME
+              value: '{{ .Values.test.showSchemaForCatalogName }}'
+            - name: E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME
+              value: '{{ .Values.test.showTableForCatalogSchemaName }}'
+            - name: E2E_TRINO_JDBCSSL
+              value: "true"
+            - name: E2E_TRINO_AUDIENCE
+              value: '{{- include "dnastack.trino.resourceUrl" . -}}'
+            - name: E2E_TRINO_JDBCURI
+              value: 'jdbc:trino://{{ .Values.trino.appName }}.{{ coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName }}:443'
+            - name: E2E_TRINO_SCOPES
+              value: "full_access"
+            - name: E2E_INDEXING_SERVICE_ENABLED
+              value: "true"
+            - name: E2E_INS_BASE_URI
+              value: '{{- include "dnastack.indexingService.internalUrl" . -}}'
+            - name: E2E_INS_RESOURCE_URI
+              value: '{{- include "dnastack.indexingService.resourceUrl" . -}}/'
+            - name: E2E_PUBLISHER_DATA_RESOURCE_URI
+              value: '{{- include "dnastack.publisherData.resourceUrl" . -}}/'
+      {{- if .Values.test.keepalive.enabled }}
+          volumeMounts:
+            - mountPath: "/target"
+              name: "reports"
+        - name: "keepalive"
+          image: "busybox"
+          command: ["/bin/sh", "-c", "sleep {{ .Values.test.keepalive.duration }}"]
+          volumeMounts:
+            - mountPath: "/target"
+              name: "reports"
+      volumes:
+        - name: "reports"
+          emptyDir: {}
+      {{- end}}
+      restartPolicy: Never
+  backoffLimit: 0
+status: {}

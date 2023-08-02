@@ -1,0 +1,85 @@
+image:
+  repository: # Docker repository to pull the image from
+
+ingressRoute:
+  enabled: true # Boolean indicating whether to generate Traefik ingress routes
+
+app:
+  name: data-connect-trino
+  configVersion: config-version
+  secretHash: secrets-hash
+  memoryLimit: "1Gi"
+  memoryRequest: "1Gi"
+  spring:
+    profile: "wallet-auth,metrics-enabled,gcp" # Comma separated list of spring profiles to activate for this application
+    datasource:
+      hikari:
+        maxPoolSize: "5" # Maximum number of connections in the database pool for this application
+
+dataConnectTrino:
+  appName: data-connect-trino # Host portion of the data-connect-trino URL to be used for authorization e.g. data-connect-trino
+
+wallet:
+  appName: wallet # Host portion of the wallet URL to be used for authorization e.g. wallet
+  adminKubeKey: wallet-cloud-init-client-credentials # Name of k8s secret containing wallet clientId and clientSecret
+
+auditLogService:
+  appName: audit-log-service # Host portion of the audit-log-service URL e.g. audit-log-service
+  enabled: false
+
+indexingService:
+  appName: indexing-service # Host portion of the indexing-service URL to be used for authorization e.g. indexing-service
+
+collectionService:
+  appName: collection-service # Host portion of the collection-service URL to be used for authorization e.g. collection-service
+
+publisherData:
+  appName: publisher-data # Host portion of the publisher-data URL to be used for authorization e.g. publisher-data
+
+trino:
+  appName: trino # Host portion of the trino URL to be used for authorization e.g. trino
+
+database:
+  jdbcUri: # JDBC Url for the application's main database e.g. "jdbc:postgresql://postgres/dataconnecttrinoservice"
+  postgresVersion: # Version of the postgres server hosting the application's main database
+  postgresInstance: # host name of the postgres server hosting the application's main database e.g. "prod-postgres"
+
+cloud:
+  platform: # Cloud platform the application is being deployed into, possible values - "gcloud"
+  project: # ID of the cloud project this app is being deployed into e.g. helm-sandbox-02062023
+  zone: # Cloud zone this application is being deployed into e.g. us-central1-c
+  region: # Cloud region this application is being deployed into e.g. us-central1
+  clusterNamespace: # K8s namespace this application is being deployed into e.g. "prod"
+  spaceDnsName: # DNS domain being used for applications in this cluster e.g. helm-sandbox.dnastack.com
+
+test:
+  inMemoryTestCatalog: "memory" # Name of the test catalog e.g. "memory"
+  inMemoryTestSchema: "default"  # Name of the test schema e.g. "default"
+  showSchemaForCatalogName: # Name of a catalog that's expected to contain ar least one schema e.g. "publisher"
+  showTableForCatalogSchemaName: # Name of a catalog.schema that's expected to contain at least one table e.g. "publisher.data"
+  keepalive:
+    enabled: false # boolean indicating whether e2e test pod should be kept alive to allow copy resources from it
+    duration: 1800 # amount of time in seconds test pod will be kept alive
+
+# The 'env' section includes temporary name-value pairs that are provided for specific
+# scenarios or transitional purposes. It is recommended to exercise caution while using
+# this section and only utilize it when absolutely necessary. Consider it as a temporary
+# workaround or an interim solution rather than a permanent configuration.
+#
+# Please note that the 'env' section is subject to changes and may not follow the same
+# stability guarantees as other sections. Its content may be deprecated, removed, or
+# modified in future versions.
+#
+# If possible, it is advised to migrate any configurations from the 'env' section to
+# appropriate sections or use designated configuration areas for a more stable and
+# maintainable setup.
+#
+# Please review the documentation or consult with the development team before making
+# use of this section.
+#
+# Example:
+# - name: CUSTOM_ENV_VARIABLE_NAME
+#   value: custom_env_variable_value
+cloudInitEnv:
+
+env:

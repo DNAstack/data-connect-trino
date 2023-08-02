@@ -1,0 +1,15 @@
+# This file holds all the required variables in one place
+{{- $_ := required "image.repository is a required value" (coalesce .Values.image.repository ((.Values.global).image).repository) }}
+{{- $_ := required "app.configVersion is a required value" .Values.app.configVersion }}
+{{- $_ := required "wallet.adminKubeKey is a required value" (coalesce .Values.wallet.adminKubeKey (.Values.global).walletAdminKubeKey) }}
+{{- $_ := required "database.jdbcUri is a required value" .Values.database.jdbcUri }}
+{{- $_ := required "database.postgresVersion is a required value" (coalesce .Values.database.postgresVersion (((.Values.global).database).postgres).version) }}
+{{- $_ := required "database.postgresInstance is a required value" (coalesce .Values.database.postgresInstance (((.Values.global).database).postgres).instance) }}
+{{- $_ := required "cloud.platform is a required value" (coalesce .Values.cloud.platform ((.Values.global).cloud).platform) }}
+{{- $_ := required "cloud.project is a required value" (coalesce .Values.cloud.project ((.Values.global).cloud).project) }}
+{{- $_ := required "cloud.zone is a required value" (coalesce .Values.cloud.zone ((.Values.global).cloud).zone) }}
+{{- $_ := required "cloud.region is a required value" (coalesce .Values.cloud.region ((.Values.global).cloud).region) }}
+{{- $_ := required "cloud.clusterNamespace is a required value" (coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace) }}
+{{- $_ := required "cloud.spaceDnsName is a required value" (coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName) }}
+{{- $_ := required "test.showSchemaForCatalogName is a required value" .Values.test.showSchemaForCatalogName }}
+{{- $_ := required "test.showTableForCatalogSchemaName is a required value" .Values.test.showTableForCatalogSchemaName }}

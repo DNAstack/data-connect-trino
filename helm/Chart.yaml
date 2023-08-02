@@ -1,0 +1,10 @@
+apiVersion: v2
+name: data-connect-trino
+description: A Helm chart installing the DNAstack data-connect-trino
+type: application
+version: 0.1.0
+
+dependencies:
+  - name: publisher-helm-library
+    version: 1.1-9-gf7a354f
+    repository: oci://us-central1-docker.pkg.dev/dnastack-container-store/helm-charts
