@@ -51,7 +51,7 @@ spec:
             - name: E2E_TRINO_AUDIENCE
               value: '{{- include "dnastack.trino.resourceUrl" . -}}'
             - name: E2E_TRINO_JDBCURI
-              value: 'jdbc:trino://{{ .Values.trino.appName }}.{{ coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName }}:443'
+              value: 'jdbc:trino://{{ .Values.trino.appName }}:8080'
             - name: E2E_TRINO_SCOPES
               value: "full_access"
             - name: E2E_INDEXING_SERVICE_ENABLED
