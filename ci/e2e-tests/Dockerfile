@@ -11,6 +11,9 @@ ARG APP_NAME
 ARG APP_VERSION
 WORKDIR /build
 
+# Downloading Datadog tracing jar
+RUN wget -O dd-tracer.jar https://dtdg.co/latest-java-tracer
+
 # Before bringing in project sources, resolve maven dependencies.
 # This allows Docker to reuse the cached image with all dependencies resolved.
 ADD target/pom.xml ./
@@ -40,7 +43,11 @@ WORKDIR /
 ADD target/e2e-exec-pom.xml /pom.xml
 ADD target/.mvn/ /.mvn/
 ADD target/mvnw /
+
 COPY --from=0 /build/target/data-connect-trino-e2e-tests-*.jar /e2e-tests.jar
+COPY --from=0 /build/dd-tracer.jar /dd-tracer.jar
+
+ENV MAVEN_OPTS "-javaagent:/dd-tracer.jar=dd.civisibility.enabled=true,dd.service=$APP_NAME"
 RUN ./mvnw -B de.qaware.maven:go-offline-maven-plugin:resolve-dependencies
 
 ENTRYPOINT ["./mvnw", "-o", "test"]

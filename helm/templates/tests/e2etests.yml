@@ -7,6 +7,9 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   template:
+    metadata:
+      labels:
+        admission.datadoghq.com/enabled: "true" # Enable Admission Controller to mutate new pods part of this deployment
     spec:
       containers:
         - name: "{{ .Values.app.name }}-e2etest"
@@ -59,6 +62,14 @@ spec:
               value: '{{- include "dnastack.indexingService.resourceUrl" . -}}/'
             - name: E2E_PUBLISHER_DATA_RESOURCE_URI
               value: '{{- include "dnastack.publisherData.resourceUrl" . -}}/'
+            - name: DD_CIVISIBILITY_ENABLED
+              value: "true"
+            - name: DD_ENV
+              value: "dnastack-us-central-cluster_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}"
+            - name: DD_SERVICE
+              value: "{{ .Values.app.name }}"
+            - name: DD_TRACE_AGENT_URL
+              value: "http://10.31.241.233:8126"
       {{- if .Values.test.keepalive.enabled }}
           volumeMounts:
             - mountPath: "/target"
@@ -75,4 +86,3 @@ spec:
       {{- end}}
       restartPolicy: Never
   backoffLimit: 0
-status: {}
