@@ -10,9 +10,8 @@ ARG APP_VERSION
 WORKDIR /build
 
 # Add the memory calculator to the image
-RUN apt-get update && apt-get -y install curl
-RUN curl -L https://github.com/cloudfoundry/java-buildpack-memory-calculator/releases/download/v4.1.0/memory-calculator-4.1.0.tgz \
-    | tar zxv
+RUN wget -O - https://storage.googleapis.com/dnastack-public-build-artifacts/memory-calculator-4.1.0.tgz \
+    | tar -zxv
 
 # Before bringing in project sources, resolve maven dependencies.
 # This allows Docker to reuse the cached image with all dependencies resolved.
@@ -38,7 +37,7 @@ FROM amazoncorretto:17-alpine
 ARG APP_NAME
 ARG APP_VERSION
 
-RUN adduser ${APP_NAME}
+RUN busybox adduser -D -h / ${APP_NAME}
 USER ${APP_NAME}
 
 COPY --from=0 /build/target/data-connect-trino-*.jar /app.jar
