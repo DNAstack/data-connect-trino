@@ -6,7 +6,7 @@
 
 # This stage depends on a JDK image and uses Maven Wrapper to pull in dependencies and build the project
 # from source.
-FROM azul/zulu-openjdk:17.0.3 AS build
+FROM amazoncorretto:17-alpine AS build
 ARG APP_NAME
 ARG APP_VERSION
 WORKDIR /build

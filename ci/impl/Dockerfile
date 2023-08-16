@@ -4,7 +4,7 @@
 ## Stage 1: Build and test the Java Sources
 ##
 
-FROM azul/zulu-openjdk:17.0.3 AS build
+FROM amazoncorretto:17-alpine AS build
 ARG APP_NAME
 ARG APP_VERSION
 WORKDIR /build
@@ -34,7 +34,7 @@ RUN ./mvnw -B -X package
 
 # This stage uses a JRE rather than JDK because it doesn't have to build anything; it just runs the fat jar
 # produced by the previous stage.
-FROM azul/zulu-openjdk:17.0.3-jre
+FROM amazoncorretto:17-alpine
 ARG APP_NAME
 ARG APP_VERSION
 
