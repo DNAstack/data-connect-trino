@@ -95,7 +95,7 @@ spec:
             - name: WALLET_RESOURCE
               value: '{{- include "dnastack.wallet.resourceUrl" . }}/'
             - name: WALLET_ADMIN_KUBEKEY
-              value: '{{ coalesce .Values.wallet.adminKubeKey (.Values.global).walletAdminKubeKey }}'
+              value: "wallet-cloud-init-client-credentials"
             # Optional cloud-init environment variables
             {{- range .Values.cloudInitEnv }}
             - name: {{ .name }}
@@ -147,7 +147,7 @@ spec:
             limits:
               memory: {{ .Values.app.memoryLimit }}
             requests:
-              memory: {{ .Values.app.memoryRequest }}
+              memory: {{ .Values.app.memoryLimit }}
           readinessProbe:
             httpGet:
               path: /actuator/health
@@ -170,7 +170,7 @@ spec:
             - name: APP_URL
               value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
             - name: SPRING_PROFILES_ACTIVE
-              value: '{{ .Values.app.spring.profile }}'
+              value: "wallet-auth,metrics-enabled,cloud,gcp"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
               value: '{{ .Values.app.spring.datasource.hikari.maxPoolSize }}'
             - name: SPRING_LIQUIBASE_ENABLED
@@ -277,9 +277,9 @@ spec:
                   key: password
             # Auditing
             - name: AUDITING_ENABLED
-              value: '{{ .Values.auditLogService.enabled }}'
+              value: "true"
             - name: AUDITING_PUBLISH_EXTERNAL
-              value: '{{ .Values.auditLogService.enabled }}'
+              value: "false"
             # Datadog Config
             - name: DD_PROFILING_ENABLED
               value: "false"

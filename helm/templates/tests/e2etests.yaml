@@ -39,9 +39,9 @@ spec:
             - name: E2E_SCOPE_CHECKING_ENABLED
               value: "true"
             - name: E2E_INMEMORY_TESTCATALOG
-              value: '{{ .Values.test.inMemoryTestCatalog }}'
+              value: "memory"
             - name: E2E_INMEMORY_TESTSCHEMA
-              value: '{{ .Values.test.inMemoryTestSchema }}'
+              value: "default"
             - name: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME
               value: '{{ .Values.test.showSchemaForCatalogName }}'
             - name: E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME

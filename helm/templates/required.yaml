@@ -1,7 +1,6 @@
 # This file holds all the required variables in one place
 {{- $_ := required "image.repository is a required value" (coalesce .Values.image.repository ((.Values.global).image).repository) }}
 {{- $_ := required "app.configVersion is a required value" .Values.app.configVersion }}
-{{- $_ := required "wallet.adminKubeKey is a required value" (coalesce .Values.wallet.adminKubeKey (.Values.global).walletAdminKubeKey) }}
 {{- $_ := required "database.jdbcUri is a required value" .Values.database.jdbcUri }}
 {{- $_ := required "database.postgresVersion is a required value" (coalesce .Values.database.postgresVersion (((.Values.global).database).postgres).version) }}
 {{- $_ := required "database.postgresInstance is a required value" (coalesce .Values.database.postgresInstance (((.Values.global).database).postgres).instance) }}
