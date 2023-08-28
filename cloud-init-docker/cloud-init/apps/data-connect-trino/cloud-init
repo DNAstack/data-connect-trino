@@ -20,4 +20,7 @@ createWalletServiceClientGrant "${APP_NAME}-e2e-test" "${TRINO_AUDIENCE}" "full_
 
 setupAppDatabase
 
-createWalletPolicy "$(renderJsonFile bootstrap-config/data-connect-trino-policy.json)" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
+queueWalletPolicy "$(renderJsonFile bootstrap-config/data-connect-trino-policy.json)" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
+
+# Update, Create, or Delete wallet policies based on policies stored in a JSON file created with queueWalletPolicy
+syncGivenWalletPolicies "beacon-network-service-registry" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}"
