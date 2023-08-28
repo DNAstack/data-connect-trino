@@ -105,7 +105,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         "INSERT INTO %s(zone, thedate, thetime, thetimestamp, thetimestampwithtimezone, thetimestampwithouttimezone, thetimewithouttimezone, thetimewithtimezone)"
             + " VALUES('%s', date '%s', time '%s', timestamp '%s', timestamp '%s', timestamp '%s', time '%s', time '%s')";
 
-    private static final String INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE = "INSERT INTO %s(bogusfield) VALUES('%s')";
+    private static final String INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE = "INSERT INTO %s(bogusfield) VALUES %s";
 
     private static final String INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE =
         "INSERT INTO %s (id, data) VALUES('%s', json_parse('%s'))";
@@ -263,40 +263,51 @@ public class DataConnectE2eTest extends BaseE2eTest {
         unqualifiedPaginationTestTable = "pagination_" + randomFactor;
         trinoPaginationTestTableName = getFullyQualifiedTestTableName(unqualifiedPaginationTestTable).toLowerCase();
         queries.add(String.format(CREATE_PAGINATION_TEST_TABLE_TEMPLATE, trinoPaginationTestTableName));
+        ArrayList<String> testValues = new ArrayList<>();
         for (int i = 0; i < 120; ++i) {
-            String testValue = "testValue_" + i;
-            queries.add(String.format(INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE, trinoPaginationTestTableName, testValue));
+            testValues.add(String.format("('testValue_%s')", i));
         }
-
-        queries.forEach(query -> {
+        queries.add(String.format(INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE, trinoPaginationTestTableName, String.join(", ", testValues)));
+        for (String query : queries) {
             try {
-                trinoHttpClient.query(query, Map.of());
-            } catch (IOException io) {
-                log.error("Detected error while setting up the test tables.  Error message: {}", io.getMessage());
-                throw new RuntimeException("During test table setup, failed to execute: " + query, io);
+                waitForQueryToFinish(query);
+            } catch (Exception e) {
+                log.error("Detected error while setting up the test tables.  Error message: {}", e.getMessage());
+                throw new RuntimeException("During test table setup, failed to execute: " + query, e);
             }
-        });
+        }
+    }
+
+    private static void waitForQueryToFinish(String query) throws IOException, InterruptedException {
+        JsonNode node = trinoHttpClient.query(query, Map.of());
+        String state = node.get("stats").get("state").asText();
+        while (!state.equals("FINISHED")) {
+            Thread.sleep(1000);
+            String nextPageUri = node.get("nextUri").asText();
+            node = trinoHttpClient.next(nextPageUri, Map.of());
+            state = node.get("stats").get("state").asText();
+        }
     }
 
     @AfterAll
     public static void removeTestTables() {
         if (trinoDateTimeTestTable != null) {
-            log.info("Trying to remove datetime test table " + trinoDateTimeTestTable);
+            log.info("Trying to remove test tables");
             try {
-                trinoHttpClient.query(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoDateTimeTestTable), Map.of());
+                waitForQueryToFinish(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoDateTimeTestTable));
                 log.info("Successfully removed datetime test table " + trinoDateTimeTestTable);
                 trinoDateTimeTestTable = null;
 
-                trinoHttpClient.query(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoPaginationTestTableName), Map.of());
+                waitForQueryToFinish(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoPaginationTestTableName));
                 log.info("Successfully removed pagination test table " + trinoPaginationTestTableName);
                 trinoPaginationTestTableName = null;
 
-                trinoHttpClient.query(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoJsonTestTable), Map.of());
+                waitForQueryToFinish(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoJsonTestTable));
                 log.info("Successfully removed json test table " + trinoJsonTestTable);
                 trinoJsonTestTable = null;
-            } catch (IOException io) {
-                log.error("Error setting up test tables.  Error message: {}", io.getMessage());
-                throw new RuntimeException("Unable to setup test tables: ", io);
+            } catch (Exception e) {
+                log.error("Error removing test tables.  Error message: {}", e.getMessage());
+                throw new RuntimeException("Unable to remove test tables: ", e);
             }
         }
     }
