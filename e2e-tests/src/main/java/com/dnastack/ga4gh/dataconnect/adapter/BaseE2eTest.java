@@ -32,7 +32,7 @@ public abstract class BaseE2eTest {
     protected static String walletClientId = optionalEnv("E2E_WALLET_CLIENT_ID", "data-connect-trino-e2e-test");
     protected static String walletClientSecret = optionalEnv("E2E_WALLET_CLIENT_SECRET", "dev-secret-never-use-in-prod");
     protected static String dataConnectAdapterResource = optionalEnv("E2E_WALLET_RESOURCE", "http://localhost:8089/");
-    protected static String trinoJdbcSSL = optionalEnv("E2E_TRINO_JDBCSSL", "true");
+    protected static String walletTokenUrl = optionalEnv("E2E_WALLET_TOKEN_URI", "http://localhost:8081/oauth/token");
 
     protected List<Runnable> cleanupOperations = new LinkedList<>();
 
@@ -67,8 +67,6 @@ public abstract class BaseE2eTest {
             if (new URI(RestAssured.baseURI).getHost().equalsIgnoreCase("localhost")) {
                 log.info("E2E BASE URI is at localhost, allowing localhost to occur within URLs of JSON responses.");
                 IsUrl.setAllowLocalhost(true);
-            } else if (trinoJdbcSSL.equals("false")) {
-                log.info("SSL has been disabled explicitly.");
             }
         } catch (URISyntaxException use) {
             throw new RuntimeException(String.format("Error initializing tests -- E2E_BASE_URI (%s) is invalid", RestAssured.baseURI));
@@ -153,7 +151,7 @@ public abstract class BaseE2eTest {
     }
 
     static String getToken(String audience, List<String> scopes, List<String> resources) {
-        RequestSpecification specification = new RequestSpecBuilder().setBaseUri(optionalEnv("E2E_WALLET_TOKEN_URI", "http://localhost:8081/oauth/token"))
+        RequestSpecification specification = new RequestSpecBuilder().setBaseUri(walletTokenUrl)
             .build();
 
         //@formatter:off

@@ -1,6 +1,10 @@
 package com.dnastack.ga4gh.dataconnect.adapter;
 
+import brave.Tracing;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.*;
+import com.dnastack.trino.TrinoHttpClient;
+import com.dnastack.trino.adapter.security.AuthConfig;
+import com.dnastack.trino.adapter.security.ServiceAccountAuthenticator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +15,7 @@ import io.restassured.http.Method;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.HttpStatus;
 import org.assertj.core.api.Assertions;
@@ -26,10 +31,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -104,7 +105,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         "INSERT INTO %s(zone, thedate, thetime, thetimestamp, thetimestampwithtimezone, thetimestampwithouttimezone, thetimewithouttimezone, thetimewithtimezone)"
             + " VALUES('%s', date '%s', time '%s', timestamp '%s', timestamp '%s', timestamp '%s', time '%s', time '%s')";
 
-    private static final String INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE = "INSERT INTO %s(bogusfield) VALUES('%s')";
+    private static final String INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE = "INSERT INTO %s(bogusfield) VALUES %s";
 
     private static final String INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE =
         "INSERT INTO %s (id, data) VALUES('%s', json_parse('%s'))";
@@ -137,8 +138,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     private static final int MAX_REAUTH_ATTEMPTS = 10;
 
-    private static final String trinoTestUri = optionalEnv("E2E_TRINO_JDBCURI", "jdbc:trino://localhost:8091");  // MUST be in format jdbc:trino://host:port
-    private static final String trinoAudience = optionalEnv("E2E_TRINO_AUDIENCE", null); // optional
+    private static final String trinoAudience = optionalEnv("E2E_TRINO_AUDIENCE", "http://localhost:8091"); // optional
     private static final String trinoScopes = optionalEnv("E2E_TRINO_SCOPES", "full_access");   // optional
 
     // test catalog name
@@ -178,46 +178,36 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     private static final List<String> dataConnectScopes = List.of("data-connect:query", "data-connect:data", "data-connect:info");
 
+    private static TrinoHttpClient trinoHttpClient;
+
+    private static final String trinoHostname = optionalEnv("E2E_TRINO_HOSTNAME", "http://localhost:8091");
+
+    private static final boolean trinoIsPublic = Boolean.parseBoolean(optionalEnv("E2E_TRINO_IS_PUBLIC", "false"));
+
     @BeforeAll
     public static void beforeClass() {
+        AuthConfig.OauthClientConfig clientConfig = new AuthConfig.OauthClientConfig();
+        clientConfig.setTokenUri(walletTokenUrl);
+        clientConfig.setClientId(walletClientId);
+        clientConfig.setClientSecret(walletClientSecret);
+        clientConfig.setScopes(trinoScopes);
+        clientConfig.setAudience(trinoAudience);
+
+        Tracing tracing = Tracing.newBuilder().build();
+        tracing.setNoop(true);
+
+        ServiceAccountAuthenticator serviceAccountAuthenticator = trinoIsPublic ? new ServiceAccountAuthenticator() : new ServiceAccountAuthenticator(clientConfig);
+
+        trinoHttpClient = new TrinoHttpClient(
+                tracing,
+                new OkHttpClient(),
+                trinoHostname,
+                serviceAccountAuthenticator
+        );
+
         log.info("Setting up test tables");
         setupTestTables();
         log.info("Done setting up test tables");
-    }
-
-    static Connection getTestDatabaseConnection() throws SQLException {
-        log.info("Driver dump:");
-
-        log.info("Trino JDBC URI → {}", trinoTestUri);
-
-        try {
-            Class.forName("io.trino.jdbc.TrinoDriver");
-        } catch (ClassNotFoundException ce) {
-            throw new RuntimeException("Can't find JDBC driver", ce);
-        }
-
-        DriverManager.drivers().forEach(driver -> log.info("Got driver " + driver.toString()));
-
-        final String trinoJdbcSslProperty = trinoTestUri.contains("localhost") ? "false" : trinoJdbcSSL;
-
-        Properties properties = new Properties();
-        properties.setProperty("user", "e2etestuser");
-
-        if (trinoTestUri.contains("localhost")) {
-            log.info("Trino JDBC SSL enabled → false (assumed default for localhost)");
-        } else if (trinoJdbcSSL.equals("true")) {
-            log.info("Trino JDBC SSL enabled → true");
-            properties.setProperty("SSL", trinoJdbcSslProperty);
-        } else {
-            log.info("Trino JDBC SSL enabled → false");
-        }
-
-        log.info("Fetching a wallet token using audience {} and scopes {} to setup a JDBC connection to trino.", trinoAudience, trinoScopes);
-        if (trinoAudience != null) {
-            properties.setProperty("accessToken", getToken(trinoAudience, trinoScopes));
-        }
-
-        return DriverManager.getConnection(trinoTestUri, properties);
     }
 
     private static String trinoDateTimeTestTable;
@@ -273,49 +263,51 @@ public class DataConnectE2eTest extends BaseE2eTest {
         unqualifiedPaginationTestTable = "pagination_" + randomFactor;
         trinoPaginationTestTableName = getFullyQualifiedTestTableName(unqualifiedPaginationTestTable).toLowerCase();
         queries.add(String.format(CREATE_PAGINATION_TEST_TABLE_TEMPLATE, trinoPaginationTestTableName));
+        ArrayList<String> testValues = new ArrayList<>();
         for (int i = 0; i < 120; ++i) {
-            String testValue = "testValue_" + i;
-            queries.add(String.format(INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE, trinoPaginationTestTableName, testValue));
+            testValues.add(String.format("('testValue_%s')", i));
         }
+        queries.add(String.format(INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE, trinoPaginationTestTableName, String.join(", ", testValues)));
+        for (String query : queries) {
+            try {
+                waitForQueryToFinish(query);
+            } catch (Exception e) {
+                log.error("Detected error while setting up the test tables.  Error message: {}", e.getMessage());
+                throw new RuntimeException("During test table setup, failed to execute: " + query, e);
+            }
+        }
+    }
 
-        try (Connection conn = getTestDatabaseConnection()) {
-            Statement statement = conn.createStatement();
-
-            queries.forEach(query -> {
-                try {
-                    statement.execute(query);
-                } catch (SQLException se) {
-                    log.error("Detected error while setting up the test tables.  SQL State: {}\n{}", se.getSQLState(), se.getMessage());
-                    throw new RuntimeException("During test table setup, failed to execute: " + query, se);
-                }
-            });
-        } catch (SQLException se) {
-            log.error("Error connecting to the server.  SQL State: {}\n{}", se.getSQLState(), se.getMessage());
-            throw new RuntimeException("Unable to setup test tables.", se);
+    private static void waitForQueryToFinish(String query) throws IOException, InterruptedException {
+        JsonNode node = trinoHttpClient.query(query, Map.of());
+        String state = node.get("stats").get("state").asText();
+        while (!state.equals("FINISHED")) {
+            Thread.sleep(1000);
+            String nextPageUri = node.get("nextUri").asText();
+            node = trinoHttpClient.next(nextPageUri, Map.of());
+            state = node.get("stats").get("state").asText();
         }
     }
 
     @AfterAll
     public static void removeTestTables() {
         if (trinoDateTimeTestTable != null) {
-            log.info("Trying to remove datetime test table " + trinoDateTimeTestTable);
-            try (Connection conn = getTestDatabaseConnection()) {
-                Statement statement = conn.createStatement();
-
-                statement.execute(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoDateTimeTestTable));
+            log.info("Trying to remove test tables");
+            try {
+                waitForQueryToFinish(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoDateTimeTestTable));
                 log.info("Successfully removed datetime test table " + trinoDateTimeTestTable);
                 trinoDateTimeTestTable = null;
 
-                statement.execute(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoPaginationTestTableName));
+                waitForQueryToFinish(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoPaginationTestTableName));
                 log.info("Successfully removed pagination test table " + trinoPaginationTestTableName);
                 trinoPaginationTestTableName = null;
 
-                statement.execute(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoJsonTestTable));
+                waitForQueryToFinish(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoJsonTestTable));
                 log.info("Successfully removed json test table " + trinoJsonTestTable);
                 trinoJsonTestTable = null;
-            } catch (SQLException se) {
-                log.error("Error setting up test tables.  SQL State: {}\n{}", se.getSQLState(), se.getMessage());
-                throw new RuntimeException("Unable to setup test tables: ", se);
+            } catch (Exception e) {
+                log.error("Error removing test tables.  Error message: {}", e.getMessage());
+                throw new RuntimeException("Unable to remove test tables: ", e);
             }
         }
     }

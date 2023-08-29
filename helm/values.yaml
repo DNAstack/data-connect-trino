@@ -54,8 +54,9 @@ test:
   keepalive:
     enabled: false # boolean indicating whether e2e test pod should be kept alive to allow copy resources from it
     duration: 1800 # amount of time in seconds test pod will be kept alive
+  env:
 
-# The 'cloudInitEnv' and 'env' section includes temporary name-value pairs that are provided for specific
+# The 'cloudInitEnv', 'test.env' and 'env' section includes temporary name-value pairs that are provided for specific
 # scenarios or transitional purposes. It is recommended to exercise caution while using
 # this section and only utilize it when absolutely necessary. Consider it as a temporary
 # workaround or an interim solution rather than a permanent configuration.

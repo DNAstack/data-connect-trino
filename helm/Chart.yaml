@@ -6,5 +6,5 @@ version: 0.1.0
 
 dependencies:
   - name: publisher-helm-library
-    version: 1.1-9-gf7a354f
+    version: 1.1-12-g7233ed9
     repository: oci://us-central1-docker.pkg.dev/dnastack-container-store/helm-charts

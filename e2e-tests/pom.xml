@@ -14,6 +14,11 @@
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<actuator-e2e-test.version>1.0.3</actuator-e2e-test.version>
+		<dnastack-trino-client.version>1.0-9-ga03bd99</dnastack-trino-client.version>
+		<slf4j.version>1.7.36</slf4j.version>
+		<logback-extensions.version>1.0.0</logback-extensions.version>
+		<logback.contrib.version>0.1.5</logback.contrib.version>
+		<logback.version>1.2.11</logback.version>
 	</properties>
 
 	<dependencyManagement>
@@ -23,6 +28,16 @@
 				<artifactId>junit-jupiter-api</artifactId>
 				<version>5.9.0</version>
 			</dependency>
+			<dependency>
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-classic</artifactId>
+				<version>${logback.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-core</artifactId>
+				<version>${logback.version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 	<dependencies>
@@ -30,6 +45,11 @@
 			<groupId>com.dnastack</groupId>
 			<artifactId>actuator-e2e-test</artifactId>
 			<version>${actuator-e2e-test.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.dnastack</groupId>
+			<artifactId>dnastack-trino-client</artifactId>
+			<version>${dnastack-trino-client.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.trino</groupId>
@@ -48,13 +68,18 @@
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
-			<version>1.7.36</version>
+			<version>${slf4j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>jcl-over-slf4j</artifactId>
-			<version>1.7.36</version>
+			<version>${slf4j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
@@ -65,6 +90,13 @@
 			<groupId>io.rest-assured</groupId>
 			<artifactId>rest-assured</artifactId>
 			<version>5.1.1</version>
+			<exclusions>
+				<exclusion>
+					<!-- ensure jcl-over-slf4j handles commons logging API -->
+					<groupId>commons-logging</groupId>
+					<artifactId>commons-logging</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -94,6 +126,19 @@
 			<artifactId>awaitility</artifactId>
 			<version>4.2.0</version>
 		</dependency>
+
+		<!-- Parseable Stackdriver Logs -->
+		<dependency>
+			<groupId>com.dnastack</groupId>
+			<artifactId>logback-extensions</artifactId>
+			<version>${logback-extensions.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback.contrib</groupId>
+			<artifactId>logback-jackson</artifactId>
+			<version>${logback.contrib.version}</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

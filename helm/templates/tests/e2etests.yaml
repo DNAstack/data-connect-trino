@@ -42,16 +42,16 @@ spec:
               value: "memory"
             - name: E2E_INMEMORY_TESTSCHEMA
               value: "default"
+            - name: E2E_TRINO_HOSTNAME
+              value: '{{- include "dnastack.trino.internalUrl" . -}}'
+            - name: E2E_TRINO_IS_PUBLIC
+              value: "false"  
             - name: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME
               value: '{{ .Values.test.showSchemaForCatalogName }}'
             - name: E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME
               value: '{{ .Values.test.showTableForCatalogSchemaName }}'
-            - name: E2E_TRINO_JDBCSSL
-              value: "true"
             - name: E2E_TRINO_AUDIENCE
               value: '{{- include "dnastack.trino.resourceUrl" . -}}'
-            - name: E2E_TRINO_JDBCURI
-              value: 'jdbc:trino://{{ .Values.trino.appName }}.{{ coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName }}:443'
             - name: E2E_TRINO_SCOPES
               value: "full_access"
             - name: E2E_INDEXING_SERVICE_ENABLED
@@ -62,14 +62,22 @@ spec:
               value: '{{- include "dnastack.indexingService.resourceUrl" . -}}/'
             - name: E2E_PUBLISHER_DATA_RESOURCE_URI
               value: '{{- include "dnastack.publisherData.resourceUrl" . -}}/'
-            - name: DD_CIVISIBILITY_ENABLED
-              value: "true"
-            - name: DD_ENV
-              value: "dnastack-us-central-cluster_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}"
-            - name: DD_SERVICE
-              value: "{{ .Values.app.name }}"
-            - name: DD_TRACE_AGENT_URL
-              value: "http://10.31.241.233:8126"
+            {{- range .Values.test.env }}
+            - name: {{ .name }}
+              {{- if .valueFrom  }}
+              valueFrom:
+                {{- if .valueFrom.fieldRef  }}
+                fieldRef:
+                  fieldPath: '{{ .valueFrom.fieldRef.fieldPath }}'
+                {{- else}}
+                secretKeyRef:
+                  name: '{{ .valueFrom.secretKeyRef.name }}'
+                  key: '{{ .valueFrom.secretKeyRef.key }}'
+                {{- end}}
+              {{- else }}
+              value: '{{ .value }}'
+              {{- end }}
+            {{- end }}
       {{- if .Values.test.keepalive.enabled }}
           volumeMounts:
             - mountPath: "/target"
