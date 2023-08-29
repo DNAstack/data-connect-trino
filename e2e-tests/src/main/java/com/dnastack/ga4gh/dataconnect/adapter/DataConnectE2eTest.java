@@ -272,7 +272,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
             try {
                 waitForQueryToFinish(query);
             } catch (Exception e) {
-                log.error("Detected error while setting up the test tables.  Error message: {}", e.getMessage());
                 throw new RuntimeException("During test table setup, failed to execute: " + query, e);
             }
         }
@@ -281,11 +280,12 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static void waitForQueryToFinish(String query) throws IOException, InterruptedException {
         JsonNode node = trinoHttpClient.query(query, Map.of());
         String state = node.get("stats").get("state").asText();
-        while (!state.equals("FINISHED")) {
+        String nextPageUri = node.get("nextUri").asText();
+        while (!state.equals("FINISHED") && nextPageUri != null) {
             Thread.sleep(1000);
-            String nextPageUri = node.get("nextUri").asText();
             node = trinoHttpClient.next(nextPageUri, Map.of());
             state = node.get("stats").get("state").asText();
+            nextPageUri = node.get("nextUri").asText();
         }
     }
 
@@ -306,8 +306,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 log.info("Successfully removed json test table " + trinoJsonTestTable);
                 trinoJsonTestTable = null;
             } catch (Exception e) {
-                log.error("Error removing test tables.  Error message: {}", e.getMessage());
-                throw new RuntimeException("Unable to remove test tables: ", e);
+                throw new RuntimeException("Error during removal of test tables. ", e);
             }
         }
     }
