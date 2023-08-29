@@ -153,7 +153,7 @@ spec:
               path: /actuator/health
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 610
+            initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 60
           livenessProbe:
