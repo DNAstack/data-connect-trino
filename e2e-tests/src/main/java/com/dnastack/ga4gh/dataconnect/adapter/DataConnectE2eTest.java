@@ -280,12 +280,12 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static void waitForQueryToFinish(String query) throws IOException, InterruptedException {
         JsonNode node = trinoHttpClient.query(query, Map.of());
         String state = node.get("stats").get("state").asText();
-        String nextPageUri = node.get("nextUri").asText();
+        String nextPageUri = node.has("nextUri") ? node.get("nextUri").asText() : null;
         while (!state.equals("FINISHED") && nextPageUri != null) {
             Thread.sleep(1000);
             node = trinoHttpClient.next(nextPageUri, Map.of());
             state = node.get("stats").get("state").asText();
-            nextPageUri = node.get("nextUri").asText();
+            nextPageUri = node.has("nextUri") ? node.get("nextUri").asText() : null;
         }
     }
 
