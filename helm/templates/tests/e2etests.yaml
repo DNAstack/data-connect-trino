@@ -42,16 +42,16 @@ spec:
               value: "memory"
             - name: E2E_INMEMORY_TESTSCHEMA
               value: "default"
+            - name: E2E_TRINO_HOSTNAME
+              value: '{{- include "dnastack.trino.internalUrl" . -}}'
+            - name: E2E_TRINO_IS_PUBLIC
+              value: "false"  
             - name: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME
               value: '{{ .Values.test.showSchemaForCatalogName }}'
             - name: E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME
               value: '{{ .Values.test.showTableForCatalogSchemaName }}'
-            - name: E2E_TRINO_JDBCSSL
-              value: "true"
             - name: E2E_TRINO_AUDIENCE
               value: '{{- include "dnastack.trino.resourceUrl" . -}}'
-            - name: E2E_TRINO_JDBCURI
-              value: 'jdbc:trino://{{ .Values.trino.appName }}:8080'
             - name: E2E_TRINO_SCOPES
               value: "full_access"
             - name: E2E_INDEXING_SERVICE_ENABLED
