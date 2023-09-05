@@ -1,9 +1,6 @@
 image:
   repository: # Docker repository to pull the image from
 
-ingressRoute:
-  enabled: true # Boolean indicating whether to generate Traefik ingress routes
-
 app:
   name: data-connect-trino
   configVersion: config-version
