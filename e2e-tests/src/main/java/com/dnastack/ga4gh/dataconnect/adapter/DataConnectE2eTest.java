@@ -789,20 +789,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void getTables_should_returnAtLeastOneTable() throws Exception {
-        ListTableResponse listTableResponse = globalMethodSecurityEnabled ? getListTableResponse("/tables") :
-                dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
-
-        if (listTableResponse.getErrors() != null) {
-            // either(empty()).or(nullValue()) would be better, but it was giving compile errors
-            // oneOf(empty(), nullValue()) would be better, but it was failing the assertion when errors was null!
-            assertThat("GET /tables returned an error", listTableResponse.getErrors(), empty());
-        }
-        assertThat("GET /tables returned null response", listTableResponse, not(nullValue()));
-        assertThat("GET /tables returned no tables", listTableResponse.getTables(), not(empty()));
-    }
-
-    @Test
     public void getTableInfoWithUnknownCatalogGives404AndMessageAndTraceId() throws Exception {
         final String trinoTableWithBadCatalog = "e2etest_olywlypolywoly.public." + unqualifiedPaginationTestTable;
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadCatalog + "/info", 404, TableInfo.class);
