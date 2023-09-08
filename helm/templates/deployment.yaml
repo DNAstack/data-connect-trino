@@ -170,7 +170,7 @@ spec:
             - name: APP_URL
               value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
             - name: SPRING_PROFILES_ACTIVE
-              value: "wallet-auth,metrics-enabled,cloud{{ if not empty .Values.app.spring.additionalProfiles }},{{ .Values.app.spring.additionalProfiles }}{{ end }}"
+              value: "wallet-auth,metrics-enabled,cloud{{ if .Values.app.spring.additionalProfiles }},{{ .Values.app.spring.additionalProfiles }}{{ end }}"
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
               value: '{{ .Values.app.spring.datasource.hikari.maxPoolSize }}'
             - name: SPRING_LIQUIBASE_ENABLED
