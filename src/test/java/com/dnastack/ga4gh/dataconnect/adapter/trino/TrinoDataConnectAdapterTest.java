@@ -188,7 +188,7 @@ public class TrinoDataConnectAdapterTest {
         TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
-        assertThat("Assertion 1",
+        assertThat("Ensure that the field is not empty",
             (Collection<?>) tableData.getData().get(0).get("col1"), not(empty()));
         assertThat("Ensure that null is included",
             (Collection<?>) tableData.getData().get(0).get("col1"), containsInRelativeOrder("a", "b", null));
