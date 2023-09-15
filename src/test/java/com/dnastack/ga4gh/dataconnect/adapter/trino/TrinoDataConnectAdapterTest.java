@@ -23,10 +23,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.io.UncheckedIOException;
 import java.net.URI;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -148,6 +145,53 @@ public class TrinoDataConnectAdapterTest {
 
         String ga4ghTypeFunctionQuery = "SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') FROM tableX";
         assertTrue(TrinoDataConnectAdapter.biFunctionPattern.matcher(ga4ghTypeFunctionQuery).find());
+    }
+
+    @Test
+    public void getTableData_should_handleArrayWithNullValue() throws Exception {
+        mockTrinoClient.setResponsePages(List.of(
+            //language=json
+            """
+            {
+                "id": "fake-req-1",
+                "nextUri": "http://example.com/fake-req-2"
+            }
+            """,
+            //language=json
+            """
+            {
+                "id": "fake-req-1",
+                "columns": [
+                    {
+                        "name": "col1",
+                        "typeSignature": {
+                            "arguments": [
+                                {
+                                    "value": {
+                                        "rawType": "string"
+                                    }
+                                }
+                            ],
+                            "rawType": "array"
+                        }
+                    }
+                ],
+                "data": [
+                    [[ "a", "b", null, "a", null ]]
+                ]
+            }
+            """
+        ));
+
+        // When I try to get table data
+        dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+
+        // Then
+        assertThat("Assertion 1",
+            (Collection<?>) tableData.getData().get(0).get("col1"), not(empty()));
+        assertThat("Ensure that null is included",
+            (Collection<?>) tableData.getData().get(0).get("col1"), containsInRelativeOrder("a", "b", null));
     }
 
     @Test
