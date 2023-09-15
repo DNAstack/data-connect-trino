@@ -713,7 +713,7 @@ public class TrinoDataConnectAdapter {
             ColumnSchema itemSchema = columnSchema.getItems();
             return StreamSupport.stream(trinoData.spliterator(), false)
                 .map(arrayValue -> getData(itemSchema, arrayValue))
-                .collect(Collectors.toUnmodifiableList());
+                .toList();
         } else if (columnSchema.getRawType().equals("json")) { //json or primitive.
             try {
                 return objectMapper.readTree(trinoData.asText());
