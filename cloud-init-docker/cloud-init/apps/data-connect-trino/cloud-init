@@ -4,14 +4,14 @@ set -e
 set -x
 
 # This client's runtime credentials within the cluster - allows it to call out to other services
-createWalletServiceClient "${APP_NAME}" "OAuth Client representing ${APP_NAME}" "app_wallet_client-credential" "${APP_NAME}-client-credentials" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
+createWalletServiceClient "${APP_NAME}" "OAuth Client representing ${APP_NAME}" "app_wallet-client-credential" "${APP_NAME}-client-credentials" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}" ${TRINO_AUDIENCE} "full_access" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}" "${APP_AUDIT_LOG_SERVICE_URL}" "audit:create" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}" "${APP_INDEXING_SERVICE_URL}" "ins:library:read" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}" "${APP_COLLECTION_SERVICE_URL}" "collection_item:read" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 
 # Client used by the E2E tests - allows the tests to call to this service
-createWalletServiceClient "${APP_NAME}-e2e-test" "Client for end-to-end testing of ${APP_NAME}" "test_wallet_client-credential" "${APP_NAME}-e2e-test-client-credentials" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
+createWalletServiceClient "${APP_NAME}-e2e-test" "Client for end-to-end testing of ${APP_NAME}" "test_wallet-client-credential" "${APP_NAME}-e2e-test-client-credentials" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}-e2e-test" "${APP_DATA_CONNECT_TRINO_URL}" "data-connect:info data-connect:data data-connect:query junk_scope" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}-e2e-test" "${APP_PUBLISHER_DATA_URL}" "data-connect:info data-connect:data data-connect:query" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}-e2e-test" "${APP_INDEXING_SERVICE_URL}" "ins:library:read ins:library:write" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
@@ -24,3 +24,5 @@ queueWalletPolicy "$(renderJsonFile bootstrap-config/data-connect-trino-policy.j
 
 # Update, Create, or Delete wallet policies based on policies stored in a JSON file created with queueWalletPolicy
 syncGivenWalletPolicies "data-connect-trino" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" --include-resource "${WALLET_RESOURCE}"
+
+labelSecret "data-connect-trino-test-data-models" "type=no-rotation"
