@@ -1,19 +1,15 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino.exception;
 
-public class UnexpectedQueryResponseException extends RuntimeException {
+import org.springframework.http.HttpStatus;
 
-    public UnexpectedQueryResponseException() {
-    }
+public class UnexpectedQueryResponseException extends RuntimeException implements HasHttpStatus {
 
     public UnexpectedQueryResponseException(String message) {
         super(message);
     }
 
-    public UnexpectedQueryResponseException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public UnexpectedQueryResponseException(Throwable cause) {
-        super(cause);
+    @Override
+    public HttpStatus httpStatus() {
+        return HttpStatus.BAD_GATEWAY;
     }
 }

@@ -55,8 +55,6 @@ public class TrinoDataConnectAdapter {
 
     private final Jdbi jdbi;
 
-    private final ThrowableTransformer throwableTransformer;
-
     private final ApplicationConfig applicationConfig;
 
     private final List<DataModelSupplier> dataModelSuppliers;
@@ -68,20 +66,19 @@ public class TrinoDataConnectAdapter {
     public TrinoDataConnectAdapter(
         TrinoClient client,
         Jdbi jdbi,
-        ThrowableTransformer throwableTransformer,
         ApplicationConfig applicationConfig,
         List<DataModelSupplier> dataModelSuppliers,
         Tracing tracer
     ) {
         this.client = client;
         this.jdbi = jdbi;
-        this.throwableTransformer = throwableTransformer;
         this.applicationConfig = applicationConfig;
         this.dataModelSuppliers = dataModelSuppliers;
         this.tracer = tracer;
-        this.objectMapper = new ObjectMapper();
-        objectMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this.objectMapper = new ObjectMapper()
+                .configure(JsonParser.Feature.ALLOW_COMMENTS, true)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .findAndRegisterModules();
     }
 
     private boolean hasMore(TableData tableData) {
@@ -355,7 +352,7 @@ public class TrinoDataConnectAdapter {
     }
 
     private TablesList getTables(String currentCatalog, String nextCatalog, HttpServletRequest request, Map<String, String> extraCredentials) {
-        TrinoCatalog trinoCatalog = new TrinoCatalog(this, throwableTransformer, callbackBaseUrl(request), currentCatalog);
+        TrinoCatalog trinoCatalog = new TrinoCatalog(this, callbackBaseUrl(request), currentCatalog);
         Pagination nextPage = null;
         if (nextCatalog != null) {
             nextPage = new Pagination(null, getLinkToCatalog(nextCatalog, request), null);
@@ -481,65 +478,41 @@ public class TrinoDataConnectAdapter {
     ) {
 
         if (trinoResponse.hasNonNull("error")) {
-            ObjectMapper objectMapper = new ObjectMapper();
-
             jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJob.getId()));
 
-            try {
-                TrinoError trinoError = objectMapper.readValue(trinoResponse.get("error").toString(), TrinoError.class);
-                log.error("Trino Error: State: {}", trinoResponse.get("stats").get("state"));
-                log.error("Trino Error: Message: {}", trinoResponse.get("error").get("message"));
-                log.error(
-                    "Trino Error: Error: {} ({}): {}",
-                    trinoResponse.get("error").get("errorType"),
-                    trinoResponse.get("error").get("errorCode"),
-                    trinoResponse.get("error").get("errorName")
-                );
+            TrinoError trinoError = objectMapper.convertValue(trinoResponse.get("error"), TrinoError.class);
+            log.info("Returning Trino exception: {} {}",
+                trinoError.getFailureInfo().getType(),
+                trinoError.getFailureInfo().getMessage());
 
-                final var stack = new ArrayList<String>();
-                for (var it = trinoResponse.get("error").get("failureInfo").get("stack").iterator(); it.hasNext(); ) {
-                    stack.add(it.next().asText());
-                }
-
-                log.error(
-                    "Trino Error: Original Trace: {}: {}\n\tat {}",
-                    trinoResponse.get("error").get("failureInfo").get("type"),
-                    trinoResponse.get("error").get("failureInfo").get("message"),
-                    String.join("\n\tat ", stack)
-                );
-
-                log.error("\n\tat {}", String.join("\n\tat ", stack));
-                if (trinoError.getErrorName().equals("CATALOG_NOT_FOUND")) {
-                    throw new TrinoNoSuchCatalogException(trinoError);
-                } else if (trinoError.getErrorName().equals("SCHEMA_NOT_FOUND")) {
-                    throw new TrinoNoSuchSchemaException(trinoError);
-                } else if (trinoError.getErrorName().equals("TABLE_NOT_FOUND")) {
-                    throw new TrinoNoSuchTableException(trinoError);
-                } else if (trinoError.getErrorName().equals("COLUMN_NOT_FOUND")) {
-                    throw new TrinoNoSuchColumnException(trinoError);
-                } else if (trinoError.getErrorType().equals("USER_ERROR")) {
-                    if (trinoError.getErrorName().equals("PERMISSION_DENIED")) {
-                        if (trinoError.getMessage().startsWith("Access Denied: HTTP 500")) {
-                            throw new TrinoInternalErrorException(trinoError);
-                        } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 404")) {
-                            throw new TrinoNoSuchTableException(trinoError);
-                        } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 401")) {
-                            throw new TrinoUserUnauthorizedException(trinoError);
-                        } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 403")) {
-                            throw new TrinoUserForbiddenException(trinoError);
-                        }
+            if (trinoError.getErrorName().equals("CATALOG_NOT_FOUND")) {
+                throw new TrinoNoSuchCatalogException(trinoError);
+            } else if (trinoError.getErrorName().equals("SCHEMA_NOT_FOUND")) {
+                throw new TrinoNoSuchSchemaException(trinoError);
+            } else if (trinoError.getErrorName().equals("TABLE_NOT_FOUND")) {
+                throw new TrinoNoSuchTableException(trinoError);
+            } else if (trinoError.getErrorName().equals("COLUMN_NOT_FOUND")) {
+                throw new TrinoNoSuchColumnException(trinoError);
+            } else if (trinoError.getErrorType().equals("USER_ERROR")) {
+                if (trinoError.getErrorName().equals("PERMISSION_DENIED")) {
+                    if (trinoError.getMessage().startsWith("Access Denied: HTTP 500")) {
+                        throw new TrinoInternalErrorException(trinoError);
+                    } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 404")) {
+                        throw new TrinoNoSuchTableException(trinoError);
+                    } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 401")) {
+                        throw new TrinoUserUnauthorizedException(trinoError);
+                    } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 403")) {
+                        throw new TrinoUserForbiddenException(trinoError);
                     }
-                    //Most other USER_ERRORs are bad queries and should likely return BAD_REQUEST error code.
-                    throw new TrinoInvalidQueryException(trinoError);
-                } else if (trinoError.getErrorType().equals("INSUFFICIENT_RESOURCES")) {
-                    throw new TrinoInsufficientResourcesException(trinoError);
-                } else {
-                    // as of this commit, the remaining trino error type is 'internal error', but this
-                    // will also be a catch all.
-                    throw new TrinoInternalErrorException(trinoError);
                 }
-            } catch (IOException ex) {
-                throw new UncheckedTableDataConstructionException(ex);
+                //Most other USER_ERRORs are bad queries and should likely return BAD_REQUEST error code.
+                throw new TrinoInvalidQueryException(trinoError);
+            } else if (trinoError.getErrorType().equals("INSUFFICIENT_RESOURCES")) {
+                throw new TrinoInsufficientResourcesException(trinoError);
+            } else {
+                // as of this commit, the remaining trino error type is 'internal error', but this
+                // will also be a catch all.
+                throw new TrinoInternalErrorException(trinoError);
             }
         }
 
@@ -686,7 +659,6 @@ public class TrinoDataConnectAdapter {
 
     private Object getData(ColumnSchema columnSchema, JsonNode trinoData) {
         if (columnSchema.getRawType().equals("map")) {
-            LinkedHashMap<String, Object> map = new LinkedHashMap<>();
             if (trinoData.getNodeType() != JsonNodeType.OBJECT) {
                 throw new UnexpectedQueryResponseException("Expected value for map was not of type object for schema " + columnSchema);
             }
@@ -914,7 +886,7 @@ private void populateTableSchemaIfAvailable(QueryJob queryJob, TableData tableDa
 
     private QueryJob getQueryJob(String id) {
         return jdbi.withExtension(QueryJobDao.class, dao -> dao.get(id))
-            .orElseThrow(() -> new InvalidQueryJobException(id, "No query job with id " + id));
+            .orElseThrow(() -> new InvalidQueryJobException(id));
     }
 
 }

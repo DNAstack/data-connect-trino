@@ -7,14 +7,12 @@ import lombok.NonNull;
 import java.util.function.Function;
 
 public class TableApiErrorException extends RuntimeException {
-    @Getter
-    private final Exception previousException;
 
     @Getter
-    private final Function<TableError, Object> errorSupplier;
+    private final Function<TableError, Object> responseBodyGenerator;
 
-    public TableApiErrorException(@NonNull Exception previousException, @NonNull Function<TableError, Object> errorSupplier) {
-        this.previousException = previousException;
-        this.errorSupplier = errorSupplier;
+    public TableApiErrorException(@NonNull Throwable cause, @NonNull Function<TableError, Object> responseBodyGenerator) {
+        super(cause);
+        this.responseBodyGenerator = responseBodyGenerator;
     }
 }

@@ -23,4 +23,12 @@ public class TrinoError {
 
     @JsonProperty("errorType")
     private String errorType;
+
+    private FailureInfo failureInfo = new FailureInfo(); // ensure this is never null
+
+    @Data
+    public static class FailureInfo {
+        private String type;
+        private String message;
+    }
 }

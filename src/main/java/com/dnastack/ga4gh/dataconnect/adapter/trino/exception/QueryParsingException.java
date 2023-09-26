@@ -1,10 +1,8 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino.exception;
 
-public class QueryParsingException extends RuntimeException {
+import org.springframework.http.HttpStatus;
 
-    public QueryParsingException() {
-        super();
-    }
+public class QueryParsingException extends RuntimeException implements HasHttpStatus {
 
     public QueryParsingException(String message) {
         super(message);
@@ -14,7 +12,8 @@ public class QueryParsingException extends RuntimeException {
         super(message, cause);
     }
 
-    public QueryParsingException(Throwable cause) {
-        super(cause);
+    @Override
+    public HttpStatus httpStatus() {
+        return HttpStatus.BAD_REQUEST;
     }
 }

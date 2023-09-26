@@ -1,19 +1,10 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino.exception;
 
-public class TrinoBadlyQualifiedNameException extends RuntimeException {
+import org.springframework.http.HttpStatus;
 
-    public TrinoBadlyQualifiedNameException() {
-    }
+public class TrinoBadlyQualifiedNameException extends TrinoErrorException {
 
     public TrinoBadlyQualifiedNameException(String message) {
-        super(message);
-    }
-
-    public TrinoBadlyQualifiedNameException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public TrinoBadlyQualifiedNameException(Throwable cause) {
-        super(cause);
+        super(message, HttpStatus.NOT_FOUND);
     }
 }

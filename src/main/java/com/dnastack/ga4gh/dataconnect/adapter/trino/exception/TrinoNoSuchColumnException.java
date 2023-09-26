@@ -1,22 +1,11 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino.exception;
 
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoError;
+import org.springframework.http.HttpStatus;
 
 public class TrinoNoSuchColumnException extends TrinoErrorException {
 
     public TrinoNoSuchColumnException(TrinoError trinoError) {
-        super(trinoError);
-    }
-
-    public TrinoNoSuchColumnException(String message, TrinoError trinoError) {
-        super(message, trinoError);
-    }
-
-    public TrinoNoSuchColumnException(String message, Throwable cause, TrinoError trinoError) {
-        super(message, cause, trinoError);
-    }
-
-    public TrinoNoSuchColumnException(Throwable cause, TrinoError trinoError) {
-        super(cause, trinoError);
+        super(trinoError, HttpStatus.BAD_REQUEST);
     }
 }

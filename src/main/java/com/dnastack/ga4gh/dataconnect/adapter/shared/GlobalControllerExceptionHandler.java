@@ -1,8 +1,7 @@
 package com.dnastack.ga4gh.dataconnect.adapter.shared;
 
 import brave.Tracer;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.ThrowableTransformer;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.*;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
 import com.dnastack.ga4gh.dataconnect.model.TableError;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,9 +18,6 @@ public class GlobalControllerExceptionHandler {
     @Autowired
     private Tracer tracer;
 
-    @Autowired
-    private ThrowableTransformer throwableTransformer;
-
     @ExceptionHandler(AuthRequiredException.class)
     public ResponseEntity<?> handleAuthRequiredException(AuthRequiredException e) {
         DataConnectAuthRequest cr = e.getAuthorizationRequest();
@@ -34,15 +30,16 @@ public class GlobalControllerExceptionHandler {
     @ExceptionHandler({TableApiErrorException.class})
     public ResponseEntity<?> handleTableApiErrorException(TableApiErrorException throwable) {
         String traceId = tracer.currentSpan().context().traceIdString();
-        TableError error = throwableTransformer.transform(throwable.getPreviousException(), null);
+        TableError error = TableError.fromThrowable(throwable.getCause(), null);
+        log.info("Generating response with error that escaped controller: {}", error);
 
         if (traceId != null) {
             error.setDetails(traceId + ": " + error.getDetails());
         }
 
-        Object body = throwable.getErrorSupplier().apply(error);
+        Object body = throwable.getResponseBodyGenerator().apply(error);
 
-        return ResponseEntity.status(throwableTransformer.getResponseStatus(throwable.getPreviousException()))
+        return ResponseEntity.status(error.getStatus())
             .body(body);
     }
 

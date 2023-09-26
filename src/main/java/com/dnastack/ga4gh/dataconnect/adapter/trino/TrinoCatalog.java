@@ -1,10 +1,6 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
-import com.dnastack.ga4gh.dataconnect.model.DataModel;
-import com.dnastack.ga4gh.dataconnect.model.Pagination;
-import com.dnastack.ga4gh.dataconnect.model.TableData;
-import com.dnastack.ga4gh.dataconnect.model.TableInfo;
-import com.dnastack.ga4gh.dataconnect.model.TablesList;
+import com.dnastack.ga4gh.dataconnect.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,7 +13,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class TrinoCatalog {
     private final TrinoDataConnectAdapter dataConnectAdapter;
-    private final ThrowableTransformer throwableTransformer;
 
     /**
      * This is a URL scheme + host + port + path prefix. Never ends with "/".
@@ -47,12 +42,6 @@ public class TrinoCatalog {
                         .collect(Collectors.toList());
     }
 
-    private List<TableInfo> combineTableInfo(List<List<TableInfo>> tableInfoLists) {
-        return tableInfoLists.stream()
-                             .flatMap(innerList->innerList.stream())
-                             .collect(Collectors.toList());
-    }
-
     private static String quote(String sqlIdentifier) {
         return "\"" + sqlIdentifier.replace("\"", "\"\"") + "\"";
     }
@@ -63,10 +52,9 @@ public class TrinoCatalog {
             List<TableInfo> tableInfoList = getTableInfoList(tables);
             return new TablesList(tableInfoList, null, nextPage);
         } catch (Throwable t) {
-            if (log.isTraceEnabled()) {
-                log.error("Error when fetching tables for {}", catalogName, t);
-            }
-            return new TablesList(null, throwableTransformer.transform(t, catalogName), nextPage);
+            TableError tableError = TableError.fromThrowable(t, catalogName);
+            log.info("Including error in response body: {}", tableError);
+            return new TablesList(null, tableError, nextPage);
         }
     }
 }
