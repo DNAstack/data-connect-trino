@@ -307,6 +307,11 @@
 
   <repositories>
     <repository>
+      <id>github</id>
+      <name>DNAstack Private Github Packages</name>
+      <url>https://maven.pkg.github.com/DNAstack/dnastack-packages</url>
+    </repository>
+    <repository>
       <id>spring-milestones</id>
       <name>Spring Milestones</name>
       <url>https://repo.spring.io/milestone</url>
