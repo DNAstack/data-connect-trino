@@ -127,7 +127,7 @@ public class TrinoDataConnectAdapterTest {
         DataModelSupplier dataModelSupplier = tableName -> fakeDataModel;
 
         dataConnectAdapter = new TrinoDataConnectAdapter(
-                mockTrinoClient, jdbi, null, null, List.of(dataModelSupplier), tracing
+                mockTrinoClient, jdbi, null, List.of(dataModelSupplier), tracing
         );
     }
 

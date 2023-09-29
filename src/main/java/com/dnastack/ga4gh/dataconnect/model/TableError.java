@@ -24,8 +24,8 @@ public class TableError {
         error.setDetails(throwable.getClass().getName());
         error.setSource(catalogName);
 
-        if (throwable instanceof AuthRequiredException) {
-            DataConnectAuthRequest dataConnectAuthRequest = ((AuthRequiredException) throwable).getAuthorizationRequest();
+        if (throwable instanceof AuthRequiredException authRequiredException) {
+            DataConnectAuthRequest dataConnectAuthRequest = authRequiredException.getAuthorizationRequest();
             error.setTitle("Authentication Required");
             error.setSource(dataConnectAuthRequest.getKey());
             error.setDetails("User is not authorized to access catalog: " + dataConnectAuthRequest.getKey()
@@ -34,11 +34,8 @@ public class TableError {
             error.setTitle(throwable.getMessage());
         } else if (throwable instanceof TrinoBadlyQualifiedNameException) {
             error.setTitle(throwable.getMessage());
-        } else if (throwable instanceof TrinoErrorException) {
-            error.setTitle("Trino error");
-            error.setDetails(throwable.getMessage());
-        } else if (throwable instanceof InvalidQueryJobException) {
-            error.setTitle("The query corresponding to this search could not be found (" + ((InvalidQueryJobException) throwable).getQueryJobId() + ")");
+        } else if (throwable instanceof InvalidQueryJobException invalidQueryJobException) {
+            error.setTitle("The query corresponding to this search could not be found (" + invalidQueryJobException.getQueryJobId() + ")");
         } else if (throwable instanceof QueryParsingException) {
             error.setTitle("Unable to parse query");
         } else if (throwable instanceof UncheckedIOException) {
@@ -46,6 +43,12 @@ public class TableError {
             error.setDetails(throwable.getMessage());
         } else if (throwable instanceof UnexpectedQueryResponseException) {
             error.setTitle("Unexpected query response");
+            error.setDetails(throwable.getMessage());
+        } else if (throwable instanceof TrinoInvalidQueryException && throwable.getMessage() != null && throwable.getMessage().endsWith("USER_CANCELED")) {
+            error.setTitle("Query was canceled");
+            error.setDetails(throwable.getMessage());
+        } else if (throwable instanceof TrinoErrorException) {
+            error.setTitle("Trino error");
             error.setDetails(throwable.getMessage());
         }
 
@@ -55,8 +58,8 @@ public class TableError {
 
     private static int getResponseStatus(Throwable throwable) {
         HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-        if (throwable instanceof HasHttpStatus) {
-            status = ((HasHttpStatus) throwable).httpStatus();
+        if (throwable instanceof HasHttpStatus hasHttpStatus) {
+            status = hasHttpStatus.httpStatus();
         }
 
         return status.value();

@@ -688,13 +688,12 @@ public class DataConnectE2eTest extends BaseE2eTest {
         log.info("Sending a DELETE request to the next page URL, then asserting that the right error response is returned when retrying the GET request to the next page URL");
         sendDeleteRequest(nextPageUrl);
         result = dataConnectApiGetRequest(nextPageUrl, 400, Table.class);
-        assertThat("Following next page URL of a cancelled query doesn't return errors", result.getErrors().size(), equalTo(1));
+        assertThat("Following next page URL of a cancelled query should return errors", result.getErrors(), hasSize(1));
         assertThat(
-            "Following next page URL of a cancelled query doesn't mention that it was cancelled",
+            "Following next page URL of a cancelled query should mention that it was cancelled: " + result,
             result.getErrors().get(0).getTitle().toLowerCase(),
             containsString("canceled")); // Trino uses the american spelling
     }
-
 
     private Table executeSearchQueryOnVariedTypes() throws Exception {
         String query = "SELECT ("+
