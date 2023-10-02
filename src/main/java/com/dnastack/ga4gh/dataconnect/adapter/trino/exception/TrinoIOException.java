@@ -7,8 +7,4 @@ public class TrinoIOException extends UncheckedIOException {
     public TrinoIOException(String message, IOException cause) {
         super(message, cause);
     }
-
-    public TrinoIOException(IOException cause) {
-        super(cause);
-    }
 }

@@ -45,7 +45,6 @@ public class TablesController {
             tablesList = trinoDataConnectAdapter
                 .getTables(request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
-            ex.printStackTrace();
             throw new TableApiErrorException(ex, TablesList::errorInstance);
         }
 
@@ -66,7 +65,6 @@ public class TablesController {
             tablesList = trinoDataConnectAdapter
                 .getTablesInCatalog(catalogName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
-            ex.printStackTrace();
             throw new TableApiErrorException(ex, TablesList::errorInstance);
         }
 
@@ -110,7 +108,6 @@ public class TablesController {
             tableData = trinoDataConnectAdapter
                 .getTableData(tableName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
-            ex.printStackTrace();
             throw new TableApiErrorException(ex, TableData::errorInstance);
         }
 
