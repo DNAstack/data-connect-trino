@@ -17,10 +17,11 @@ public class TrinoErrorException extends RuntimeException implements HasHttpStat
      */
     public TrinoErrorException(TrinoError trinoError, HttpStatus httpStatus) {
         super(String.format(
-                "%s: %s: %s",
+                "%s: %s: [%s] (Trino Error Code: %s)",
                 trinoError.getErrorType(),
-                trinoError.getErrorCode(),
-                trinoError.getErrorName()
+                trinoError.getErrorName(),
+                trinoError.getMessage(),
+                trinoError.getErrorCode()
         ));
         this.httpStatus = httpStatus;
     }
