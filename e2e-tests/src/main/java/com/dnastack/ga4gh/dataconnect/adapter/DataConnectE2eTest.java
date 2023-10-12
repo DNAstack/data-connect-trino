@@ -691,7 +691,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         assertThat("Following next page URL of a cancelled query should return errors", result.getErrors(), hasSize(1));
         assertThat(
             "Following next page URL of a cancelled query should mention that it was cancelled: " + result,
-            result.getErrors().get(0).getTitle().toLowerCase(),
+            result.getErrors().get(0).getDetails().toLowerCase(),
             containsString("canceled")); // Trino uses the american spelling
     }
 
