@@ -1,6 +1,6 @@
 dependencies:
 - name: publisher-helm-library
   repository: oci://us-central1-docker.pkg.dev/dnastack-container-store/helm-charts
-  version: 1.1-12-g7233ed9
-digest: sha256:f5360722c8edc44b611e1ecf92a694b2480c2fd73d65116f110b41a48449620b
-generated: "2023-08-09T13:42:27.04577-04:00"
+  version: 1.1-31-g2bec37d
+digest: sha256:73ecd997962f40b6d3a62311c67726dedcd1d447e72c1c3dcefecd58298dcfdc
+generated: "2023-11-08T12:01:34.618053-05:00"
