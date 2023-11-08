@@ -121,7 +121,7 @@ spec:
               liquibase \
                --driver=org.postgresql.Driver \
                --changeLogFile=/db.changelog-master.yaml \
-               --url={{ .Values.database.jdbcUri }} \
+               --url={{ include "dataConnectTrino.jdbcUri" . }} \
                --username=$(SPRING_DATASOURCE_USERNAME) \
                --password=$(SPRING_DATASOURCE_PASSWORD) \
                --logLevel debug \
@@ -256,7 +256,7 @@ spec:
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_RESOURCE
               value: '{{- include "dnastack.collectionService.resourceUrl" . }}/'
             - name: SPRING_DATASOURCE_URL
-              value: '{{ .Values.database.jdbcUri }}'
+              value: {{ include "dataConnectTrino.jdbcUri" . }}
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_TOKEN_URI
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
             - name: APP_COLLECTION_SERVICE_OAUTH_CLIENT_TOKEN_ISSUERS_URIS

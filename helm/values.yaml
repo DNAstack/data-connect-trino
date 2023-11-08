@@ -47,8 +47,8 @@ cloud:
   spaceDnsName: # DNS domain being used for applications in this cluster e.g. helm-sandbox.dnastack.com
 
 test:
-  showSchemaForCatalogName: # Name of a catalog that's expected to contain at least one schema e.g. "publisher"
-  showTableForCatalogSchemaName: # Name of a catalog.schema that's expected to contain at least one table e.g. "publisher.data"
+  showSchemaForCatalogName: publisher # Name of a catalog that's expected to contain at least one schema
+  showTableForCatalogSchemaName: publisher.data # Name of a catalog.schema that's expected to contain at least one table
   keepalive:
     enabled: false # boolean indicating whether e2e test pod should be kept alive to allow copy resources from it
     duration: 1800 # amount of time in seconds test pod will be kept alive
