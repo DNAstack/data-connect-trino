@@ -80,8 +80,6 @@ spec:
               value: "false"
             - name: TRINO_AUDIENCE
               value: '{{- include "dnastack.trino.resourceUrl" . }}'
-            - name: APP_AUDIT_LOG_SERVICE_URL
-              value: '{{- include "dnastack.auditLogService.resourceUrl" . }}'
             - name: APP_INDEXING_SERVICE_URL
               value: '{{- include "dnastack.indexingService.resourceUrl" . }}'
             - name: APP_COLLECTION_SERVICE_URL
@@ -278,8 +276,6 @@ spec:
             # Auditing
             - name: AUDITING_ENABLED
               value: "true"
-            - name: AUDITING_PUBLISH_EXTERNAL
-              value: "false"
             # Datadog Config
             - name: DD_PROFILING_ENABLED
               value: "false"
