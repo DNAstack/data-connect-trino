@@ -79,30 +79,7 @@ logging:
 
 auditing:
   enabled: true
-  publish-external: false
-  # Set the above value to true if you want to publish audit events
-  batch-processing-enabled: true
-  scheduling:
-    batch-emit:
-      cron: 0/10 * * ? * *
-  access-log-enabled: true
   service-client-id: data-connect-trino
-  publisher:
-    events-uri: ${auditing.oauth-client.audience}/events
-    events-batch-uri: ${auditing.oauth-client.audience}/events/batch
-    give-up-after: 5
-    delay-between-tries-in-millis: 250
-  oauth-client:
-    client-id: data-connect-trino
-    client-secret: dev-secret-never-use-in-prod
-    scopes: audit:create
-    audience: http://localhost:8888
-    resource: ${auditing.publisher.events-uri}
-    actions: ["audit:create"]
-    token-uri: http://localhost:8081/oauth/token
-    token-issuers-uris: ["http://localhost:8081"]
-    policy-evaluation-requester: "${app.url}"
-    policy-evaluation-uri: "http://localhost:8081/policies/evaluations"
   json-printer-style: dense_print
 
 spring:
@@ -128,12 +105,6 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 5
-  # For sending samples to the server
-  zipkin:
-    enabled: false # By default, it is DISABLED for the local development.
-    base-url: http://localhost:9411
-    sender:
-      type: web
 
 management:
   metrics:

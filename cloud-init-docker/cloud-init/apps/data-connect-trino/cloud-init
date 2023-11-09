@@ -6,7 +6,6 @@ set -x
 # This client's runtime credentials within the cluster - allows it to call out to other services
 createWalletServiceClient "${APP_NAME}" "OAuth Client representing ${APP_NAME}" "app_wallet-client-credential" "${APP_NAME}-client-credentials" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}" ${TRINO_AUDIENCE} "full_access" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
-createWalletServiceClientGrant "${APP_NAME}" "${APP_AUDIT_LOG_SERVICE_URL}" "audit:create" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}" "${APP_INDEXING_SERVICE_URL}" "ins:library:read" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 createWalletServiceClientGrant "${APP_NAME}" "${APP_COLLECTION_SERVICE_URL}" "collection_item:read" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
 

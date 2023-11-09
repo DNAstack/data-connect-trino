@@ -38,25 +38,6 @@
       "principals": [
         {
           "type": "service",
-          "id": "${APP_NAME}"
-        }
-      ],
-      "actions": [
-        "audit:create"
-      ],
-      "resources": [
-        {
-          "uri": "${APP_AUDIT_LOG_SERVICE_URL}"
-        },
-        {
-          "uri": "${APP_AUDIT_LOG_SERVICE_URL}/"
-        }
-      ]
-    },
-    {
-      "principals": [
-        {
-          "type": "service",
           "id": "${APP_NAME}-e2e-test"
         }
       ],
