@@ -19,5 +19,6 @@ README.html
 .idea
 *.DS_Store
 *application.properties
+*.tgz
 
 env\.sh

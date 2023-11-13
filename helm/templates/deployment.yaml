@@ -60,14 +60,6 @@ spec:
               value: "true"
             - name: SKIP_REPO_CHECK
               value: "true"
-            - name: CLOUD_PLATFORM
-              value: '{{coalesce .Values.cloud.platform ((.Values.global).cloud).platform }}'
-            - name: GCLOUD_PROJECT
-              value: '{{ coalesce .Values.cloud.project ((.Values.global).cloud).project }}'
-            - name: GCLOUD_ZONE
-              value: '{{ coalesce .Values.cloud.zone ((.Values.global).cloud).zone }}'
-            - name: GCLOUD_REGION
-              value: '{{ coalesce .Values.cloud.region ((.Values.global).cloud).region }}'
             - name: USE_LOCAL_HTTPIE
               value: "true"
             - name: USE_LOCAL_PSQL
@@ -111,6 +103,13 @@ spec:
               value: '{{ .value }}'
               {{- end }}
             {{- end }}
+          envFrom:
+            - secretRef:
+                name: publisher-cloud-init-secrets
+                optional: true
+            - configMapRef:
+                name: cloud-init-env-vars
+                optional: true
         - name: {{ .Values.app.name }}-predeploy-job
           image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/{{ .Values.app.name }}-predeploy-job:{{- template  "dnastack.app.version" . }}'
           command: ["/bin/sh", "-c"]
@@ -135,6 +134,13 @@ spec:
                 secretKeyRef:
                   name: '{{ .Values.app.name }}-db-credentials'
                   key: password
+          envFrom:
+            - secretRef:
+                name: publisher-cloud-init-secrets
+                optional: true
+            - configMapRef:
+                name: cloud-init-env-vars
+                optional: true
       containers:
         - name: {{ .Values.app.name }}
           image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/{{ .Values.app.name }}:{{- template  "dnastack.app.version" . }}'

@@ -39,10 +39,6 @@ database:
   postgresInstance: # host name of the postgres server hosting the application's main database e.g. "prod-postgres"
 
 cloud:
-  platform: # Cloud platform the application is being deployed into, possible values - "gcloud"
-  project: # ID of the cloud project this app is being deployed into e.g. helm-sandbox-02062023
-  zone: # Cloud zone this application is being deployed into e.g. us-central1-c
-  region: # Cloud region this application is being deployed into e.g. us-central1
   clusterNamespace: # K8s namespace this application is being deployed into e.g. "prod"
   spaceDnsName: # DNS domain being used for applications in this cluster e.g. helm-sandbox.dnastack.com
 
