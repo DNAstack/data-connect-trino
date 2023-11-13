@@ -105,11 +105,11 @@ spec:
             {{- end }}
           envFrom:
             - secretRef:
-              name: publisher-cloud-init-secrets
-              optional: true
+                name: publisher-cloud-init-secrets
+                optional: true
             - configMapRef:
-              name: cloud-init-env-vars
-              optional: true
+                name: cloud-init-env-vars
+                optional: true
         - name: {{ .Values.app.name }}-predeploy-job
           image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/{{ .Values.app.name }}-predeploy-job:{{- template  "dnastack.app.version" . }}'
           command: ["/bin/sh", "-c"]
@@ -136,11 +136,11 @@ spec:
                   key: password
           envFrom:
             - secretRef:
-              name: publisher-cloud-init-secrets
-              optional: true
+                name: publisher-cloud-init-secrets
+                optional: true
             - configMapRef:
-              name: cloud-init-env-vars
-              optional: true
+                name: cloud-init-env-vars
+                optional: true
       containers:
         - name: {{ .Values.app.name }}
           image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/{{ .Values.app.name }}:{{- template  "dnastack.app.version" . }}'
