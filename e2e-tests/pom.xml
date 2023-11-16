@@ -153,73 +153,48 @@
 			</plugin>
 
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.2</version>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<filters>
-								<filter>
-									<!-- filter out signature files from signed dependencies, else repackaging fails with security ex -->
-									<artifact>*:*</artifact>
-									<excludes>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
-									</excludes>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.9.1</version>
-				<executions>
-					<!-- This ensures our compiled tests land in the fat jar -->
-					<execution>
-						<id>add-source</id>
-						<phase>generate-sources</phase>
-						<goals>
-							<goal>add-source</goal>
-						</goals>
-						<configuration>
-							<sources>
-								<source>${project.basedir}/src/test/java/</source>
-							</sources>
-						</configuration>
-					</execution>
-
-					<!-- This ensures that the resources files also land in the fat jar  -->
-					<execution>
-						<id>add-resource</id>
-						<phase>generate-resources</phase>
-						<goals>
-							<goal>add-resource</goal>
-						</goals>
-						<configuration>
-							<resources>
-								<resource>
-									<directory>${project.basedir}/src/test/resources</directory>
-								</resource>
-							</resources>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.22.2</version>
+				<version>3.0.0-M5</version>
+				<!-- Tells surefire to run the BaseActuatorE2eTest imported -->
 				<configuration>
-					<skipTests>true</skipTests>
+					<dependenciesToScan>
+						<dependency>com.dnastack:actuator-e2e-test</dependency>
+					</dependenciesToScan>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>de.qaware.maven</groupId>
+				<artifactId>go-offline-maven-plugin</artifactId>
+				<version>1.2.8</version>
+				<configuration>
+					<downloadSources>false</downloadSources>
+					<downloadJavadoc>false</downloadJavadoc>
+					<dynamicDependencies>
+						<DynamicDependency>
+							<groupId>org.apache.maven.surefire</groupId>
+							<artifactId>surefire-junit-platform</artifactId>
+							<version>3.0.0-M5</version>
+							<repositoryType>PLUGIN</repositoryType>
+						</DynamicDependency>
+						<dynamicDependency>
+							<groupId>org.codehaus.plexus</groupId>
+							<artifactId>plexus-utils</artifactId>
+							<version>1.1</version>
+							<repositoryType>MAIN</repositoryType>
+						</dynamicDependency>
+						<dynamicDependency>
+							<groupId>com.datadoghq</groupId>
+							<artifactId>dd-javac-plugin</artifactId>
+							<version>0.1.7</version>
+							<repositoryType>PLUGIN</repositoryType>
+						</dynamicDependency>
+						<dynamicDependency>
+							<groupId>com.datadoghq</groupId>
+							<artifactId>dd-javac-plugin-client</artifactId>
+							<version>0.1.7</version>
+							<repositoryType>PLUGIN</repositoryType>
+						</dynamicDependency>
+					</dynamicDependencies>
 				</configuration>
 			</plugin>
 		</plugins>
