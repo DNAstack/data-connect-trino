@@ -28,7 +28,7 @@ collectionService:
   appName: collection-service # Host portion of the collection-service URL to be used for authorization e.g. collection-service
 
 publisherData:
-  appName: publisher-data # Host portion of the publisher-data URL to be used for authorization e.g. publisher-data
+  appName: data.publisher # Host portion of the publisher-data URL to be used for authorization e.g. publisher-data
 
 trino:
   appName: trino # Host portion of the trino URL to be used for authorization e.g. trino
