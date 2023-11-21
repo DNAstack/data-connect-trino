@@ -21,7 +21,16 @@
 		<logback-extensions.version>1.0.0</logback-extensions.version>
 		<logback.contrib.version>0.1.5</logback.contrib.version>
 		<logback.version>1.2.11</logback.version>
+		<dd-javac-plugin.version>0.1.8</dd-javac-plugin.version>
 	</properties>
+
+	<repositories>
+		<repository>
+			<id>github</id>
+			<name>DNAstack Public Github Packages</name>
+			<url>https://maven.pkg.github.com/DNAstack/dnastack-packages</url>
+		</repository>
+	</repositories>
 
 	<dependencyManagement>
 		<dependencies>
@@ -188,13 +197,13 @@
 						<dynamicDependency>
 							<groupId>com.datadoghq</groupId>
 							<artifactId>dd-javac-plugin</artifactId>
-							<version>0.1.7</version>
+							<version>${dd-javac-plugin.version}</version>
 							<repositoryType>PLUGIN</repositoryType>
 						</dynamicDependency>
 						<dynamicDependency>
 							<groupId>com.datadoghq</groupId>
 							<artifactId>dd-javac-plugin-client</artifactId>
-							<version>0.1.7</version>
+							<version>${dd-javac-plugin.version}</version>
 							<repositoryType>PLUGIN</repositoryType>
 						</dynamicDependency>
 					</dynamicDependencies>
