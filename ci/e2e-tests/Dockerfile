@@ -11,8 +11,12 @@ ARG APP_NAME
 ARG APP_VERSION
 WORKDIR /build
 
-# Downloading Datadog tracing jar
-RUN wget -O dd-tracer.jar https://dtdg.co/latest-java-tracer
+# Downloading Datadog tracing jar. This is coupled with the 0.1.8 plugin version explicitly specified in the pom.xml
+# We need to use an exact java agent version because the latest version will depend on newer dd-javac-plugin versions
+# This has to be included in the dynamic dependencies due to a problem with the DataDog k8s admission controller that's
+# preventing the dependencies from being injected automatically at runtime
+RUN wget -O dd-tracer.jar https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/1.24.2/dd-java-agent-1.24.2.jar
+
 
 # Before bringing in project sources, resolve maven dependencies.
 # This allows Docker to reuse the cached image with all dependencies resolved.
@@ -62,7 +66,7 @@ USER testuser
 
 WORKDIR /home/testuser
 
-ENV MAVEN_OPTS "-javaagent:/dd-tracer.jar=dd.civisibility.enabled=true,dd.service=$APP_NAME"
+ENV MAVEN_OPTS "-javaagent:/home/testuser/dd-tracer.jar=dd.civisibility.enabled=true,dd.service=$APP_NAME"
 ENV E2E_SCREENSHOT_DIR /target
 
 ENTRYPOINT ["./mvnw", "-B", "-o", "-DreportsDirectory=/target/surefire-reports", "test"]
