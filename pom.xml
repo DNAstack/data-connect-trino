@@ -113,10 +113,12 @@
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-sleuth</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.cloud</groupId>
-      <artifactId>spring-cloud-sleuth-zipkin</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>io.zipkin.reporter2</groupId>
+          <artifactId>zipkin-reporter-metrics-micrometer</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.github.gavlyukovskiy</groupId>
@@ -257,6 +259,16 @@
       <groupId>com.dnastack</groupId>
       <artifactId>spring-boot-audit-event-logger</artifactId>
       <version>${audit-event-logger.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.zipkin.reporter2</groupId>
+          <artifactId>zipkin-reporter-metrics-micrometer</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.zipkin.reporter2</groupId>
+          <artifactId>zipkin-reporter</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
