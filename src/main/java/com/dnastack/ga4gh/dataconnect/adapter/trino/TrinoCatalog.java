@@ -25,6 +25,7 @@ public class TrinoCatalog {
             "SELECT table_catalog, table_schema, table_name" +
             " FROM %s.information_schema.tables" +
             " WHERE table_schema != 'information_schema'" +
+            " AND table_type IN ('BASE TABLE','VIEW')" +
             " ORDER BY 1, 2, 3";
 
     private TableInfo getTableInfo(Map<String, Object> row) {
