@@ -7,7 +7,7 @@ metadata:
     app: {{ .Values.app.name }}
     configVersion: {{ .Values.app.configVersion }}
     secretsHash: {{ .Values.app.secretHash }}
-    tags.datadoghq.com/env: "dnastack-us-central-cluster_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}" # Unified service tag - Pod Env tag
+    tags.datadoghq.com/env: "{{ coalesce .Values.cloud.clusterName ((.Values.global).cloud).clusterName }}_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}" # Unified service tag - Pod Env tag
     tags.datadoghq.com/service: "{{ .Values.app.name }}" # Unified service tag - Pod Service tag
     tags.datadoghq.com/version: '{{- template  "dnastack.app.version" . }}'
     product: "data-connect"
@@ -36,7 +36,7 @@ spec:
         configVersion: {{ .Values.app.configVersion }}
         secretsHash: {{ .Values.app.secretHash }}
         product: "data-connect_spec"
-        tags.datadoghq.com/env: "dnastack-us-central-cluster_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}" # Unified service tag - Pod Env tag
+        tags.datadoghq.com/env: "{{ coalesce .Values.cloud.clusterName ((.Values.global).cloud).clusterName }}_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}" # Unified service tag - Pod Env tag
         tags.datadoghq.com/service: "{{ .Values.app.name }}" # Unified service tag - Pod Service tag
         tags.datadoghq.com/version: '{{- template  "dnastack.app.version" . }}'
         admission.datadoghq.com/enabled: "true" # Enable Admission Controller to mutate new pods part of this deployment
