@@ -4,6 +4,7 @@
 {{- $_ := required "database.postgresVersion is a required value" (coalesce .Values.database.postgresVersion (((.Values.global).database).postgres).version) }}
 {{- $_ := required "database.postgresInstance is a required value" (coalesce .Values.database.postgresInstance (((.Values.global).database).postgres).instance) }}
 {{- $_ := required "cloud.clusterNamespace is a required value" (coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace) }}
+{{- $_ := required "cloud.clusterName is a required value" (coalesce .Values.cloud.clusterName ((.Values.global).cloud).clusterName) }}
 {{- $_ := required "cloud.spaceDnsName is a required value" (coalesce .Values.cloud.spaceDnsName ((.Values.global).cloud).spaceDnsName) }}
 {{- $_ := required "test.showSchemaForCatalogName is a required value" .Values.test.showSchemaForCatalogName }}
 {{- $_ := required "test.showTableForCatalogSchemaName is a required value" .Values.test.showTableForCatalogSchemaName }}
