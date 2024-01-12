@@ -1,10 +1,16 @@
 package com.dnastack.ga4gh.dataconnect.adapter.security;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
@@ -15,23 +21,30 @@ import static java.util.stream.Collectors.toList;
 
 @Component
 @Slf4j
-public class ScopeAuthoritiesConverter extends JwtAuthenticationConverter {
+public class ScopeAuthoritiesConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
-    private static List<String> KNOWN_SCOPE_CLAIMS = List.of("scope", "scopes", "scp");
+    private static final List<String> KNOWN_SCOPE_CLAIMS = List.of("scope", "scopes", "scp");
+
 
     @Override
+    public final AbstractAuthenticationToken convert(@NotNull Jwt jwt) {
+        Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
+        String principalClaimValue = jwt.getClaimAsString(JwtClaimNames.SUB);
+        return new JwtAuthenticationToken(jwt, authorities, principalClaimValue);
+    }
+
     protected Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         final Collection<String> scopes = extractTokenScopes(jwt);
 
         return scopes.stream()
-                     .map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
-                     .collect(toList());
+            .map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
+            .collect(toList());
     }
 
     private Collection<String> extractTokenScopes(Jwt jwt) {
         final List<String> definedScopeClaims = KNOWN_SCOPE_CLAIMS.stream()
-                                                                  .filter(claimName -> jwt.getClaims().get(claimName) != null)
-                                                                  .collect(toList());
+            .filter(claimName -> jwt.getClaims().get(claimName) != null)
+            .collect(toList());
         /*
          * If there are multiple known scopes defined, something may be wrong. This may even be an exploit of some kind
          * if we ever had an auth server that allowed clients to request custom claims

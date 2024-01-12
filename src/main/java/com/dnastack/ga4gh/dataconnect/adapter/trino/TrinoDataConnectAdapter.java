@@ -23,7 +23,7 @@ import org.jdbi.v3.core.Jdbi;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;

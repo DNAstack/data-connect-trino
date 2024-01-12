@@ -3,22 +3,14 @@ package com.dnastack.ga4gh.dataconnect.adapter.security;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig.IssuerConfig;
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTParser;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtException;
-import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
-import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoderJwkSupport;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.util.Assert;
+
+import java.text.ParseException;
+import java.util.*;
 
 @Slf4j
 public class DelegatingJwtDecoder implements JwtDecoder {
@@ -35,15 +27,14 @@ public class DelegatingJwtDecoder implements JwtDecoder {
     private Map<String, JwtDecoder> buildJwtDecoders(List<IssuerConfig> issuers) {
         Map<String, JwtDecoder> contexts = new HashMap<>();
         for (IssuerConfig issuerConfig : issuers) {
-            OAuth2TokenValidator<Jwt> oauthValidator = createOauthValidater(issuerConfig);
+            OAuth2TokenValidator<Jwt> oauthValidator = createOauthValidator(issuerConfig);
             JwtDecoder decoder;
             log.info("Registering issuer config for issuer: " + issuerConfig.getIssuerUri());
             if (issuerConfig.getJwkSetUri() != null) {
                 log.info("Using JwkSet at {}", issuerConfig.getJwkSetUri());
-                NimbusJwtDecoderJwkSupport nimbusJwtDecoderJwkSupport =
-                    new NimbusJwtDecoderJwkSupport(issuerConfig.getJwkSetUri());
-                nimbusJwtDecoderJwkSupport.setJwtValidator(oauthValidator);
-                decoder = nimbusJwtDecoderJwkSupport;
+                NimbusJwtDecoder nimbusJwtDecoder = NimbusJwtDecoder.withJwkSetUri(issuerConfig.getJwkSetUri()).build();
+                nimbusJwtDecoder.setJwtValidator(oauthValidator);
+                decoder = nimbusJwtDecoder;
             } else if (issuerConfig.getRsaPublicKey() != null) {
                 PublicKeyJwtDecoder publicKeyJwtDecoder = new PublicKeyJwtDecoder(issuerConfig.getRsaPublicKey());
                 publicKeyJwtDecoder.setJwtValidator(oauthValidator);
@@ -83,7 +74,7 @@ public class DelegatingJwtDecoder implements JwtDecoder {
         }
     }
 
-    private static OAuth2TokenValidator<Jwt> createOauthValidater(IssuerConfig issuerConfig) {
+    private static OAuth2TokenValidator<Jwt> createOauthValidator(IssuerConfig issuerConfig) {
         List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>();
         validators.add(new JwtTimestampValidator());
         validators.add(new JwtIssuerValidator(issuerConfig.getIssuerUri()));
