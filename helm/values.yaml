@@ -1,8 +1,33 @@
+global:
+  cloud:
+    clusterName:
+    clusterNamespace:
+    spaceDnsName:
+  database:
+    postgres:
+      instance:
+      version:
+  image:
+    repository:
+  auditLogService:
+    appName: audit-log-service # Host portion of the audit-log-service URL e.g. audit-log-service
+  collectionService:
+    appName: collection-service # Host portion of the collection-service URL to be used for authorization e.g. collection-service
+  dataConnectTrino:
+    appName: data-connect-trino # Host portion of the data-connect-trino URL to be used for authorization e.g. data-connect-trino
+  indexingService:
+    appName: indexing-service # Host portion of the indexing-service URL to be used for authorization e.g. indexing-service
+  publisherData:
+    appName: publisher-data # Host portion of the publisher-data URL to be used for authorization e.g. publisher-data
+  trino:
+    appName: trino # Host portion of the trino URL to be used for authorization e.g. trino
+  wallet:
+    appName: wallet # Host portion of the wallet URL to be used for authorization e.g. wallet
+
 image:
   repository: # Docker repository to pull the image from
 
 app:
-  name: data-connect-trino
   configVersion: config-version
   secretHash: secrets-hash
   memoryLimit: "1Gi"
@@ -12,26 +37,20 @@ app:
       hikari:
         maxPoolSize: "5" # Maximum number of connections in the database pool for this application
 
-dataConnectTrino:
-  appName: data-connect-trino # Host portion of the data-connect-trino URL to be used for authorization e.g. data-connect-trino
-
-wallet:
-  appName: wallet # Host portion of the wallet URL to be used for authorization e.g. wallet
-
 auditLogService:
-  appName: audit-log-service # Host portion of the audit-log-service URL e.g. audit-log-service
-
-indexingService:
-  appName: indexing-service # Host portion of the indexing-service URL to be used for authorization e.g. indexing-service
-
+  appName:
 collectionService:
-  appName: collection-service # Host portion of the collection-service URL to be used for authorization e.g. collection-service
-
+  appName:
+dataConnectTrino:
+  appName:
+indexingService:
+  appName:
 publisherData:
-  appName: publisher-data # Host portion of the publisher-data URL to be used for authorization e.g. publisher-data
-
+  appName:
 trino:
-  appName: trino # Host portion of the trino URL to be used for authorization e.g. trino
+  appName:
+wallet:
+  appName:
 
 database:
   jdbcUri: # JDBC Url for the application's main database e.g. "jdbc:postgresql://postgres/dataconnecttrinoservice"

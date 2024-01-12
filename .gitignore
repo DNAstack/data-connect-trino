@@ -20,5 +20,5 @@ README.html
 *.DS_Store
 *application.properties
 *.tgz
-
+Chart.lock
 env\.sh
