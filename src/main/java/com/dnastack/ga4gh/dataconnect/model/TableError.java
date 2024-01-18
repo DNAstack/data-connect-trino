@@ -17,7 +17,8 @@ public class TableError {
     private String title;
     private String details;
 
-    public static TableError fromThrowable(Throwable throwable, String catalogName) {
+    public static TableError fromThrowable(final Throwable throwable, final String catalogName) {
+        log.debug("Converting this exception to a TableError", throwable);
         TableError error = new TableError();
         error.setTitle("Encountered an unexpected error");
         error.setStatus(getResponseStatus(throwable));
@@ -52,7 +53,7 @@ public class TableError {
             error.setDetails(throwable.getMessage());
         }
 
-        log.debug("{}", error.getTitle(), throwable);
+        log.debug("Converted exception to {}", error, throwable);
         return error;
     }
 
