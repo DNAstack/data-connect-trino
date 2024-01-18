@@ -74,6 +74,8 @@ logging:
     #com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient: DEBUG # logs queries when search fails
     #com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter: DEBUG
     #com.dnastack.ga4gh.dataconnect.client.collectionservice: DEBUG
+    #com.dnastack.ga4gh.dataconnect.model.TableError: DEBUG
+    #org.springframework.security: DEBUG # find out why tokens are rejected
     # Reduced the log messages produced by p6spy by default.
     p6spy: WARN
 
@@ -105,6 +107,8 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 5
+  zipkin:
+    enabled: false
 
 management:
   metrics:
@@ -116,7 +120,7 @@ management:
         enabled: false
   endpoints:
     web.exposure.include: info, health
-        
+
 ---
 
 spring:

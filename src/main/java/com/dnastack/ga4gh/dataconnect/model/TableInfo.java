@@ -22,7 +22,6 @@ public class TableInfo implements Comparable<TableInfo> {
     @JsonProperty("description")
     private String description;
 
-    //private Map<String, Object> dataModel;
     @JsonProperty("data_model")
     private DataModel dataModel;
 
