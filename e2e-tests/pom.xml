@@ -10,18 +10,27 @@
 	<name>Data Connect End-to-end tests</name>
 
 	<properties>
-		<java.version>17</java.version>
+		<java.version>21</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
-		<maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
+		<maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
 		<reportsDirectory/>
-		<actuator-e2e-test.version>1.0.3</actuator-e2e-test.version>
-		<dnastack-trino-client.version>1.0-9-ga03bd99</dnastack-trino-client.version>
+		<actuator-e2e-test.version>1.0.4</actuator-e2e-test.version>
+		<dnastack-trino-client.version>1.0-12-g8c4e093</dnastack-trino-client.version>
+		<jupiter.version>5.10.1</jupiter.version>
+		<jackson.version>2.16.1</jackson.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<logback-extensions.version>1.0.0</logback-extensions.version>
 		<logback.contrib.version>0.1.5</logback.contrib.version>
 		<logback.version>1.2.11</logback.version>
 		<dd-javac-plugin.version>0.1.8</dd-javac-plugin.version>
+		<rest-assured.version>5.4.0</rest-assured.version>
+		<lombok.version>1.18.30</lombok.version>
+		<awaitility.version>4.2.0</awaitility.version>
+		<assertj.version>3.25.1</assertj.version>
+		<guava.version>33.0.0-jre</guava.version>
+		<google-oauth-lib.version>1.22.0</google-oauth-lib.version>
+		<commons-validator.version>1.8.0</commons-validator.version>
 	</properties>
 
 	<repositories>
@@ -37,7 +46,7 @@
 			<dependency>
 				<groupId>org.junit.jupiter</groupId>
 				<artifactId>junit-jupiter-api</artifactId>
-				<version>5.9.0</version>
+				<version>${jupiter.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>ch.qos.logback</groupId>
@@ -70,12 +79,12 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.24</version>
+			<version>${lombok.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
-			<version>5.9.0</version>
+			<version>${jupiter.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -95,12 +104,12 @@
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
-			<version>2.13.4.2</version>
+			<version>${jackson.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.rest-assured</groupId>
 			<artifactId>rest-assured</artifactId>
-			<version>5.1.1</version>
+			<version>${rest-assured.version}</version>
 			<exclusions>
 				<exclusion>
 					<!-- ensure jcl-over-slf4j handles commons logging API -->
@@ -112,30 +121,30 @@
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>32.1.2-jre</version>
+			<version>${guava.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.auth</groupId>
 			<artifactId>google-auth-library-oauth2-http</artifactId>
-			<version>1.10.0</version>
+			<version>${google-oauth-lib.version}</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/commons-validator/commons-validator -->
 		<dependency>
 			<groupId>commons-validator</groupId>
 			<artifactId>commons-validator</artifactId>
-			<version>1.6</version>
+			<version>${commons-validator.version}</version>
 		</dependency>
 		<!-- assertj -->
 		<dependency>
 			<groupId>org.assertj</groupId>
 			<artifactId>assertj-core</artifactId>
-			<version>3.23.1</version>
+			<version>${assertj.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.awaitility</groupId>
 			<artifactId>awaitility</artifactId>
-			<version>4.2.0</version>
+			<version>${awaitility.version}</version>
 		</dependency>
 
 		<!-- Parseable Stackdriver Logs -->
@@ -185,7 +194,7 @@
 						<DynamicDependency>
 							<groupId>org.apache.maven.surefire</groupId>
 							<artifactId>surefire-junit-platform</artifactId>
-							<version>3.0.0-M5</version>
+							<version>3.0.0-M7</version>
 							<repositoryType>PLUGIN</repositoryType>
 						</DynamicDependency>
 						<dynamicDependency>

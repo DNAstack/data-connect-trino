@@ -124,7 +124,9 @@ management:
 ---
 
 spring:
-  profiles: default
+  config:
+    activate:
+      on-profile: default
 
 app:
   # Sample Auth configuration - works with local Wallet, Gatekeeper, Trino (see README.md)
@@ -147,7 +149,9 @@ app:
 ---
 
 spring:
-  profiles: wallet-auth
+  config:
+    activate:
+      on-profile: wallet-auth
 
 app:
   auth:
@@ -169,7 +173,9 @@ app:
 ---
 
 spring:
-  profiles: no-auth
+  config:
+    activate:
+      on-profile: no-auth
   security:
     enabled: false
   liquibase:
@@ -189,7 +195,9 @@ app:
 ---
 
 spring:
-  profiles: basic-auth
+  config:
+    activate:
+      on-profile: basic-auth
 
 app:
   auth:
@@ -199,7 +207,9 @@ app:
 ---
 
 spring:
-  profiles: audit
+  config:
+    activate:
+      on-profile: audit
 
 auditing:
   enabled: true
@@ -207,7 +217,9 @@ auditing:
 ---
 
 spring:
-  profiles: metrics-enabled
+  config:
+    activate:
+      on-profile: metrics-enabled
 
 management:
   endpoints:

@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>2.7.2</version>
+    <version>3.2.1</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -58,37 +58,38 @@
   </dependencyManagement>
 
   <properties>
-    <java.version>17</java.version>
+    <java.version>21</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
     <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
-    <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
-    <spring-cloud.version>2021.0.3</spring-cloud.version>
-    <spring-boot.version>2.7.2</spring-boot.version>
+    <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- DNAstack Libs-->
+    <dnastack-token-validator.version>1.0.9</dnastack-token-validator.version>
+    <audit-event-logger.version>1.0.15</audit-event-logger.version>
+    <oauth-client-factory.version>1.0.1</oauth-client-factory.version>
+    <!-- Other -->
+    <spring-cloud.version>2021.0.9</spring-cloud.version>
+    <spring-boot.version>3.2.1</spring-boot.version>
     <jdbi.version>3.32.0</jdbi.version>
-    <version.okhttp>4.10.0</version.okhttp>
+    <version.okhttp>4.12.0</version.okhttp>
     <version.trino>359</version.trino>
-    <version.spring.boot>2.7.2</version.spring.boot>
     <version.guava>32.1.2-jre</version.guava>
     <version.nimbus>9.23</version.nimbus>
     <version.joda>2.10.14</version.joda>
-    <version.bouncy.castle>1.70</version.bouncy.castle>
-    <feign.version>11.9.1</feign.version>
+    <version.bouncy.castle>1.77</version.bouncy.castle>
+    <feign.version>13.1</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
-    <dnastack-token-validator.version>1.0.9</dnastack-token-validator.version>
-    <audit-event-logger.version>1.0.15</audit-event-logger.version>
-    <oauth-client-factory.version>0.1.7</oauth-client-factory.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
-    <logback.version>1.2.11</logback.version>
+    <logback.version>1.4.5</logback.version>
+    <lombok.version>1.18.30</lombok.version>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.24</version>
+      <version>${lombok.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
@@ -111,19 +112,9 @@
       <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.springframework.cloud</groupId>
-      <artifactId>spring-cloud-starter-sleuth</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>io.zipkin.reporter2</groupId>
-          <artifactId>zipkin-reporter-metrics-micrometer</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>com.github.gavlyukovskiy</groupId>
       <artifactId>p6spy-spring-boot-starter</artifactId>
-      <version>1.8.0</version>
+      <version>1.9.1</version>
     </dependency>
 
     <dependency>
@@ -131,14 +122,9 @@
       <artifactId>liquibase-core</artifactId>
     </dependency>
 
-<!--    <dependency>-->
-<!--      <groupId>org.springframework.boot</groupId>-->
-<!--      <artifactId>spring-boot-starter-data-jpa</artifactId>-->
-<!--    </dependency>-->
-
     <dependency>
       <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-jdk15on</artifactId>
+      <artifactId>bcprov-jdk18on</artifactId>
       <version>${version.bouncy.castle}</version>
     </dependency>
     <dependency>
@@ -179,6 +165,10 @@
     <dependency>
       <groupId>io.micrometer</groupId>
       <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-brave</artifactId>
     </dependency>
     <dependency>
       <groupId>joda-time</groupId>
@@ -291,7 +281,6 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
-        <version>${version.spring.boot}</version>
         <executions>
           <execution>
             <goals>

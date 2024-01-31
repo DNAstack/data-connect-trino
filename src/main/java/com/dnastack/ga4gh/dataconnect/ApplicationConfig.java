@@ -34,16 +34,20 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 
 @Slf4j
@@ -114,7 +118,7 @@ public class ApplicationConfig {
 
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'scope'")
     @Configuration
-    protected static class DefaultJwtSecurityConfig extends WebSecurityConfigurerAdapter {
+    protected static class DefaultJwtSecurityConfig {
 
         private final Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter;
 
@@ -123,32 +127,35 @@ public class ApplicationConfig {
             this.jwtScopesConverter = jwtScopesConverter;
         }
 
-        @Override
-        protected void configure(HttpSecurity http) throws Exception {
-            http.cors().and()
-                .headers()
-                .frameOptions().deny()
-                .xssProtection().and()
-                .contentSecurityPolicy(
-                    "default-src 'self'; " +
-                    "style-src 'self'; " +
-                    "font-src 'self'; " +
-                    "script-src 'self';" +
-                    "img-src 'self'; " +
-                    "connect-src 'self';"
-                ).and()
-                .and()
-                .authorizeRequests()
-                .antMatchers("/actuator/health", "/actuator/info", "/service-info").permitAll()
-                .antMatchers("/**")
-                .authenticated()
-                .and()
-                .oauth2ResourceServer()
-                .jwt().jwtAuthenticationConverter(jwtScopesConverter)
-                .and()
-                .and()
-                .csrf()
-                .disable();
+        @Bean
+        public SecurityFilterChain configure(HttpSecurity http) throws Exception {
+            http.sessionManagement(sessionConfig -> sessionConfig.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .headers(headersConfig -> headersConfig
+                    .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
+                    .xssProtection(withDefaults())
+                    .contentSecurityPolicy(cspConfig -> cspConfig.policyDirectives(
+                            "default-src 'self'; " +
+                            "style-src 'self'; " +
+                            "font-src 'self'; " +
+                            "script-src 'self';" +
+                            "img-src 'self'; " +
+                            "connect-src 'self';"
+                        )
+                    )
+                )
+                .authorizeHttpRequests(authorizeHttpRequestsConfig -> authorizeHttpRequestsConfig
+                    .requestMatchers(
+                        "/actuator/health",
+                        "/actuator/info",
+                        "/service-info"
+                    )
+                    .permitAll()
+                    .requestMatchers("/**")
+                    .authenticated())
+                .oauth2ResourceServer(oauth2Config -> oauth2Config.jwt(jwtConfigurer -> jwtConfigurer.jwtAuthenticationConverter(jwtScopesConverter)));
+            return http.build();
         }
 
         @Bean
@@ -167,34 +174,37 @@ public class ApplicationConfig {
     @ConditionalOnClass(name = { "com.dnastack.auth.PermissionChecker", "com.dnastack.auth.model.IssuerInfo" })
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'wallet'")
     @Configuration
-    protected static class WalletJwtSecurityConfig extends WebSecurityConfigurerAdapter {
+    protected static class WalletJwtSecurityConfig {
 
-        @Override
-        protected void configure(HttpSecurity http) throws Exception {
-            http.cors().and()
-                .headers()
-                .frameOptions().deny()
-                .xssProtection().and()
-                .contentSecurityPolicy(
-                    "default-src 'self'; " +
-                    "style-src 'self'; " +
-                    "font-src 'self'; " +
-                    "script-src 'self';" +
-                    "img-src 'self'; " +
-                    "connect-src 'self';"
-                ).and()
-                .and()
-                .authorizeRequests()
-                .antMatchers("/actuator/health", "/actuator/info", "/service-info").permitAll()
-                .antMatchers("/**")
-                .authenticated()
-                .and()
-                .oauth2ResourceServer()
-                .jwt()
-                .and()
-                .and()
-                .csrf()
-                .disable();
+        @Bean
+        public SecurityFilterChain configure(HttpSecurity http) throws Exception {
+            http.sessionManagement(sessionConfig -> sessionConfig.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .headers(headersConfig -> headersConfig
+                    .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
+                    .xssProtection(withDefaults())
+                    .contentSecurityPolicy(cspConfig -> cspConfig.policyDirectives(
+                            "default-src 'self'; " +
+                            "style-src 'self'; " +
+                            "font-src 'self'; " +
+                            "script-src 'self';" +
+                            "img-src 'self'; " +
+                            "connect-src 'self';"
+                        )
+                    )
+                )
+                .authorizeHttpRequests(authorizeHttpRequestsConfig -> authorizeHttpRequestsConfig
+                    .requestMatchers(
+                        "/actuator/health",
+                        "/actuator/info",
+                        "/service-info"
+                    )
+                    .permitAll()
+                    .requestMatchers("/**")
+                    .authenticated())
+                .oauth2ResourceServer(oauth2Config -> oauth2Config.jwt(withDefaults()));
+            return http.build();
         }
 
         @Bean
@@ -215,7 +225,7 @@ public class ApplicationConfig {
                             : new CachingIssuerPubKeyJwksResolver(issuerUri))
                         .build();
                 })
-                .collect(Collectors.toUnmodifiableList());
+                .toList();
         }
 
         @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer'")
@@ -258,52 +268,55 @@ public class ApplicationConfig {
 
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'basic'")
     @Configuration
-    protected static class BasicAuthSecurityConfig extends WebSecurityConfigurerAdapter {
+    protected static class BasicAuthSecurityConfig {
 
-        @Override
-        protected void configure(HttpSecurity http) throws Exception {
-            http.cors().and()
-                .headers()
-                .frameOptions().deny()
-                .xssProtection().and()
-                .contentSecurityPolicy(
-                    "default-src 'self'; " +
-                    "style-src 'self'; " +
-                    "font-src 'self'; " +
-                    "script-src 'self';" +
-                    "img-src 'self'; " +
-                    "connect-src 'self';"
-                ).and()
-                .and()
-                .authorizeRequests()
-                .antMatchers("/api/**")
-                .authenticated()
-                .and()
-                .httpBasic()
-                .and()
-                .authorizeRequests()
-                .antMatchers("/actuator/health", "/actuator/info", "/service-info")
-                .permitAll()
-                .and()
-                .authorizeRequests()
-                .anyRequest()
-                .authenticated()
-                .and()
-                .formLogin()
-                .and()
-                .csrf()
-                .disable();
+        @Bean
+        public SecurityFilterChain configure(HttpSecurity http) throws Exception {
+            http.sessionManagement(sessionConfig -> sessionConfig.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .headers(headersConfig -> headersConfig
+                    .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
+                    .xssProtection(withDefaults())
+                    .contentSecurityPolicy(cspConfig -> cspConfig.policyDirectives(
+                            "default-src 'self'; " +
+                            "style-src 'self'; " +
+                            "font-src 'self'; " +
+                            "script-src 'self';" +
+                            "img-src 'self'; " +
+                            "connect-src 'self';"
+                        )
+                    )
+                )
+                .authorizeHttpRequests(authorizeHttpRequestsConfig -> authorizeHttpRequestsConfig
+                    .requestMatchers("/api/**")
+                    .authenticated()
+                )
+                .httpBasic(withDefaults())
+                .authorizeHttpRequests(authorizeHttpRequestsConfig -> authorizeHttpRequestsConfig
+                    .anyRequest()
+                    .authenticated()
+                )
+                .formLogin(withDefaults());
+            return http.build();
         }
 
     }
 
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'none'")
     @Configuration
-    protected static class NoAuthSecurityConfig extends WebSecurityConfigurerAdapter {
+    protected static class NoAuthSecurityConfig {
 
-        @Override
-        protected void configure(HttpSecurity http) throws Exception {
-            http.cors().and().authorizeRequests().anyRequest().permitAll().and().csrf().disable();
+        @Bean
+        public SecurityFilterChain configure(HttpSecurity http) throws Exception {
+            http.sessionManagement(sessionConfig -> sessionConfig.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(authorizeHttpRequestsConfig -> authorizeHttpRequestsConfig
+                    .anyRequest()
+                    .permitAll()
+                );
+            return http.build();
         }
 
     }
