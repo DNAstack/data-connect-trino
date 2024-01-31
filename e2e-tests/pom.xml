@@ -13,7 +13,10 @@
 		<java.version>21</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
-		<maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
+		<maven-go-offline.plugin.version>1.2.8</maven-go-offline.plugin.version>
+		<maven.surefire-plugin.version>3.0.0-M7</maven.surefire-plugin.version>
+		<surefire-junit-platform.version>3.0.0-M7</surefire-junit-platform.version>
+		<junit-platform-launcher.version>1.10.1</junit-platform-launcher.version>
 		<reportsDirectory/>
 		<actuator-e2e-test.version>1.0.4</actuator-e2e-test.version>
 		<dnastack-trino-client.version>1.0-12-g8c4e093</dnastack-trino-client.version>
@@ -168,13 +171,13 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.8.1</version>
 				<configuration>
-					<release>11</release>
+					<release>${java.version}</release>
 				</configuration>
 			</plugin>
 
 			<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>${maven-surefire-plugin.version}</version>
+				<version>${maven.surefire-plugin.version}</version>
 				<!-- Tells surefire to run the BaseActuatorE2eTest imported -->
 				<configuration>
 					<reportsDirectory>${reportsDirectory}</reportsDirectory>
@@ -186,17 +189,23 @@
 			<plugin>
 				<groupId>de.qaware.maven</groupId>
 				<artifactId>go-offline-maven-plugin</artifactId>
-				<version>1.2.8</version>
+				<version>${maven-go-offline.plugin.version}</version>
 				<configuration>
 					<downloadSources>false</downloadSources>
 					<downloadJavadoc>false</downloadJavadoc>
 					<dynamicDependencies>
-						<DynamicDependency>
+						<dynamicDependency>
 							<groupId>org.apache.maven.surefire</groupId>
 							<artifactId>surefire-junit-platform</artifactId>
-							<version>3.0.0-M7</version>
+							<version>${surefire-junit-platform.version}</version>
 							<repositoryType>PLUGIN</repositoryType>
-						</DynamicDependency>
+						</dynamicDependency>
+						<dynamicDependency>
+							<groupId>org.junit.platform</groupId>
+							<artifactId>junit-platform-launcher</artifactId>
+							<version>${junit-platform-launcher.version}</version>
+							<repositoryType>MAIN</repositoryType>
+						</dynamicDependency>
 						<dynamicDependency>
 							<groupId>org.codehaus.plexus</groupId>
 							<artifactId>plexus-utils</artifactId>
