@@ -66,7 +66,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- DNAstack Libs-->
     <dnastack-token-validator.version>1.0.9</dnastack-token-validator.version>
-    <audit-event-logger.version>1.0.15</audit-event-logger.version>
+    <audit-event-logger.version>1.0.17</audit-event-logger.version>
     <oauth-client-factory.version>1.0.1</oauth-client-factory.version>
     <!-- Other -->
     <spring-cloud.version>2021.0.9</spring-cloud.version>
