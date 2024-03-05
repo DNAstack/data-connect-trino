@@ -29,7 +29,7 @@ spec:
         prometheus.io/port: "8080"
         prometheus.io/path: "/actuator/prometheus"
         ad.datadoghq.com/data-connect-trino.logs: '[{"source":"java"}]'
-        admission.datadoghq.com/java-lib.version: "v1.4.0"
+        admission.datadoghq.com/java-lib.version: "v1.22.0" # Releases are listed in https://github.com/DataDog/dd-trace-java/releases
       labels:
         app: data-connect-trino
         version: '{{- include  "dnastack.app.version" . }}'
