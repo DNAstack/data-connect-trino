@@ -49,6 +49,11 @@ public class DataConnectController {
             log.debug("Request: /search query= {}", dataConnectRequest.getSqlQuery());
             tableData = trinoDataConnectAdapter
                 .search(dataConnectRequest.getSqlQuery(), request, parseCredentialsHeader(clientSuppliedCredentials), null);
+            while (tableData.getPagination().getNextPageUrl().toString().contains("queued")) {
+                tableData = trinoDataConnectAdapter.getNextSearchPage(
+                    tableData.getPagination().getNextPageUrl().getPath().split(request.getContextPath() + "/search/")[1], tableData.getQueryJob().getId(), request,
+                    parseCredentialsHeader(clientSuppliedCredentials));
+            }
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableData::errorInstance);
         }
