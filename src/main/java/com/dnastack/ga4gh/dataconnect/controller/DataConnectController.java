@@ -11,13 +11,13 @@ import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorExcep
 import com.dnastack.ga4gh.dataconnect.model.TableData;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -49,18 +49,6 @@ public class DataConnectController {
             log.debug("Request: /search query= {}", dataConnectRequest.getSqlQuery());
             tableData = trinoDataConnectAdapter
                 .search(dataConnectRequest.getSqlQuery(), request, parseCredentialsHeader(clientSuppliedCredentials), null);
-            // Motivation for the following while loop is to resolve auth errors in Trino on the POST request rather than during subsequent GET requests.
-            // see https://github.com/DNAstack/data-connect-trino/pull/45
-            // Using following while loop could potentially pose an issue in situations of high activity within Trino, where job's time in queue
-            // may exceed connection timeout. If that becomes an issue we might need to rework the code to respond before timeout happens.
-            // Note: There is a class QueryCleanupManager which is responsible for removing abandoned queries.
-            while (tableData.getPagination().getNextPageUrl().toString().contains("queued")) {
-                tableData = trinoDataConnectAdapter.getNextSearchPage(
-                    tableData.getPagination().getNextPageUrl().getPath().split(request.getContextPath() + "/search/")[1],
-                    tableData.getQueryJob().getId(),
-                    request,
-                    parseCredentialsHeader(clientSuppliedCredentials));
-            }
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableData::errorInstance);
         }
