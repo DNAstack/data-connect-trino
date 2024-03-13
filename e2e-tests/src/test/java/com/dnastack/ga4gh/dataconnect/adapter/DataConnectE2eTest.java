@@ -161,7 +161,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static final String INDEXING_SERVICE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
     private static final String INDEXING_SERVICE_RESOURCE_URI = optionalEnv("E2E_INS_RESOURCE_URI", "http://localhost:8094/");
 
-    private static final boolean globalMethodSecurityEnabled = Boolean.parseBoolean(optionalEnv("E2E_GLOBAL_METHOD_SECURITY_ENABLED", "false"));
+    private static final boolean globalMethodSecurityEnabled = Boolean.parseBoolean(optionalEnv("E2E_GLOBAL_METHOD_SECURITY_ENABLED", "true"));
     private static final boolean scopeCheckingEnabled = Boolean.parseBoolean(optionalEnv("E2E_SCOPE_CHECKING_ENABLED", "false"));
 
 
@@ -682,6 +682,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
         log.info("Running query {} and following the next page URL", query);
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         String nextPageUrl = result.getPagination().getNextPageUrl().toString();
+        result = dataConnectApiGetRequest(nextPageUrl, 200, Table.class);
+        nextPageUrl = result.getPagination().getNextPageUrl().toString();
 
         log.info("Sending a DELETE request to the next page URL, then asserting that the right error response is returned when retrying the GET request to the next page URL");
         sendDeleteRequest(nextPageUrl);
