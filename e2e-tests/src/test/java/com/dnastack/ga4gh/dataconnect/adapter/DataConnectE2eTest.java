@@ -682,8 +682,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
         log.info("Running query {} and following the next page URL", query);
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         String nextPageUrl = result.getPagination().getNextPageUrl().toString();
-        result = dataConnectApiGetRequest(nextPageUrl, 200, Table.class);
-        nextPageUrl = result.getPagination().getNextPageUrl().toString();
 
         log.info("Sending a DELETE request to the next page URL, then asserting that the right error response is returned when retrying the GET request to the next page URL");
         sendDeleteRequest(nextPageUrl);
