@@ -83,6 +83,7 @@
     <logback-extensions.version>1.0.0</logback-extensions.version>
     <logback.version>1.4.12</logback.version>
     <lombok.version>1.18.30</lombok.version>
+    <resilience4j.version>2.2.0</resilience4j.version>
   </properties>
 
   <dependencies>
@@ -235,6 +236,18 @@
     <dependency>
       <groupId>org.jdbi</groupId>
       <artifactId>jdbi3-jackson2</artifactId>
+    </dependency>
+
+    <!-- Retry -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-retry</artifactId>
+      <version>${resilience4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-core</artifactId>
+      <version>${resilience4j.version}</version>
     </dependency>
 
     <!--Supporting-->
