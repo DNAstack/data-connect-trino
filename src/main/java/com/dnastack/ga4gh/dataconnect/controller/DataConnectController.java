@@ -41,6 +41,7 @@ public class DataConnectController {
             tableData.getPagination() != null
             && tableData.getPagination().getNextPageUrl() != null
             && tableData.getPagination().getNextPageUrl().toString().contains("/queued/"))
+        .retryOnException(e -> false)
         .intervalFunction(IntervalFunction.ofExponentialBackoff(500L, 1.5D))
         .build();
     private static final RetryRegistry retryRegistry = RetryRegistry.of(retryConfig);
