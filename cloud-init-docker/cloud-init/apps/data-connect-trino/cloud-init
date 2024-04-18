@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
-set -x
+conditionallyEnableDebugLogging
 
 # This client's runtime credentials within the cluster - allows it to call out to other services
 createWalletServiceClient "${APP_NAME}" "OAuth Client representing ${APP_NAME}" "app_wallet-client-credential" "${APP_NAME}-client-credentials" "${WALLET_URL}" "${WALLET_ADMIN_KUBEKEY}" "${WALLET_RESOURCE}"
