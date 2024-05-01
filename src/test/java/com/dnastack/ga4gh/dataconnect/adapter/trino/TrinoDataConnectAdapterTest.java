@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
+import org.hamcrest.Matchers;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.extension.ExtensionCallback;
 import org.jdbi.v3.core.extension.ExtensionConsumer;
@@ -148,7 +149,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTableData_should_handleArrayWithNullValue() throws Exception {
+    public void getTableData_should_handleArrayWithNullEntries() throws Exception {
         mockTrinoClient.setResponsePages(List.of(
             //language=json
             """
@@ -193,6 +194,52 @@ public class TrinoDataConnectAdapterTest {
         assertThat("Ensure that null is included",
             (Collection<?>) tableData.getData().get(0).get("col1"), containsInRelativeOrder("a", "b", null));
     }
+
+    @Test
+    public void getTableData_should_handleNullArray() throws Exception {
+        mockTrinoClient.setResponsePages(List.of(
+            //language=json
+            """
+            {
+                "id": "fake-req-1",
+                "nextUri": "http://example.com/fake-req-2"
+            }
+            """,
+            //language=json
+            """
+            {
+                "id": "fake-req-1",
+                "columns": [
+                    {
+                        "name": "col1",
+                        "typeSignature": {
+                            "arguments": [
+                                {
+                                    "value": {
+                                        "rawType": "string"
+                                    }
+                                }
+                            ],
+                            "rawType": "array"
+                        }
+                    }
+                ],
+                "data": [
+                    [null]
+                ]
+            }
+            """
+        ));
+
+        // When I try to get table data
+        dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+
+        // Then
+        assertThat("Ensure that the field is null",
+            tableData.getData().get(0).get("col1"), Matchers.nullValue());
+    }
+
 
     @Test
     public void getTableData_should_includeDataModel_when_supplierProvidesOne_and_tableIsEmpty() throws Exception {

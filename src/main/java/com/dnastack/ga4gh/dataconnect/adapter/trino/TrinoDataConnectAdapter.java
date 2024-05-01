@@ -646,7 +646,7 @@ public class TrinoDataConnectAdapter {
         return str;
     }
 
-    private static <T, K, U> Collector<T, ?, Map<K, U>> toSortedMap(
+    private static <T, K, U> Collector<T, ?, Map<K, U>> toLinkedHashMap(
         Function<? super T, ? extends K> keyMapper,
         Function<? super T, ? extends U> valueMapper
     ) {
@@ -666,26 +666,51 @@ public class TrinoDataConnectAdapter {
             ColumnSchema mapEntryColumnSchema = columnSchema.getProperties().get("value");
             return Streams.stream(trinoData.fields())
                 .map(mapEntry -> Map.entry(mapEntry.getKey(), getData(mapEntryColumnSchema, mapEntry.getValue())))
-                .collect(toSortedMap(deepMapEntry -> deepMapEntry.getKey(), deepMapEntry -> deepMapEntry.getValue()));
+                .collect(toLinkedHashMap(deepMapEntry -> deepMapEntry.getKey(), deepMapEntry -> deepMapEntry.getValue()));
         } else if (columnSchema.getRawType().equals("row")) {
-            if (trinoData.getNodeType() != JsonNodeType.ARRAY) {
-                throw new UnexpectedQueryResponseException("Expected array of row values for schema " + columnSchema);
+            if (trinoData.getNodeType() == JsonNodeType.OBJECT)
+            {
+                return Streams.stream(trinoData.fields())
+                    .map(mapEntry ->
+                        Map.entry(mapEntry.getKey(), getData(columnSchema.getProperties().get(mapEntry.getKey()), mapEntry.getValue()))
+                    )
+                    .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
             }
-            int j = 0;
-            Map<String, Object> row = new LinkedHashMap<>();
-            for (Map.Entry<String, ColumnSchema> rowPropertyTypeInfo : columnSchema.getProperties().entrySet()) {
-                JsonNode rowValue = trinoData.get(j++);
-                row.put(rowPropertyTypeInfo.getKey(), getData(rowPropertyTypeInfo.getValue(), rowValue));
+            else if (trinoData.getNodeType() == JsonNodeType.ARRAY)
+            {
+                log.warn("Using the array case to process this row data. ");
+                int j = 0;
+                Map<String, Object> row = new LinkedHashMap<>();
+                for (Map.Entry<String, ColumnSchema> rowPropertyTypeInfo : columnSchema.getProperties().entrySet()) {
+                    JsonNode rowValue = trinoData.get(j++);
+                    row.put(rowPropertyTypeInfo.getKey(), getData(rowPropertyTypeInfo.getValue(), rowValue));
+                }
+                return row;
             }
-            return row;
+            else if (trinoData.getNodeType() == JsonNodeType.NULL)
+            {
+                return null;
+            }
+            else
+            {
+                throw new UnexpectedQueryResponseException("Expected object of row values for schema " + columnSchema);
+            }
         } else if (columnSchema.getRawType().equals("array")) {
-            if (trinoData.getNodeType() != JsonNodeType.ARRAY) {
-                throw new UnexpectedQueryResponseException("Expected array of row values for schema " + columnSchema);
+            if (trinoData.getNodeType() == JsonNodeType.ARRAY)
+            {
+                ColumnSchema itemSchema = columnSchema.getItems();
+                return StreamSupport.stream(trinoData.spliterator(), false)
+                    .map(arrayValue -> getData(itemSchema, arrayValue))
+                    .toList();
             }
-            ColumnSchema itemSchema = columnSchema.getItems();
-            return StreamSupport.stream(trinoData.spliterator(), false)
-                .map(arrayValue -> getData(itemSchema, arrayValue))
-                .toList();
+            else if (trinoData.getNodeType() == JsonNodeType.NULL)
+            {
+                return null;
+            }
+            else
+            {
+                throw new UnexpectedQueryResponseException("Expected array of values for schema " + columnSchema);
+            }
         } else if (columnSchema.getRawType().equals("json")) { //json or primitive.
             try {
                 return objectMapper.readTree(trinoData.asText());
@@ -784,7 +809,7 @@ public class TrinoDataConnectAdapter {
         return StreamSupport.stream(columns.spliterator(), false)
             .map(column -> {
                 return Map.entry(column.get("name").asText(), getColumnSchema(column.get("typeSignature")));
-            }).collect(toSortedMap(Map.Entry::getKey, Map.Entry::getValue));
+            }).collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
 
     }
 
