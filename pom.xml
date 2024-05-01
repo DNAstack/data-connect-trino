@@ -70,7 +70,7 @@
     <oauth-client-factory.version>1.0.1</oauth-client-factory.version>
     <!-- Other -->
     <spring-cloud.version>2021.0.9</spring-cloud.version>
-    <spring-boot.version>3.2.1</spring-boot.version>
+    <spring-boot.version>3.2.5</spring-boot.version>
     <jdbi.version>3.32.0</jdbi.version>
     <version.okhttp>4.12.0</version.okhttp>
     <version.trino>359</version.trino>
