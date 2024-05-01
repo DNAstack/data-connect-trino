@@ -16,7 +16,7 @@ public interface TrinoClient {
      * @return The first JSON response from Trino that's either a partial result (even with 0 rows), or a final result.
      * Never null.
      */
-    JsonNode query(String statement, Map<String, String> extraCredentials);
+    TrinoDataPage query(String statement, Map<String, String> extraCredentials);
 
     /**
      * Fetches the given page of a running query from Trino (which may be empty, but contain a nextUri
@@ -27,7 +27,7 @@ public interface TrinoClient {
      * @return The first JSON response from Trino that's either a partial result (even with 0 rows), or a final result.
      * Never null.
      */
-    JsonNode next(String page, Map<String, String> extraCredentials);
+    TrinoDataPage next(String page, Map<String, String> extraCredentials);
 
     /**
      * Used by the {@link QueryCleanupManager} to kill queries that are no longer being used.

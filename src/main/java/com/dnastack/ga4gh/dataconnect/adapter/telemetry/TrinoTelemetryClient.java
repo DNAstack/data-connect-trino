@@ -1,18 +1,18 @@
 package com.dnastack.ga4gh.dataconnect.adapter.telemetry;
 
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataPage;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /***
  * Wraps a TrinoClient to add telemetry.
@@ -54,22 +54,22 @@ public class TrinoTelemetryClient implements TrinoClient {
         stateCache = CacheBuilder.newBuilder().expireAfterWrite(15, TimeUnit.MINUTES).build();
     }
 
-    public JsonNode query(String statement, Map<String, String> extraCredentials) {
+    public TrinoDataPage query(String statement, Map<String, String> extraCredentials) {
         queryCount.increment();
         long start = System.currentTimeMillis();
-        JsonNode jn = client.query(statement, extraCredentials);
+        TrinoDataPage jn = client.query(statement, extraCredentials);
         queryLatency.record(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
         traceQueryPerformance(jn, start);
         return jn;
     }
 
-    public JsonNode next(String page, Map<String, String> extraCredentials) {
+    public TrinoDataPage next(String page, Map<String, String> extraCredentials) {
         queryCount.increment();
         long start = System.currentTimeMillis();
-        JsonNode jsonNode = client.next(page, extraCredentials);
+        TrinoDataPage trinoDataPage = client.next(page, extraCredentials);
         queryLatency.record(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
-        traceQueryPerformance(jsonNode,start);
-        return jsonNode;
+        traceQueryPerformance(trinoDataPage,start);
+        return trinoDataPage;
     }
 
     @Override
@@ -85,12 +85,11 @@ public class TrinoTelemetryClient implements TrinoClient {
         Long lastTransitionTime;
     }
 
-    private void traceQueryPerformance(JsonNode jsonNode, long currentTime) {
+    private void traceQueryPerformance(TrinoDataPage trinoDataPage, long currentTime) {
         try {
-            String jobId = jsonNode.get("id").asText();
-            String infoUri = jsonNode.get("infoUri").asText();
-            JsonNode stats = jsonNode.get("stats");
-            String state = stats.get("state").asText();
+            String jobId = trinoDataPage.id();
+            String infoUri = trinoDataPage.infoUri();
+            String state = trinoDataPage.stats().state();
 
             TrinoState previousState = stateCache.getIfPresent(jobId);
             if (previousState == null) {
@@ -99,7 +98,7 @@ public class TrinoTelemetryClient implements TrinoClient {
             } else if (!previousState.getState().equals(state)) {
                 if (previousState.getState().equals("QUEUED") && state.equals("RUNNING")) {
                     queryQueueTime.record(currentTime - previousState.getLastTransitionTime(), TimeUnit.MILLISECONDS);
-                } if (previousState.getState().equals("RUNNING") && state.equals("FINISHED")){
+                } else if (previousState.getState().equals("RUNNING") && state.equals("FINISHED")){
                     queryExecuteTime.record(currentTime - previousState.getLastTransitionTime(),TimeUnit.MILLISECONDS);
                 }
 
