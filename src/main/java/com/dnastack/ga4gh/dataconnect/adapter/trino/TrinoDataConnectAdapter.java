@@ -271,8 +271,8 @@ public class TrinoDataConnectAdapter {
     ) {
 
         String rewrittenQuery = rewriteQuery(query, "ga4gh_type", 0);
-        JsonNode response = client.query(rewrittenQuery, extraCredentials);
-        QueryJob queryJob = createQueryJob(response.get("id").asText(), query, dataModel, response.get("nextUri").asText());
+        TrinoDataPage response = client.query(rewrittenQuery, extraCredentials);
+        QueryJob queryJob = createQueryJob(response.id(), query, dataModel, response.nextUri());
         return toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob, request);
     }
 
@@ -282,7 +282,7 @@ public class TrinoDataConnectAdapter {
         HttpServletRequest request,
         Map<String, String> extraCredentials
     ) {
-        JsonNode response = client.next(page, extraCredentials);
+        TrinoDataPage response = client.next(page, extraCredentials);
         log.debug("[getNextSearchPage]response = {}", response);
         QueryJob queryJob = getQueryJob(queryJobId);
         TableData tableData = toTableData(NEXT_PAGE_SEARCH_TEMPLATE, response, queryJob, request);
@@ -470,17 +470,25 @@ public class TrinoDataConnectAdapter {
         return qualifiedNameMatcher.matcher(tableName).matches();
     }
 
+    /**
+     * Convert a page of trino response data into a page of dataconnect response data.
+     *
+     * @param nextPageTemplate
+     * @param trinoResponse
+     * @param queryJob
+     * @param request
+     * @return
+     */
     private TableData toTableData(
         String nextPageTemplate,
-        JsonNode trinoResponse,
+        TrinoDataPage trinoPage,
         QueryJob queryJob,
         HttpServletRequest request
     ) {
-
-        if (trinoResponse.hasNonNull("error")) {
+        if (trinoPage.error() != null) {
             jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJob.getId()));
 
-            TrinoError trinoError = objectMapper.convertValue(trinoResponse.get("error"), TrinoError.class);
+            TrinoError trinoError = trinoPage.error();
             log.info("Returning Trino exception: {} {}",
                 trinoError.getFailureInfo().getType(),
                 trinoError.getFailureInfo().getMessage());
@@ -516,18 +524,17 @@ public class TrinoDataConnectAdapter {
             }
         }
 
-
         List<Map<String, Object>> data = new ArrayList<>();
         DataModel dataModel = null;
-        if (trinoResponse.hasNonNull("columns")) {
-            final JsonNode columns = trinoResponse.get("columns");
+        if (trinoPage.columns() != null) {
+            final JsonNode columns = trinoPage.columns();
             dataModel = generateDataModel(columns);
-            if (trinoResponse.hasNonNull("data")) {
-                for (JsonNode dataNode : trinoResponse.get("data")) { //for each row
+            if (trinoPage.data() != null) {
+                for (JsonNode rowNode : trinoPage.data()) {
                     Map<String, Object> rowData = new LinkedHashMap<>();
                     int i = 0;
                     for (Map.Entry<String, ColumnSchema> entry : dataModel.getProperties().entrySet()) {
-                        rowData.put(entry.getKey(), getData(entry.getValue(), dataNode.get(i++)));
+                        rowData.put(entry.getKey(), getData(entry.getValue(), rowNode.get(i++)));
                     }
                     data.add(rowData);
                 }
@@ -536,7 +543,7 @@ public class TrinoDataConnectAdapter {
 
 
         // Generate pagination
-        Pagination pagination = generatePagination(nextPageTemplate, trinoResponse, queryJob, request);
+        Pagination pagination = generatePagination(nextPageTemplate, trinoPage, queryJob, request);
         TableData tableData = new TableData(dataModel, Collections.unmodifiableList(data), null, pagination, queryJob);
         applyResponseTransforms(queryJob, tableData);
 
@@ -565,12 +572,12 @@ public class TrinoDataConnectAdapter {
     }
 
     @SneakyThrows
-    private Pagination generatePagination(String template, JsonNode trinoResponse, QueryJob queryJob, HttpServletRequest request) {
+    private Pagination generatePagination(String template, TrinoDataPage trinoPage, QueryJob queryJob, HttpServletRequest request) {
         URI nextPageUri = null;
         URI trinoNextPageUri = null;
-        if (trinoResponse.hasNonNull("nextUri")) {
+        if (trinoPage.nextUri() != null) {
             log.debug("generatePagination: ***** BEGIN with nextUri *****");
-            final String rawTrinoResponseUri = trinoResponse.get("nextUri").asText();
+            final String rawTrinoResponseUri = trinoPage.nextUri();
             log.debug("generatePagination: rawTrinoResponseUri => {}", rawTrinoResponseUri);
             final String rawTrinoRelayedPath = URI.create(rawTrinoResponseUri).getPath().replaceFirst("^/+", "");
             log.debug("generatePagination: rawTrinoRelayedPath => {}", rawTrinoRelayedPath);
@@ -657,6 +664,13 @@ public class TrinoDataConnectAdapter {
     }
 
 
+    /**
+     * Converts a single value from a row from a trino response json into a value for a row for a dataconnect response.
+     *
+     * @param columnSchema The schema of the row, from the trino response
+     * @param trinoData The row data to be converted
+     * @return the converted row
+     */
     private Object getData(ColumnSchema columnSchema, JsonNode trinoData) {
         if (columnSchema.getRawType().equals("map")) {
             if (trinoData.getNodeType() != JsonNodeType.OBJECT) {

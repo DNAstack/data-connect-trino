@@ -74,17 +74,17 @@ public class TrinoDataConnectAdapterTest {
         }
 
         @Override
-        public JsonNode query(String statement, Map<String, String> extraCredentials) {
+        public TrinoDataPage query(String statement, Map<String, String> extraCredentials) {
             return next("first", extraCredentials);
         }
 
         @Override
-        public JsonNode next(String page, Map<String, String> extraCredentials) {
+        public TrinoDataPage next(String page, Map<String, String> extraCredentials) {
             if (responsePageIterator == null) {
                 throw new IllegalStateException("You need to set up some Trino responses by calling setResponsePages()");
             }
             try {
-                return objectMapper.readTree(responsePageIterator.next());
+                return objectMapper.readValue(responsePageIterator.next(), TrinoDataPage.class);
             } catch (JsonProcessingException e) {
                 throw new UncheckedIOException(e);
             }

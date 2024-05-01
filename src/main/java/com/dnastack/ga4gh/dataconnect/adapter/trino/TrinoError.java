@@ -30,5 +30,16 @@ public class TrinoError {
     public static class FailureInfo {
         private String type;
         private String message;
+        private FailureInfo cause;
+
+        public String getMessageOfCauseType(String fqcn) {
+            if (type.equals(fqcn)) {
+                return message;
+            }
+            if (cause == null) {
+                return null;
+            }
+            return cause.getMessageOfCauseType(fqcn);
+        }
     }
 }

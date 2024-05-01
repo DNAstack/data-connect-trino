@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -58,14 +59,13 @@ public class TrinoHttpClient implements TrinoClient {
         this.httpClient = httpClient;
     }
 
-    public JsonNode query(String statement, Map<String, String> extraCredentials) {
+    public TrinoDataPage query(String statement, Map<String, String> extraCredentials) {
         Span span = tracer.nextSpan().name("trinoQuery");
         try (Tracer.SpanInScope ws = tracer.withSpanInScope(span.start())) {
                 log.debug("Posting to " + trinoSearchEndpoint);
             try (Response response = post(trinoSearchEndpoint, statement, extraCredentials)) {
                 log.debug("Got response, now polling for query results");
-                JsonNode jn = getQueryResults(response);
-                return jn;
+                return getQueryResults(response);
             } catch (final AuthRequiredException e) {
                 log.debug("Passing back auth challenge from backend: " + e.getAuthorizationRequest());
                 throw e;
@@ -78,7 +78,7 @@ public class TrinoHttpClient implements TrinoClient {
 
     }
 
-    public JsonNode next(String page, Map<String, String> extraCredentials) {
+    public TrinoDataPage next(String page, Map<String, String> extraCredentials) {
         Span span = tracer.nextSpan().name("trinoNext");
         try (Tracer.SpanInScope ws = tracer.withSpanInScope(span.start())) {
             //TODO: better url construction
@@ -104,13 +104,12 @@ public class TrinoHttpClient implements TrinoClient {
         }
     }
 
-    private DataConnectAuthRequest extractExtraCredentialsRequest(JsonNode node) {
-        JsonNode error = node.get("error");
+    private DataConnectAuthRequest extractExtraCredentialsRequest(TrinoDataPage trinoPage) {
+        TrinoError error = trinoPage.error();
         if (error != null &&
-            Objects.equals(error.get("errorName").asText(), "RESOURCE_AUTH_REQUIRED")) {
+            Objects.equals(error.getErrorName(), "RESOURCE_AUTH_REQUIRED")) {
 
-            TrinoFailureInfo failureInfo = objectMapper
-                .convertValue(error.get("failureInfo"), TrinoFailureInfo.class);
+            TrinoError.FailureInfo failureInfo = error.getFailureInfo();
             String embeddedJson = failureInfo.getMessageOfCauseType("io.trino.spi.TrinoException");
             if (embeddedJson == null) {
                 throw new RuntimeException(
@@ -133,55 +132,12 @@ public class TrinoHttpClient implements TrinoClient {
         return null;
     }
 
-    /**
-     * Models the structure of the "failureInfo" member that comes back from a Trino error response.
-     */
-    @Data
-    private static class TrinoFailureInfo {
-
-        String type;
-        String message;
-        TrinoFailureInfo cause;
-
-        /**
-         * Digs through the cause chain until it finds a cause with the given type, then returns the message from that
-         * node.
-         *
-         * @param fqcn fully-qualified class name of the exception type whose message to retrieve.
-         * @return the message associated with the given exception in the cause chain.
-         */
-        String getMessageOfCauseType(String fqcn) {
-            if (type.equals(fqcn)) {
-                return message;
-            }
-            if (cause == null) {
-                return null;
-            }
-            return cause.getMessageOfCauseType(fqcn);
-        }
-    }
-
-    /**
-     * Returns the value of JSON node {@code stats.state}, or the special string {@code "(no state in response)"} if
-     * that node doesn't exist.
-     *
-     * @param node the node to start the search at (usually the root of the Trino response)
-     * @return the state under the given node or the special {@code "(no state in response)"}. Never null.
-     */
-    private String extractState(JsonNode node) {
-        if (node.hasNonNull("stats")) {
-            return node.get("stats").get("state").asText();
-        }
-        return "(no state in response)";
-    }
-
-
     private boolean isRunning(String trinoState) {
         return !(trinoState.equalsIgnoreCase("FINISHED") ||
                trinoState.equalsIgnoreCase("CLIENT_ABORTED") ||
                trinoState.equalsIgnoreCase("CLIENT_ERROR"));
     }
-    private JsonNode getQueryResults(Response httpResponse) throws TrinoUnexpectedHttpResponseException, AuthRequiredException {
+    private TrinoDataPage getQueryResults(Response httpResponse) throws TrinoUnexpectedHttpResponseException, AuthRequiredException {
         if (httpResponse.body() == null) {
             throw new TrinoUnexpectedHttpResponseException(
                 httpResponse.code(),
@@ -200,22 +156,22 @@ public class TrinoHttpClient implements TrinoClient {
         }
 
         try {
-            JsonNode jsonBody = objectMapper.readTree(httpResponseBody); //ioexception never happens;
-            String trinoState = extractState(jsonBody);
+            TrinoDataPage trinoPage = objectMapper.readValue(httpResponseBody, TrinoDataPage.class);
+            String trinoState = Optional.ofNullable(trinoPage.stats().state()).orElse("(no state in response)");
 
             if (isRunning(trinoState) || trinoState.equalsIgnoreCase("finished")) {
                 log.trace("TrinoState: {}", trinoState);
-                log.trace("Trino Results: {}", jsonBody.toString());
-                assert (jsonBody.hasNonNull("columns"));
-                return jsonBody;
+                log.trace("Trino Results: {}", trinoPage);
+                assert (trinoPage.columns() != null);
+                return trinoPage;
             } else {
 
-                DataConnectAuthRequest credentialsRequest = extractExtraCredentialsRequest(jsonBody);
+                DataConnectAuthRequest credentialsRequest = extractExtraCredentialsRequest(trinoPage);
                 if (credentialsRequest != null) {
                     throw new AuthRequiredException(credentialsRequest);
                 }
 
-                Object error = jsonBody.get("error");
+                Object error = trinoPage.error();
                 if (error == null) {
                     error = httpResponseBody;
                 }

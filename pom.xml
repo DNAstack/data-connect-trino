@@ -78,6 +78,7 @@
     <version.nimbus>9.23</version.nimbus>
     <version.joda>2.10.14</version.joda>
     <version.bouncy.castle>1.77</version.bouncy.castle>
+    <assertj.version>3.25.1</assertj.version>
     <feign.version>13.1</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
@@ -179,6 +180,12 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>${assertj.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
