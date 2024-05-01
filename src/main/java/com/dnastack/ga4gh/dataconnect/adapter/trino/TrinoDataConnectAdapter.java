@@ -19,6 +19,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jdbi.v3.core.Jdbi;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -427,42 +429,7 @@ public class TrinoDataConnectAdapter {
         HttpServletRequest request
     ) {
         if (trinoPage.error() != null) {
-            jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJob.getId()));
-
-            TrinoError trinoError = trinoPage.error();
-            log.info("Returning Trino exception: {} {}",
-                trinoError.getFailureInfo().getType(),
-                trinoError.getFailureInfo().getMessage());
-
-            if (trinoError.getErrorName().equals("CATALOG_NOT_FOUND")) {
-                throw new TrinoNoSuchCatalogException(trinoError);
-            } else if (trinoError.getErrorName().equals("SCHEMA_NOT_FOUND")) {
-                throw new TrinoNoSuchSchemaException(trinoError);
-            } else if (trinoError.getErrorName().equals("TABLE_NOT_FOUND")) {
-                throw new TrinoNoSuchTableException(trinoError);
-            } else if (trinoError.getErrorName().equals("COLUMN_NOT_FOUND")) {
-                throw new TrinoNoSuchColumnException(trinoError);
-            } else if (trinoError.getErrorType().equals("USER_ERROR")) {
-                if (trinoError.getErrorName().equals("PERMISSION_DENIED")) {
-                    if (trinoError.getMessage().startsWith("Access Denied: HTTP 500")) {
-                        throw new TrinoInternalErrorException(trinoError);
-                    } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 404")) {
-                        throw new TrinoNoSuchTableException(trinoError);
-                    } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 401")) {
-                        throw new TrinoUserUnauthorizedException(trinoError);
-                    } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 403")) {
-                        throw new TrinoUserForbiddenException(trinoError);
-                    }
-                }
-                //Most other USER_ERRORs are bad queries and should likely return BAD_REQUEST error code.
-                throw new TrinoInvalidQueryException(trinoError);
-            } else if (trinoError.getErrorType().equals("INSUFFICIENT_RESOURCES")) {
-                throw new TrinoInsufficientResourcesException(trinoError);
-            } else {
-                // as of this commit, the remaining trino error type is 'internal error', but this
-                // will also be a catch all.
-                throw new TrinoInternalErrorException(trinoError);
-            }
+            handleErrorResponse(trinoPage, queryJob);
         }
 
         List<Map<String, Object>> data = new ArrayList<>();
@@ -472,12 +439,7 @@ public class TrinoDataConnectAdapter {
             dataModel = TrinoSchemaToDataConnectConverter.generateDataModel(columns);
             if (trinoPage.data() != null) {
                 for (JsonNode rowNode : trinoPage.data()) {
-                    Map<String, Object> rowData = new LinkedHashMap<>();
-                    int i = 0;
-                    for (Map.Entry<String, ColumnSchema> entry : dataModel.getProperties().entrySet()) {
-                        rowData.put(entry.getKey(), getData(entry.getValue(), rowNode.get(i++)));
-                    }
-                    data.add(rowData);
+                    convertTrinoRowToDataConnect(rowNode, dataModel, data);
                 }
             }
         }
@@ -499,6 +461,54 @@ public class TrinoDataConnectAdapter {
         }
 
         return tableData;
+    }
+
+    private void convertTrinoRowToDataConnect(JsonNode rowNode, DataModel dataModel, List<Map<String, Object>> data) {
+        Map<String, Object> rowData = new LinkedHashMap<>();
+        int i = 0;
+        for (Map.Entry<String, ColumnSchema> entry : dataModel.getProperties().entrySet()) {
+            rowData.put(entry.getKey(), convertTrinoFieldToDataConnect(entry.getValue(), rowNode.get(i++)));
+        }
+        data.add(rowData);
+    }
+
+    private void handleErrorResponse(TrinoDataPage trinoPage, QueryJob queryJob) {
+        jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJob.getId()));
+
+        TrinoError trinoError = trinoPage.error();
+        log.info("Returning Trino exception: {} {}",
+            trinoError.getFailureInfo().getType(),
+            trinoError.getFailureInfo().getMessage());
+
+        if (trinoError.getErrorName().equals("CATALOG_NOT_FOUND")) {
+            throw new TrinoNoSuchCatalogException(trinoError);
+        } else if (trinoError.getErrorName().equals("SCHEMA_NOT_FOUND")) {
+            throw new TrinoNoSuchSchemaException(trinoError);
+        } else if (trinoError.getErrorName().equals("TABLE_NOT_FOUND")) {
+            throw new TrinoNoSuchTableException(trinoError);
+        } else if (trinoError.getErrorName().equals("COLUMN_NOT_FOUND")) {
+            throw new TrinoNoSuchColumnException(trinoError);
+        } else if (trinoError.getErrorType().equals("USER_ERROR")) {
+            if (trinoError.getErrorName().equals("PERMISSION_DENIED")) {
+                if (trinoError.getMessage().startsWith("Access Denied: HTTP 500")) {
+                    throw new TrinoInternalErrorException(trinoError);
+                } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 404")) {
+                    throw new TrinoNoSuchTableException(trinoError);
+                } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 401")) {
+                    throw new TrinoUserUnauthorizedException(trinoError);
+                } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 403")) {
+                    throw new TrinoUserForbiddenException(trinoError);
+                }
+            }
+            //Most other USER_ERRORs are bad queries and should likely return BAD_REQUEST error code.
+            throw new TrinoInvalidQueryException(trinoError);
+        } else if (trinoError.getErrorType().equals("INSUFFICIENT_RESOURCES")) {
+            throw new TrinoInsufficientResourcesException(trinoError);
+        } else {
+            // as of this commit, the remaining trino error type is 'internal error', but this
+            // will also be a catch all.
+            throw new TrinoInternalErrorException(trinoError);
+        }
     }
 
     // Parses the saved query identified by queryJobId, finds all functions that transform the response in some way,
@@ -607,88 +617,132 @@ public class TrinoDataConnectAdapter {
 
     /**
      * Converts a single value from a row from a trino response json into a value for a row for a dataconnect response.
+     * This method is recursive, and will call itself for nested structures.
+     * The conversion is based on the schema of the column from the trino data page.
      *
-     * @param columnSchema The schema of the row, from the trino response
+     * @param trinoColumnSchema The schema of the row, from the trino response
      * @param trinoData The row data to be converted
      * @return the converted row
      */
-    private Object getData(ColumnSchema columnSchema, JsonNode trinoData) {
-        switch (columnSchema.getRawType()) {
+    private Object convertTrinoFieldToDataConnect(ColumnSchema trinoColumnSchema, JsonNode trinoData) {
+        switch (trinoColumnSchema.getRawType()) {
             case "map" -> {
-                if (trinoData.getNodeType() != JsonNodeType.OBJECT) {
-                    throw new UnexpectedQueryResponseException("Expected value for map was not of type object for schema " + columnSchema);
-                }
-
-                ColumnSchema mapEntryColumnSchema = columnSchema.getProperties().get("value");
-                return Streams.stream(trinoData.fields())
-                    .map(mapEntry -> Map.entry(mapEntry.getKey(), getData(mapEntryColumnSchema, mapEntry.getValue())))
-                    .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
+                return convertMapColumn(trinoColumnSchema, trinoData);
             }
             case "row" -> {
-                if (trinoData.getNodeType() == JsonNodeType.OBJECT) {
-                    return Streams.stream(trinoData.fields())
-                        .map(mapEntry ->
-                            Map.entry(mapEntry.getKey(), getData(columnSchema.getProperties().get(mapEntry.getKey()), mapEntry.getValue()))
-                        )
-                        .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
-                } else if (trinoData.getNodeType() == JsonNodeType.ARRAY) {
-                    log.warn("Using the array case to process this row data. ");
-                    int j = 0;
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    for (Map.Entry<String, ColumnSchema> rowPropertyTypeInfo : columnSchema.getProperties().entrySet()) {
-                        JsonNode rowValue = trinoData.get(j++);
-                        row.put(rowPropertyTypeInfo.getKey(), getData(rowPropertyTypeInfo.getValue(), rowValue));
-                    }
-                    return row;
-                } else if (trinoData.getNodeType() == JsonNodeType.NULL) {
-                    return null;
-                } else {
-                    throw new UnexpectedQueryResponseException("Expected object of row values for schema " + columnSchema);
-                }
+                return convertRowColumn(trinoColumnSchema, trinoData);
             }
             case "array" -> {
-                if (trinoData.getNodeType() == JsonNodeType.ARRAY) {
-                    ColumnSchema itemSchema = columnSchema.getItems();
-                    return StreamSupport.stream(trinoData.spliterator(), false)
-                        .map(arrayValue -> getData(itemSchema, arrayValue))
-                        .toList();
-                } else if (trinoData.getNodeType() == JsonNodeType.NULL) {
-                    return null;
-                } else {
-                    throw new UnexpectedQueryResponseException("Expected array of values for schema " + columnSchema);
-                }
+                return convertArrayColumn(trinoColumnSchema, trinoData);
             }
             case "json" -> {
-                try {
-                    return objectMapper.readTree(trinoData.asText());
-                } catch (JsonProcessingException e) {
-                    throw new UnexpectedQueryResponseException(
-                        "JSON came back badly formatted: trinoDataArray.asText() = " + trinoData.asText() + ". Exception message=" + e.getMessage());
-                }  //json or primitive.
+                return convertJsonColumn(trinoData);
             }
             default -> {
-
-                if (trinoData.isTextual()) {
-                    //currently only textual types are transformed.
-                    TrinoDataTransformer transformer = JsonAdapter.getTrinoDataTransformer(columnSchema.getRawType());
-                    if (transformer == null) {
-                        return trinoData.asText();
-                    } else {
-                        return transformer.transform(trinoData.asText());
-                    }
-                } else if (trinoData.isBoolean()) {
-                    return trinoData.asBoolean();
-                } else if (trinoData.isIntegralNumber()) {
-                    return trinoData.asLong();
-                } else if (trinoData.isFloatingPointNumber()) {
-                    return trinoData.asDouble();
-                } else if (trinoData.isNull()) {
-                    return null;
-                } else {
-                    throw new UnexpectedQueryResponseException("Unexpected value type in data for schema " + columnSchema);
-                }
+                return convertSimpleColumn(trinoColumnSchema, trinoData);
             }
         }
+    }
+
+    private static @Nullable Object convertSimpleColumn(ColumnSchema columnSchema, JsonNode trinoData) {
+        if (trinoData.isTextual()) {
+            //currently only textual types are transformed.
+            TrinoDataTransformer transformer = JsonAdapter.getTrinoDataTransformer(columnSchema.getRawType());
+            if (transformer == null) {
+                return trinoData.asText();
+            } else {
+                return transformer.transform(trinoData.asText());
+            }
+        } else if (trinoData.isBoolean()) {
+            return trinoData.asBoolean();
+        } else if (trinoData.isIntegralNumber()) {
+            return trinoData.asLong();
+        } else if (trinoData.isFloatingPointNumber()) {
+            return trinoData.asDouble();
+        } else if (trinoData.isNull()) {
+            return null;
+        } else {
+            throw new UnexpectedQueryResponseException("Unexpected value type in data for schema " + columnSchema);
+        }
+    }
+
+    private JsonNode convertJsonColumn(JsonNode trinoData) {
+        try {
+            return objectMapper.readTree(trinoData.asText());
+        } catch (JsonProcessingException e) {
+            throw new UnexpectedQueryResponseException(
+                "JSON came back badly formatted: trinoDataArray.asText() = " + trinoData.asText() + ". Exception message=" + e.getMessage());
+        }
+    }
+
+    private @Nullable List<Object> convertArrayColumn(ColumnSchema columnSchema, JsonNode trinoData) {
+        if (trinoData.getNodeType() == JsonNodeType.ARRAY) {
+            ColumnSchema itemSchema = columnSchema.getItems();
+            return StreamSupport.stream(trinoData.spliterator(), false)
+                .map(arrayValue -> convertTrinoFieldToDataConnect(itemSchema, arrayValue))
+                .toList();
+        } else if (trinoData.getNodeType() == JsonNodeType.NULL) {
+            return null;
+        } else {
+            throw new UnexpectedQueryResponseException("Expected array of values for schema " + columnSchema);
+        }
+    }
+
+    private @Nullable Map<String, Object> convertRowColumn(ColumnSchema columnSchema, JsonNode trinoData) {
+        if (trinoData.getNodeType() == JsonNodeType.OBJECT) {
+            return convertRowColumnFromObject(columnSchema, trinoData);
+        } else if (trinoData.getNodeType() == JsonNodeType.ARRAY) {
+            return convertRowColumnFromArray(columnSchema, trinoData);
+        } else if (trinoData.getNodeType() == JsonNodeType.NULL) {
+            return null;
+        } else {
+            throw new UnexpectedQueryResponseException("Expected object of row values for schema " + columnSchema);
+        }
+    }
+
+    /**
+     * Convert a row from a trino response json into a row for a dataconnect response.
+     * In some cases, e.g. the memory schema, the row is represented as a JSON Array.
+     *
+     * @param columnSchema The schema of the column, from the trino response
+     * @param trinoData The row data to be converted
+     * @return the converted row
+     */
+    private @NotNull Map<String, Object> convertRowColumnFromArray(ColumnSchema columnSchema, JsonNode trinoData) {
+        int j = 0;
+        Map<String, Object> row = new LinkedHashMap<>();
+        for (Map.Entry<String, ColumnSchema> rowPropertyTypeInfo : columnSchema.getProperties().entrySet()) {
+            JsonNode rowValue = trinoData.get(j++);
+            row.put(rowPropertyTypeInfo.getKey(), convertTrinoFieldToDataConnect(rowPropertyTypeInfo.getValue(), rowValue));
+        }
+        return row;
+    }
+
+    /**
+     * Convert a row from a trino response json into a row for a dataconnect response.
+     * In some cases, e.g. ORC files, the row is represented as a JSON object.
+     *
+     * @param columnSchema The schema of the column, from the trino response
+     * @param trinoData The row data to be converted
+     * @return the converted row
+     */
+    private Map<String, Object> convertRowColumnFromObject(ColumnSchema columnSchema, JsonNode trinoData) {
+        return Streams.stream(trinoData.fields())
+            .map(mapEntry ->
+                Map.entry(mapEntry.getKey(), convertTrinoFieldToDataConnect(columnSchema.getProperties().get(mapEntry.getKey()), mapEntry.getValue()))
+            )
+            .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private Map<String, Object> convertMapColumn(ColumnSchema columnSchema, JsonNode trinoData) {
+        if (trinoData.getNodeType() != JsonNodeType.OBJECT) {
+            throw new UnexpectedQueryResponseException("Expected value for map was not of type object for schema " + columnSchema);
+        }
+
+        ColumnSchema mapEntryColumnSchema = columnSchema.getProperties().get("value");
+        return Streams.stream(trinoData.fields())
+            .map(mapEntry -> Map.entry(mapEntry.getKey(), convertTrinoFieldToDataConnect(mapEntryColumnSchema, mapEntry.getValue())))
+            .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /**
