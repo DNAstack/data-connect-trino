@@ -21,12 +21,20 @@ public class TrinoCatalog {
 
     private final String catalogName;
 
+    // language=PostgreSQL
     private static final String QUERY_TABLE_TEMPLATE =
-            "SELECT table_catalog, table_schema, table_name" +
-            " FROM %s.information_schema.tables" +
-            " WHERE table_schema != 'information_schema'" +
-            " AND table_type IN ('BASE TABLE','VIEW')" +
-            " ORDER BY 1, 2, 3";
+        """
+            SELECT table_catalog, table_schema, table_name
+             FROM %s.information_schema.tables
+             WHERE table_schema != 'information_schema'
+             AND table_type IN ('BASE TABLE','VIEW')
+            UNION
+            SELECT table_catalog, table_schema, table_name
+             FROM %s.information_schema.views
+             WHERE table_schema != 'information_schema'
+            ORDER BY 1, 2, 3
+            """;
+
 
     private TableInfo getTableInfo(Map<String, Object> row) {
         String schema = (String) row.get("table_schema");
@@ -49,7 +57,7 @@ public class TrinoCatalog {
 
     public TablesList getTablesList(Pagination nextPage, HttpServletRequest request, Map<String, String> extraCredentials) {
         try {
-            TableData tables = dataConnectAdapter.searchAll(String.format(QUERY_TABLE_TEMPLATE, quote(catalogName)), request, extraCredentials, null);
+            TableData tables = dataConnectAdapter.searchAll(String.format(QUERY_TABLE_TEMPLATE, quote(catalogName), quote(catalogName)), request, extraCredentials, null);
             List<TableInfo> tableInfoList = getTableInfoList(tables);
             return new TablesList(tableInfoList, null, nextPage);
         } catch (Throwable t) {
