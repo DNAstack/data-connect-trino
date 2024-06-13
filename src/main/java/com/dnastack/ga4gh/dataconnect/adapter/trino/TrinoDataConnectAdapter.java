@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.common.collect.Streams;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -23,8 +24,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
@@ -505,9 +504,11 @@ public class TrinoDataConnectAdapter {
         } else if (trinoError.getErrorType().equals("INSUFFICIENT_RESOURCES")) {
             throw new TrinoInsufficientResourcesException(trinoError);
         } else {
-            // as of this commit, the remaining trino error type is 'internal error', but this
-            // will also be a catch all.
-            throw new TrinoInternalErrorException(trinoError);
+            // For unexpected execptions, it's usually a programming error or a tricky configuration issue.
+            // Either way, we need more diagnostic information. This is the only place where this stack trace
+            // will be logged. Only the exception type and message is sent to the client.
+            log.warn("Unexpected {}", trinoError);
+            throw new TrinoInternalErrorException(trinoError.withoutStackTraces());
         }
     }
 
