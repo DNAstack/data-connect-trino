@@ -15,13 +15,13 @@ import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -70,7 +70,7 @@ public class DataConnectController {
     @AuditActionUri("data-connect:search")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
-    @PreAuthorize("hasAuthority('SCOPE_data-connect:query') && hasAuthority('SCOPE_data-connect:data') && @accessEvaluator.canAccessResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
+    @PreAuthorize("@accessEvaluator.canAccessResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @PostMapping(value = "/search")
     public TableData search(@RequestBody DataConnectRequest dataConnectRequest,
                             HttpServletRequest request,
@@ -111,7 +111,7 @@ public class DataConnectController {
     @AuditActionUri("data-connect:next-page")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
-    @PreAuthorize("hasAuthority('SCOPE_data-connect:query') && hasAuthority('SCOPE_data-connect:data') && @accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
+    @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
     @GetMapping(value = "/search/**")
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
                                               HttpServletRequest request,
