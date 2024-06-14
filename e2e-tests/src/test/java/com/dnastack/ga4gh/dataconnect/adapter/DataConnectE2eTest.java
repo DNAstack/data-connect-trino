@@ -19,6 +19,7 @@ import okhttp3.OkHttpClient;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.HttpStatus;
 import org.assertj.core.api.Assertions;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -98,19 +99,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
                                                                                           "thetimewithtimezone",
                                                                                           "12:22:27.000Z"));
 
-    //"thetimewithtimezone", "12:22:27-07"); //Blocked by https://github.com/prestosql/presto/issues/4715
-
-
-    private static final String INSERT_DATETIME_TEST_TABLE_ENTRY_TEMPLATE =
-        "INSERT INTO %s(zone, thedate, thetime, thetimestamp, thetimestampwithtimezone, thetimestampwithouttimezone, thetimewithouttimezone, thetimewithtimezone)"
-            + " VALUES('%s', date '%s', time '%s', timestamp '%s', timestamp '%s', timestamp '%s', time '%s', time '%s')";
-
-    private static final String INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE = "INSERT INTO %s(bogusfield) VALUES %s";
-
-    private static final String INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE =
-        "INSERT INTO %s (id, data) VALUES('%s', json_parse('%s'))";
-    private static final String INSERT_JSON_TEST_TABLE_ENTRY_NULL =
-        "INSERT INTO %s (id, data) VALUES('null', null)";
 
     private static final String TEST_DATE = "2020-05-27";
     private static final String TEST_TIME_LOS_ANGELES = "12:22:27.000-08:00";
@@ -118,34 +106,18 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static final String TEST_DATE_TIME_LOS_ANGELES = "2020-05-27 12:22:27.000-08:00";
     private static final String TEST_DATE_TIME_UTC = "2020-05-27 12:22:27.000+00:00";
 
-    private static final String CREATE_DATETIME_TEST_TABLE_TEMPLATE = "CREATE TABLE %s("
-        + "zone varchar(255),"
-        + "thedate DATE,"
-        + "thetime time,"
-        + "thetimestamp timestamp,"
-        + "thetimestampwithtimezone timestamp with time zone,"
-        + "thetimestampwithouttimezone timestamp without time zone,"
-        + "thetimewithouttimezone time without time zone,"
-        + "thetimewithtimezone time with time zone)";
-
-    private static final String CREATE_PAGINATION_TEST_TABLE_TEMPLATE = "CREATE TABLE %s("
-        + "id integer,"
-        + "bogusfield varchar(64))";
-
-    private static final String CREATE_JSON_TEST_TABLE_TEMPLATE = "CREATE TABLE %s (id varchar(25), data json)";
-
-    private static final String DELETE_TEST_TABLE_TEMPLATE = "DROP TABLE %s";
+    interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+    private static final List<ThrowingRunnable> afterAllCleanups = new ArrayList<>();
 
     private static final int MAX_REAUTH_ATTEMPTS = 10;
 
-    private static final String trinoAudience = optionalEnv("E2E_TRINO_AUDIENCE", "http://localhost:8091"); // optional
-    private static final String trinoScopes = optionalEnv("E2E_TRINO_SCOPES", "full_access");   // optional
+    private static final String trinoAudience = optionalEnv("E2E_TRINO_AUDIENCE", "http://localhost:8091");
+    private static final String trinoScopes = optionalEnv("E2E_TRINO_SCOPES", "full_access");
 
-    // test catalog name
-    private static final String inMemoryCatalog = optionalEnv("E2E_INMEMORY_TESTCATALOG", "memory"); //memory;
-
-    // test schema name
-    private static final String inMemorySchema = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default"); //default;
+    private static final String inMemoryCatalog = optionalEnv("E2E_INMEMORY_TESTCATALOG", "memory");
+    private static final String inMemorySchema = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default");
 
     /**
      * [Optional] Name of a catalog that's expected to contain ar least one schema. eg: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME="publisher"
@@ -179,9 +151,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static final List<String> dataConnectScopes = List.of("data-connect:query", "data-connect:data", "data-connect:info");
 
     private static TrinoHttpClient trinoHttpClient;
-
     private static final String trinoHostname = optionalEnv("E2E_TRINO_HOSTNAME", "http://localhost:8091");
-
     private static final boolean trinoIsPublic = Boolean.parseBoolean(optionalEnv("E2E_TRINO_IS_PUBLIC", "false"));
 
     @BeforeAll
@@ -219,55 +189,52 @@ public class DataConnectE2eTest extends BaseE2eTest {
         String randomFactor = RandomStringUtils.randomAlphanumeric(16);
         List<String> queries = new LinkedList<>();
 
-        // Create a test table for JSON support tests.
-        trinoJsonTestTable = getFullyQualifiedTestTableName("jsonTest_" + randomFactor);
-        queries.add(String.format(CREATE_JSON_TEST_TABLE_TEMPLATE, trinoJsonTestTable));
-        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "string", "\"Hello\""));
-        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "boolean", "true"));
-        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "number", "1.0"));
-        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "json_object", "{\"name\": \"Foo\", \"age\": 25}"));
-        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_NULL, trinoJsonTestTable));
-        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "array_of_various_types", "[\"Hello\", true, 1.0, {\"name\": \"Foo\"}, null, [1,2]]"));
-        queries.add(String.format(INSERT_JSON_TEST_TABLE_ENTRY_TEMPLATE, trinoJsonTestTable, "array_of_json_objects", "[{\"name\": \"Foo\", \"age\": 25}, {\"name\": \"Boo\", \"age\": 52}]"));
+        log.info("Creating table for JSON support tests.");
+        trinoJsonTestTable = qualifyTestTableName("jsonTest_" + randomFactor);
+        queries.add(createJsonTestTable());
+        dropAfterAllTests(trinoJsonTestTable);
+        queries.add(insertIntoJsonTable("string", "\"Hello\""));
+        queries.add(insertIntoJsonTable("boolean", "true"));
+        queries.add(insertIntoJsonTable("number", "1.0"));
+        queries.add(insertIntoJsonTable("json_object", "{\"name\": \"Foo\", \"age\": 25}"));
+        queries.add(insertIntoJsonTable(null, null));
+        queries.add(insertIntoJsonTable(
+                "array_of_various_types",
+                "[\"Hello\", true, 1.0, {\"name\": \"Foo\"}, null, [1,2]]"));
+        queries.add(insertIntoJsonTable(
+                "array_of_json_objects",
+                "[{\"name\": \"Foo\", \"age\": 25}, {\"name\": \"Boo\", \"age\": 52}]"));
 
-        // Create a test table for datetime tests.
-        trinoDateTimeTestTable = getFullyQualifiedTestTableName("dateTimeTest_" + randomFactor);
-        queries.add(String.format(CREATE_DATETIME_TEST_TABLE_TEMPLATE, trinoDateTimeTestTable));
-        queries.add(String.format(
-            INSERT_DATETIME_TEST_TABLE_ENTRY_TEMPLATE,
-                trinoDateTimeTestTable,
-            "LosAngeles",
-            TEST_DATE, TEST_TIME_LOS_ANGELES,
-            TEST_DATE_TIME_LOS_ANGELES,
-            TEST_DATE_TIME_LOS_ANGELES,
-            TEST_DATE_TIME_LOS_ANGELES,
-            TEST_TIME_LOS_ANGELES,
-            TEST_TIME_LOS_ANGELES
-            // TEST_DATE_TIME_LOS_ANGELES //Blocked by https://github.com/prestosql/presto/issues/4715
-        ));
-        queries.add(String.format(
-            INSERT_DATETIME_TEST_TABLE_ENTRY_TEMPLATE,
-                trinoDateTimeTestTable,
-            "UTC",
-            TEST_DATE,
-            TEST_TIME_UTC,
-            TEST_DATE_TIME_UTC,
-            TEST_DATE_TIME_UTC,
-            TEST_DATE_TIME_UTC,
-            TEST_TIME_UTC,
-            TEST_TIME_UTC
-            //TEST_DATE_TIME_UTC // Blocked by https://github.com/prestosql/presto/issues/4715
-        ));
+        log.info("Creating table for date/time support tests.");
+        trinoDateTimeTestTable = qualifyTestTableName("dateTimeTest_" + randomFactor);
+        queries.add(createDateTimeTable());
+        dropAfterAllTests(trinoDateTimeTestTable);
+        queries.add(insertIntoDateTimeTable(
+                "LosAngeles",
+                TEST_DATE,
+                TEST_TIME_LOS_ANGELES,
+                TEST_DATE_TIME_LOS_ANGELES,
+                TEST_DATE_TIME_LOS_ANGELES,
+                TEST_DATE_TIME_LOS_ANGELES,
+                TEST_TIME_LOS_ANGELES,
+                TEST_TIME_LOS_ANGELES));
+        queries.add(insertIntoDateTimeTable(
+                "UTC",
+                TEST_DATE,
+                TEST_TIME_UTC,
+                TEST_DATE_TIME_UTC,
+                TEST_DATE_TIME_UTC,
+                TEST_DATE_TIME_UTC,
+                TEST_TIME_UTC,
+                TEST_TIME_UTC));
 
-        // Create a test table with a bunch of bogus entries to test pagination.
+        log.info("Creating table for pagination tests.");
         unqualifiedPaginationTestTable = "pagination_" + randomFactor;
-        trinoPaginationTestTableName = getFullyQualifiedTestTableName(unqualifiedPaginationTestTable).toLowerCase();
-        queries.add(String.format(CREATE_PAGINATION_TEST_TABLE_TEMPLATE, trinoPaginationTestTableName));
-        ArrayList<String> testValues = new ArrayList<>();
-        for (int i = 0; i < 120; ++i) {
-            testValues.add(String.format("('testValue_%s')", i));
-        }
-        queries.add(String.format(INSERT_PAGINATION_TEST_TABLE_ENTRY_TEMPLATE, trinoPaginationTestTableName, String.join(", ", testValues)));
+        trinoPaginationTestTableName = qualifyTestTableName(unqualifiedPaginationTestTable).toLowerCase();
+        queries.add(createPaginationTable());
+        dropAfterAllTests(trinoPaginationTestTableName);
+        queries.add(insertIntoPaginationTable(120));
+
         for (String query : queries) {
             try {
                 waitForQueryToFinish(query);
@@ -277,12 +244,83 @@ public class DataConnectE2eTest extends BaseE2eTest {
         }
     }
 
-    private static void waitForQueryToFinish(String query) throws IOException, InterruptedException {
+    /** Enquques a cleanup operation for the given table */
+    private static void dropAfterAllTests(String tableName) {
+        afterAllCleanups.add(() -> {
+            log.info("Dropping {}...", tableName);
+            waitForQueryToFinish(dropTable(tableName));
+        });
+    }
+
+    private static String dropTable(String trinoDateTimeTestTable) {
+        return String.format("DROP TABLE %s", trinoDateTimeTestTable);
+    }
+
+    private static @NotNull String createPaginationTable() {
+        return String.format("CREATE TABLE %s(id integer, bogusfield varchar(64))", trinoPaginationTestTableName);
+    }
+
+    private static String insertIntoPaginationTable(int rows) {
+        ArrayList<String> testValues = new ArrayList<>();
+        for (int i = 0; i < rows; ++i) {
+            testValues.add(String.format("('testValue_%s')", i));
+        }
+        return String.format("INSERT INTO %s (bogusfield) VALUES %s", trinoPaginationTestTableName, String.join(", ", testValues));
+    }
+
+    private static @NotNull String createDateTimeTable() {
+        return String.format("""
+                CREATE TABLE %s (
+                zone VARCHAR(255),
+                thedate DATE,
+                thetime TIME,
+                thetimestamp TIMESTAMP,
+                thetimestampwithtimezone TIMESTAMP WITH TIME ZONE,
+                thetimestampwithouttimezone TIMESTAMP WITHOUT TIME ZONE,
+                thetimewithouttimezone TIME WITHOUT TIME ZONE,
+                thetimewithtimezone TIME WITH TIME ZONE)
+                """, trinoDateTimeTestTable);
+    }
+
+    private static @NotNull String insertIntoDateTimeTable(String zone, String date, String time, String timestamp, String timestampWithTimeZone, String timestampWithoutTimeZone, String timeWithoutTimeZone, String timeWithTimeZone) {
+        return String.format(
+                "INSERT INTO %s(zone, thedate, thetime, thetimestamp, thetimestampwithtimezone, thetimestampwithouttimezone, thetimewithouttimezone, thetimewithtimezone)"
+                    + " VALUES(%s, date %s, time %s, timestamp %s, timestamp %s, timestamp %s, time %s, time %s)",
+                trinoDateTimeTestTable,
+                quoteSqlString(zone),
+                quoteSqlString(date),
+                quoteSqlString(time),
+                quoteSqlString(timestamp),
+                quoteSqlString(timestampWithTimeZone),
+                quoteSqlString(timestampWithoutTimeZone),
+                quoteSqlString(timeWithoutTimeZone),
+                quoteSqlString(timeWithTimeZone)
+        );
+    }
+
+    private static @NotNull String createJsonTestTable() {
+        return String.format("CREATE TABLE %s (id varchar(25), data json)", trinoJsonTestTable);
+    }
+
+    private static @NotNull String insertIntoJsonTable(String id, String jsonLiteral) {
+        return String.format("INSERT INTO %s (id, data) VALUES(%s, json_parse(%s))",
+                trinoJsonTestTable,
+                quoteSqlString(id),
+                quoteSqlString(jsonLiteral));
+    }
+
+    private static String quoteSqlString(String s) {
+        if (s == null) {
+            return "null";
+        }
+        return "'" + s.replaceAll("'", "''") + "'";
+    }
+
+    private static void waitForQueryToFinish(String query) throws IOException {
         JsonNode node = trinoHttpClient.query(query, Map.of());
         String state = node.get("stats").get("state").asText();
         String nextPageUri = node.has("nextUri") ? node.get("nextUri").asText() : null;
         while (!state.equals("FINISHED") && nextPageUri != null) {
-            Thread.sleep(1000);
             node = trinoHttpClient.next(nextPageUri, Map.of());
             state = node.get("stats").get("state").asText();
             nextPageUri = node.has("nextUri") ? node.get("nextUri").asText() : null;
@@ -290,23 +328,13 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @AfterAll
-    public static void removeTestTables() {
-        if (trinoDateTimeTestTable != null) {
-            log.info("Trying to remove test tables");
+    public static void runAfterAllCleanups() {
+        log.info("Running {} afterAllCleanups...", afterAllCleanups.size());
+        for (int i = afterAllCleanups.size() - 1; i >= 0; i--) {
             try {
-                waitForQueryToFinish(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoDateTimeTestTable));
-                log.info("Successfully removed datetime test table " + trinoDateTimeTestTable);
-                trinoDateTimeTestTable = null;
-
-                waitForQueryToFinish(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoPaginationTestTableName));
-                log.info("Successfully removed pagination test table " + trinoPaginationTestTableName);
-                trinoPaginationTestTableName = null;
-
-                waitForQueryToFinish(String.format(DELETE_TEST_TABLE_TEMPLATE, trinoJsonTestTable));
-                log.info("Successfully removed json test table " + trinoJsonTestTable);
-                trinoJsonTestTable = null;
+                afterAllCleanups.get(i).run();
             } catch (Exception e) {
-                throw new RuntimeException("Error during removal of test tables. ", e);
+                log.error("Error during cleanup", e);
             }
         }
     }
@@ -316,7 +344,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         extraCredentials.clear();
     }
 
-    static String getFullyQualifiedTestTableName(String tableName) {
+    static String qualifyTestTableName(String tableName) {
         return inMemoryCatalog + "." + inMemorySchema + "." + tableName;
     }
 
@@ -349,6 +377,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 .extract()
                 .as(ListTableResponse.class);
     }
+
     @EnabledIfEnvironmentVariable(named = "E2E_INDEXING_SERVICE_ENABLED", matches = "true", disabledReason = "This test requires data-connect-trino to be hooked up to indexing-service")
     @Test
     public void getTableInfo_should_returnCustomSchema_from_indexingService() throws IOException {
@@ -863,7 +892,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
         assumeTrue(globalMethodSecurityEnabled);
         assumeTrue(scopeCheckingEnabled);
 
-        DataConnectRequest testDataConnectRequest = new DataConnectRequest("SELECT * FROM E2ETEST LIMIT 10");
+        DataConnectRequest testDataConnectRequest = new DataConnectRequest(
+                "SELECT * FROM %s LIMIT 10".formatted(trinoJsonTestTable));
+
         givenAuthenticatedRequest("data-connect:data") // but not data-connect:query
                 .when()
                 .contentType(ContentType.JSON)
