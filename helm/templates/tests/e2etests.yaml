@@ -11,10 +11,10 @@ spec:
       labels:
         admission.datadoghq.com/enabled: "true" # Enable Admission Controller to mutate new pods part of this deployment
     spec:
+      serviceAccountName: dataconnecttrino
       containers:
         - name: "data-connect-trino-e2etest"
           image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/data-connect-trino-e2e-tests:{{ .Chart.Version }}'
-          imagePullPolicy: Always
           env:
             - name: _JAVA_OPTIONS
               value: "-Dlogging.level.root=TRACE"

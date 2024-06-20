@@ -1,3 +1,28 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dataconnecttrino
+{{- if (coalesce .Values.image.secretName ((.Values.global).image).secretName) }}
+imagePullSecrets:
+  - name: "{{ coalesce .Values.image.secretName ((.Values.global).image).secretName }}"
+{{- end }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dataconnecttrino-{{ .Release.Namespace }}-edit-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+  - kind: ServiceAccount
+    name: dataconnecttrino
+    namespace: {{ .Release.Namespace }}
+
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -41,9 +66,9 @@ spec:
         tags.datadoghq.com/version: '{{- include  "dnastack.app.version" . }}'
         admission.datadoghq.com/enabled: "true" # Enable Admission Controller to mutate new pods part of this deployment
     spec:
+      serviceAccountName: dataconnecttrino
       initContainers:
         - name: data-connect-trino-cloud-init
-          imagePullPolicy: Always
           image: '{{ coalesce .Values.image.repository ((.Values.global).image).repository }}/data-connect-trino-cloud-init-job:{{- include  "dnastack.cloudinit.version" . }}'
           command: [ "/cloud-init/run_cloud_init.sh" ]
           args: []
