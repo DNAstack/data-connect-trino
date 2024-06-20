@@ -9,6 +9,7 @@ global:
       version:
   image:
     repository:
+    secretName:
   auditLogService:
     appName: audit-log-service # Host portion of the audit-log-service URL e.g. audit-log-service
   collectionService:
@@ -25,7 +26,8 @@ global:
     appName: wallet # Host portion of the wallet URL to be used for authorization e.g. wallet
 
 image:
-  repository: # Docker repository to pull the image from
+  secretName: # the image pull secret used to pull images from GCP artifact registry
+  repository: # docker repository to pull the image from
 
 app:
   configVersion: config-version
