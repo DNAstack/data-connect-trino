@@ -41,6 +41,8 @@ RUN busybox adduser -D -h / ${APP_NAME}
 USER ${APP_NAME}
 
 COPY --from=0 /build/target/data-connect-trino-*.jar /app.jar
+COPY --from=0 /build/java-buildpack-memory-calculator /java-buildpack-memory-calculator
+
 EXPOSE 8080
 #ENTRYPOINT exec java ${JAVA_OPTS} -jar app.jar
 # If the container has a memory limit, that limit (in bytes) is present in a file under /sys/fs/cgroup
@@ -51,8 +53,8 @@ EXPOSE 8080
 CMD container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memory/memory.limit_in_bytes") ; \
     exec java $(/java-buildpack-memory-calculator \
     --total-memory=$([ "$container_mem" = "max" -o -z "$container_mem" -o "$container_mem" = "9223372036854771712" ] && echo "2097152000" || echo "$container_mem")B \
-    --loaded-class-count="${ESTIMATED_LOADED_CLASSES:-22000}" \
-    --thread-count="${ESTIMATED_THREADS:-85}" \
+    --loaded-class-count="${ESTIMATED_LOADED_CLASSES:-20000}" \
+    --thread-count="${ESTIMATED_THREADS:-50}" \
     --head-room="${HEAD_ROOM:-10}" \
     --jvm-options="${JAVA_OPTS}") ${JAVA_OPTS} \
     -jar app.jar

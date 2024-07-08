@@ -184,7 +184,7 @@ spec:
               scheme: HTTP
             initialDelaySeconds: 10
             periodSeconds: 5
-            timeoutSeconds: 60
+            timeoutSeconds: 120
           livenessProbe:
             httpGet:
               path: /actuator/health
