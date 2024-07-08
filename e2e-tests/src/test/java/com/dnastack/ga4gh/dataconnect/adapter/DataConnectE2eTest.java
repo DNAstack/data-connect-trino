@@ -155,7 +155,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static final boolean trinoIsPublic = Boolean.parseBoolean(optionalEnv("E2E_TRINO_IS_PUBLIC", "false"));
 
     @BeforeAll
-    public static void beforeClass() {
+    public static void beforeClass() throws InterruptedException {
         AuthConfig.OauthClientConfig clientConfig = new AuthConfig.OauthClientConfig();
         clientConfig.setTokenUri(walletTokenUrl);
         clientConfig.setClientId(walletClientId);
@@ -185,7 +185,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static String trinoJsonTestTable;
     private static String unqualifiedPaginationTestTable; //just the table name (no catalog or schema)
 
-    private static void setupTestTables() {
+    private static void setupTestTables() throws InterruptedException {
         String randomFactor = RandomStringUtils.randomAlphanumeric(16);
         List<String> queries = new LinkedList<>();
 
@@ -242,6 +242,10 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 throw new RuntimeException("During test table setup, failed to execute: " + query, e);
             }
         }
+
+        // Give the tables a moment to settle, we've seen some flakiness in the tests
+        // and suspect that the memory connector for trino may be eventually consistent
+        Thread.sleep(1000);
     }
 
     /** Enquques a cleanup operation for the given table */
