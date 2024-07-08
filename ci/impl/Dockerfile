@@ -37,6 +37,9 @@ FROM amazoncorretto:21-alpine
 ARG APP_NAME
 ARG APP_VERSION
 
+# gcompat required for statically-linked java-buildpack-memory-calculator to work under alpine
+RUN apk add --no-cache gcompat
+
 RUN busybox adduser -D -h / ${APP_NAME}
 USER ${APP_NAME}
 
