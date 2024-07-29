@@ -177,22 +177,23 @@ spec:
               memory: {{ .Values.app.memoryLimit }}
             requests:
               memory: {{ .Values.app.memoryLimit }}
-          readinessProbe:
+          startupProbe:
             httpGet:
               path: /actuator/health
               port: 8080
               scheme: HTTP
             initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 18 # this will result in a 3 minutes timeout (periodSeconds * failureThreshold)
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 30
             periodSeconds: 10
-            timeoutSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 1
           env:
             - name: JAVA_OPTS
               value: "-XX:+PrintFlagsFinal -XX:+ExitOnOutOfMemoryError"
