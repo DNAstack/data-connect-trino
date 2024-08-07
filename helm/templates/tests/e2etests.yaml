@@ -6,7 +6,7 @@ metadata:
     "helm.sh/hook": test
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
-  template: # Enable Admission Controller to mutate new pods part of this deployment
+  template:
     spec:
       serviceAccountName: dataconnecttrino
       containers:
@@ -87,6 +87,7 @@ spec:
               name: "reports"
       volumes:
         - name: "reports"
+          emptyDir: {}
       {{- end}}
       restartPolicy: Never
   backoffLimit: 0
