@@ -31,7 +31,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app: data-connect-trino
     configVersion: {{ .Values.app.configVersion }}
-    secretsHash:
+    secretsHash: {{ .Values.app.secretHash }}
     product: "data-connect"
     {{- range $key, $value := .Values.global.deploymentLabels }}
     {{ $key }}: {{ tpl ($value | toString) $ | quote }}
