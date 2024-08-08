@@ -34,7 +34,7 @@ metadata:
     secretsHash: {{ .Values.app.secretHash }}
     product: "data-connect"
     {{- range $key, $value := .Values.global.deploymentLabels }}
-    {{ $key }}: {{ tpl ($value | toString) $ | quote }}
+    {{ tpl ($key | toString) $ }}: {{ tpl ($value | toString) $ | quote }}
     {{- end }}
   annotations:
     meta.helm.sh/release-name: data-connect-trino
@@ -54,7 +54,7 @@ spec:
         prometheus.io/port: "8080"
         prometheus.io/path: "/actuator/prometheus"
         {{- range $key, $value := .Values.global.templateAnnotations }}
-        {{ $key }}: {{ tpl ($value | toString) $ | quote }}
+        {{ tpl ($key | toString) $ }}: {{ tpl ($value | toString) $ | quote }}
         {{- end }}
       labels:
         app: data-connect-trino
@@ -63,7 +63,7 @@ spec:
         secretsHash: {{ .Values.app.secretHash }}
         product: "data-connect_spec"
         {{- range $key, $value := .Values.global.templateLabels }}
-        {{ $key }}: {{ tpl ($value | toString) $ | quote }}
+        {{ tpl ($key | toString) $ }}: {{ tpl ($value | toString) $ | quote }}
         {{- end }}
     spec:
       serviceAccountName: dataconnecttrino
