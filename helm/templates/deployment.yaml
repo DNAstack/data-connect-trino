@@ -32,10 +32,10 @@ metadata:
     app: data-connect-trino
     configVersion: {{ .Values.app.configVersion }}
     secretsHash: {{ .Values.app.secretHash }}
-    tags.datadoghq.com/env: "{{ coalesce .Values.cloud.clusterName ((.Values.global).cloud).clusterName }}_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}" # Unified service tag - Pod Env tag
-    tags.datadoghq.com/service: "data-connect-trino" # Unified service tag - Pod Service tag
-    tags.datadoghq.com/version: '{{- include  "dnastack.app.version" . }}'
     product: "data-connect"
+    {{- range $key, $value := .Values.global.deploymentLabels }}
+    {{ $key }}: {{ tpl ($value | toString) $ | quote }}
+    {{- end }}
   annotations:
     meta.helm.sh/release-name: data-connect-trino
     meta.helm.sh/release-namespace: {{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}
@@ -53,18 +53,18 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         prometheus.io/path: "/actuator/prometheus"
-        ad.datadoghq.com/data-connect-trino.logs: '[{"source":"java"}]'
-        admission.datadoghq.com/java-lib.version: "v1.22.0" # Releases are listed in https://github.com/DataDog/dd-trace-java/releases
+        {{- range $key, $value := .Values.global.templateAnnotations }}
+        {{ $key }}: {{ tpl ($value | toString) $ | quote }}
+        {{- end }}
       labels:
         app: data-connect-trino
         version: '{{- include  "dnastack.app.version" . }}'
         configVersion: {{ .Values.app.configVersion }}
         secretsHash: {{ .Values.app.secretHash }}
         product: "data-connect_spec"
-        tags.datadoghq.com/env: "{{ coalesce .Values.cloud.clusterName ((.Values.global).cloud).clusterName }}_{{ coalesce .Values.cloud.clusterNamespace ((.Values.global).cloud).clusterNamespace }}" # Unified service tag - Pod Env tag
-        tags.datadoghq.com/service: "data-connect-trino" # Unified service tag - Pod Service tag
-        tags.datadoghq.com/version: '{{- include  "dnastack.app.version" . }}'
-        admission.datadoghq.com/enabled: "true" # Enable Admission Controller to mutate new pods part of this deployment
+        {{- range $key, $value := .Values.global.templateLabels }}
+        {{ $key }}: {{ tpl ($value | toString) $ | quote }}
+        {{- end }}
     spec:
       serviceAccountName: dataconnecttrino
       initContainers:
