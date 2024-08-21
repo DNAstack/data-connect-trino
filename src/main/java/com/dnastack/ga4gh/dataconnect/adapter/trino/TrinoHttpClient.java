@@ -157,6 +157,17 @@ public class TrinoHttpClient implements TrinoClient {
 
         try {
             TrinoDataPage trinoPage = objectMapper.readValue(httpResponseBody, TrinoDataPage.class);
+            if (trinoPage.nextUri() != null && trinoPage.nextUri().startsWith("https://")) {
+                trinoPage = new TrinoDataPage(
+                    trinoPage.id(),
+                    trinoPage.infoUri(),
+                    trinoPage.nextUri().replace("https://", "http://"),
+                    trinoPage.error(),
+                    trinoPage.columns(),
+                    trinoPage.data(),
+                    trinoPage.stats()
+                );
+            }
             String trinoState = Optional.ofNullable(trinoPage.stats().state()).orElse("(no state in response)");
 
             if (isRunning(trinoState) || trinoState.equalsIgnoreCase("finished")) {
@@ -200,7 +211,9 @@ public class TrinoHttpClient implements TrinoClient {
     }
 
     private Response execute(final Request.Builder request, Map<String, String> extraCredentials) throws IOException {
+        // TODO -  Remove the X-Trino-User header once the HeaderAuthenticator is enabled - CU-86b17aw6h
         request.header("X-Trino-User", getUserNameForRequest());
+        request.header("X-Forwarded-Proto", "https");
         request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
         if (tracing.currentTraceContext().get() != null) {
             request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
