@@ -211,8 +211,6 @@ public class TrinoHttpClient implements TrinoClient {
     }
 
     private Response execute(final Request.Builder request, Map<String, String> extraCredentials) throws IOException {
-        // TODO -  Remove the X-Trino-User header once the HeaderAuthenticator is enabled - CU-86b17aw6h
-        request.header("X-Trino-User", getUserNameForRequest());
         request.header("X-Forwarded-Proto", "https");
         request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
         if (tracing.currentTraceContext().get() != null) {
