@@ -169,10 +169,12 @@ public class DataConnectE2eTest extends BaseE2eTest {
         ServiceAccountAuthenticator serviceAccountAuthenticator = trinoIsPublic ? new ServiceAccountAuthenticator() : new ServiceAccountAuthenticator(clientConfig);
 
         trinoHttpClient = new TrinoHttpClient(
-                tracing,
-                new OkHttpClient(),
-                trinoHostname,
-                serviceAccountAuthenticator
+            tracing,
+            new OkHttpClient(),
+            trinoHostname,
+            serviceAccountAuthenticator,
+            Map.of(),
+            true
         );
 
         log.info("Setting up test tables");
