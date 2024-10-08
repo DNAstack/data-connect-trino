@@ -489,13 +489,13 @@ public class TrinoDataConnectAdapter {
             throw new TrinoNoSuchColumnException(trinoError);
         } else if (trinoError.getErrorType().equals("USER_ERROR")) {
             if (trinoError.getErrorName().equals("PERMISSION_DENIED")) {
-                if (trinoError.getMessage().startsWith("Access Denied: HTTP 500")) {
+                if (trinoError.getMessage().contains("Access Denied: HTTP 500")) {
                     throw new TrinoInternalErrorException(trinoError);
-                } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 404")) {
+                } else if (trinoError.getMessage().contains("Access Denied: HTTP 404")) {
                     throw new TrinoNoSuchTableException(trinoError);
-                } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 401")) {
+                } else if (trinoError.getMessage().contains("Access Denied: HTTP 401")) {
                     throw new TrinoUserUnauthorizedException(trinoError);
-                } else if (trinoError.getMessage().startsWith("Access Denied: HTTP 403")) {
+                } else if (trinoError.getMessage().contains("Access Denied: HTTP 403")) {
                     throw new TrinoUserForbiddenException(trinoError);
                 }
             }
