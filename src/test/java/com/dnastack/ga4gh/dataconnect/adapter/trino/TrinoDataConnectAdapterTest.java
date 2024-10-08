@@ -3,13 +3,13 @@ package com.dnastack.ga4gh.dataconnect.adapter.trino;
 import brave.Tracer;
 import brave.Tracing;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUserUnauthorizedException;
 import com.dnastack.ga4gh.dataconnect.model.DataModel;
 import com.dnastack.ga4gh.dataconnect.model.TableData;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +20,7 @@ import org.jdbi.v3.core.extension.ExtensionConsumer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.io.UncheckedIOException;
@@ -29,8 +30,7 @@ import java.util.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -410,5 +410,81 @@ public class TrinoDataConnectAdapterTest {
                 tableData.getData(), empty());
         assertThat("Should get a data model generated from the column info",
                 tableData.getDataModel().getDescription(), equalTo("Automatically generated schema"));
+    }
+
+    @Test
+    public void getTableData_should_returnHttp401_when_trinoClientFindsMagicStringInThrowable() {
+        mockTrinoClient.setResponsePages(List.of(
+                //language=json
+                """
+                {
+                  "id" : "20241008_160203_00004_gexz2",
+                  "infoUri" : "https://localhost:8091/ui/query.html?20241008_160203_00004_gexz2",
+                  "nextUri" : null,
+                  "error" : {
+                    "failureInfo" : {
+                      "type" : "io.trino.spi.security.AccessDeniedException",
+                      "message" : "Access Denied: HTTP 401: The Token has expired on 2024-10-08T00:51:16Z.",
+                      "errorInfo" : {
+                        "code" : "4",
+                        "name" : "PERMISSION_DENIED",
+                        "type" : "USER_ERROR"
+                      },
+                      "cause" : null,
+                      "suppressed" : [ ],
+                      "stack" : [
+                        "com.dnastack.trino.plugin.PublisherSystemAccessControlFactory.lambda$create$0(PublisherSystemAccessControlFactory.java:163)",
+                        "jdk.proxy17/jdk.proxy17.$Proxy618.checkCanSelectFromColumns(Unknown Source)",
+                        "io.trino.security.AccessControlManager.lambda$checkCanSelectFromColumns$97(AccessControlManager.java:1098)",
+                        "io.trino.security.AccessControlManager.systemAuthorizationCheck(AccessControlManager.java:1490)",
+                        "io.trino.security.AccessControlManager.checkCanSelectFromColumns(AccessControlManager.java:1098)",
+                        "io.trino.security.ForwardingAccessControl.checkCanSelectFromColumns(ForwardingAccessControl.java:422)",
+                        "io.trino.tracing.TracingAccessControl.checkCanSelectFromColumns(TracingAccessControl.java:610)",
+                        "io.trino.sql.analyzer.Analyzer.lambda$analyze$0(Analyzer.java:104)",
+                        "java.base/java.util.LinkedHashMap.forEach(LinkedHashMap.java:986)",
+                        "io.trino.sql.analyzer.Analyzer.lambda$analyze$1(Analyzer.java:103)",
+                        "java.base/java.util.LinkedHashMap.forEach(LinkedHashMap.java:986)",
+                        "io.trino.sql.analyzer.Analyzer.analyze(Analyzer.java:102)",
+                        "io.trino.sql.analyzer.Analyzer.analyze(Analyzer.java:86)",
+                        "io.trino.execution.SqlQueryExecution.analyze(SqlQueryExecution.java:285)",
+                        "io.trino.execution.SqlQueryExecution.<init>(SqlQueryExecution.java:218)",
+                        "io.trino.execution.SqlQueryExecution$SqlQueryExecutionFactory.createQueryExecution(SqlQueryExecution.java:892)",
+                        "io.trino.dispatcher.LocalDispatchQueryFactory.lambda$createDispatchQuery$0(LocalDispatchQueryFactory.java:153)",
+                        "io.trino.$gen.Trino_445____20241008_160046_2.call(Unknown Source)",
+                        "com.google.common.util.concurrent.TrustedListenableFutureTask$TrustedFutureInterruptibleTask.runInterruptibly(TrustedListenableFutureTask.java:131)",
+                        "com.google.common.util.concurrent.InterruptibleTask.run(InterruptibleTask.java:76)",
+                        "com.google.common.util.concurrent.TrustedListenableFutureTask.run(TrustedListenableFutureTask.java:82)",
+                        "java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)",
+                        "java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)",
+                        "java.base/java.lang.Thread.run(Thread.java:1570)"
+                      ]
+                    },
+                    "message" : "Access Denied: HTTP 401: The Token has expired on 2024-10-08T00:51:16Z.",
+                    "errorCode" : 4,
+                    "errorName" : "PERMISSION_DENIED",
+                    "errorType" : "USER_ERROR"
+                  },
+                  "columns" : null,
+                  "data" : null,
+                  "stats" : {
+                    "state" : "FAILED"
+                  }
+                }
+                """
+        ));
+        fakeDataModel = null;
+
+        // When I try to get table data
+        try {
+            dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
+            fail("Should have thrown a TrinoUserUnauthorizedException");
+        } catch (TrinoUserUnauthorizedException e) {
+
+            // then the exception should propagate an HTTP 401 status
+            assertThat(e.getHttpStatus(), equalTo(HttpStatus.UNAUTHORIZED));
+
+            // and the exception should contain the text of the underlying Trino error message
+            assertThat(e.getMessage(), containsString("The Token has expired on 2024-10-08T00:51:16Z."));
+        }
     }
 }
