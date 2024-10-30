@@ -90,7 +90,7 @@ spec:
             - name: USE_LOCAL_HTTPIE
               value: "true"
             - name: USE_LOCAL_PSQL
-              value: "false"
+              value: "true"
             - name: SHARED_POSTGRES_INSTANCE
               value: '{{ coalesce .Values.database.postgresInstance (((.Values.global).database).postgres).instance }}'
             - name: APP_POSTGRES_VERSION
