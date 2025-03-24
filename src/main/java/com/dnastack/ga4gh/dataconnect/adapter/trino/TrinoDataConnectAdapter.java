@@ -475,7 +475,8 @@ public class TrinoDataConnectAdapter {
         jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJob.getId()));
 
         TrinoError trinoError = trinoPage.error();
-        log.info("Returning Trino exception: {} {}",
+        log.info("Returning Trino exception for query {}: {} {}",
+            queryJob.getId(),
             trinoError.getFailureInfo().getType(),
             trinoError.getFailureInfo().getMessage());
 
@@ -504,10 +505,10 @@ public class TrinoDataConnectAdapter {
         } else if (trinoError.getErrorType().equals("INSUFFICIENT_RESOURCES")) {
             throw new TrinoInsufficientResourcesException(trinoError);
         } else {
-            // For unexpected execptions, it's usually a programming error or a tricky configuration issue.
+            // For unexpected exceptions, it's usually a programming error or a tricky configuration issue.
             // Either way, we need more diagnostic information. This is the only place where this stack trace
             // will be logged. Only the exception type and message is sent to the client.
-            log.warn("Unexpected {}", trinoError);
+            log.warn("Internal error in query {}: {}", queryJob.getId(), trinoError);
             throw new TrinoInternalErrorException(trinoError.withoutStackTraces());
         }
     }
