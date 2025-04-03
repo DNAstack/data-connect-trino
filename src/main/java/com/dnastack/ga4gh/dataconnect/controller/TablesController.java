@@ -55,16 +55,18 @@ public class TablesController {
     @AuditActionUri("data-connect:get-tables-in-catalog")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
-    @GetMapping(value = "/tables/catalog/{catalogName}")
+    @GetMapping(value = "/tables/catalog/{catalogName}/schema/{schemaName}")
     public ResponseEntity<TablesList> getTablesByCatalog(@PathVariable("catalogName") String catalogName,
+                                                         @PathVariable("schemaName") String schemaName,
                                                          HttpServletRequest request,
                                                          @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
         TablesList tablesList;
 
         try {
             tablesList = trinoDataConnectAdapter
-                .getTablesInCatalog(catalogName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                    .getTablesByCatalogAndSchema(catalogName, schemaName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
+            log.error("Error getting tables for catalog {} and schema {}", catalogName, schemaName, ex);
             throw new TableApiErrorException(ex, TablesList::errorInstance);
         }
 

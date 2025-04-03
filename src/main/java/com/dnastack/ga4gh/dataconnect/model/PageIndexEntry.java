@@ -14,6 +14,9 @@ public class PageIndexEntry {
     @JsonProperty("description")
     private String catalog; //may need to rename
 
+    @JsonProperty("schema")
+    private String schema;
+
     @JsonProperty("url")
     private URI url;
 

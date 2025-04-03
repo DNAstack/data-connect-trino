@@ -1,10 +1,10 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
 import com.dnastack.ga4gh.dataconnect.model.*;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -20,6 +20,7 @@ public class TrinoCatalog {
     private final String callbackBaseUrl;
 
     private final String catalogName;
+    private final String schemaName;
 
     // language=PostgreSQL
     private static final String QUERY_TABLE_TEMPLATE =
@@ -27,11 +28,13 @@ public class TrinoCatalog {
             SELECT table_catalog, table_schema, table_name
              FROM %s.information_schema.tables
              WHERE table_schema != 'information_schema'
+             AND table_schema = '%s'
              AND table_type IN ('BASE TABLE','VIEW')
             UNION
             SELECT table_catalog, table_schema, table_name
              FROM %s.information_schema.views
              WHERE table_schema != 'information_schema'
+             AND table_schema = '%s'
             ORDER BY 1, 2, 3
             """;
 
@@ -57,7 +60,8 @@ public class TrinoCatalog {
 
     public TablesList getTablesList(Pagination nextPage, HttpServletRequest request, Map<String, String> extraCredentials) {
         try {
-            TableData tables = dataConnectAdapter.searchAll(String.format(QUERY_TABLE_TEMPLATE, quote(catalogName), quote(catalogName)), request, extraCredentials, null);
+            String queryStatement = String.format(QUERY_TABLE_TEMPLATE, quote(catalogName), schemaName, quote(catalogName), schemaName);
+            TableData tables = dataConnectAdapter.searchAll(queryStatement, request, extraCredentials, null);
             List<TableInfo> tableInfoList = getTableInfoList(tables);
             return new TablesList(tableInfoList, null, nextPage);
         } catch (Throwable t) {
