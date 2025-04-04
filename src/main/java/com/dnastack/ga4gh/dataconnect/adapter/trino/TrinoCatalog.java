@@ -18,25 +18,42 @@ public class TrinoCatalog {
      * This is a URL scheme + host + port + path prefix. Never ends with "/".
      */
     private final String callbackBaseUrl;
-
     private final String catalogName;
     private final String schemaName;
 
+    public TrinoCatalog(TrinoDataConnectAdapter dataConnectAdapter, String callbackBaseUrl, String catalogName) {
+        this(dataConnectAdapter, callbackBaseUrl, catalogName, null);
+    }
+
     // language=PostgreSQL
-    private static final String QUERY_TABLE_TEMPLATE =
-        """
-            SELECT table_catalog, table_schema, table_name
-             FROM %s.information_schema.tables
-             WHERE table_schema != 'information_schema'
-             AND table_schema = '%s'
-             AND table_type IN ('BASE TABLE','VIEW')
-            UNION
-            SELECT table_catalog, table_schema, table_name
-             FROM %s.information_schema.views
-             WHERE table_schema != 'information_schema'
-             AND table_schema = '%s'
-            ORDER BY 1, 2, 3
-            """;
+    private static final String QUERY_TABLE_WITH_SCHEMA_TEMPLATE =
+            """
+                SELECT table_catalog, table_schema, table_name
+                 FROM %s.information_schema.tables
+                 WHERE table_schema != 'information_schema'
+                 AND table_schema = '%s'
+                 AND table_type IN ('BASE TABLE','VIEW')
+                UNION
+                SELECT table_catalog, table_schema, table_name
+                 FROM %s.information_schema.views
+                 WHERE table_schema != 'information_schema'
+                 AND table_schema = '%s'
+                ORDER BY 1, 2, 3
+                """;
+
+    // language=PostgreSQL
+    private static final String QUERY_TABLE_WITHOUT_SCHEMA_TEMPLATE =
+            """
+                SELECT table_catalog, table_schema, table_name
+                 FROM %s.information_schema.tables
+                 WHERE table_schema != 'information_schema'
+                 AND table_type IN ('BASE TABLE','VIEW')
+                UNION
+                SELECT table_catalog, table_schema, table_name
+                 FROM %s.information_schema.views
+                 WHERE table_schema != 'information_schema'
+                ORDER BY 1, 2, 3
+                """;
 
 
     private TableInfo getTableInfo(Map<String, Object> row) {
@@ -50,8 +67,8 @@ public class TrinoCatalog {
 
     private List<TableInfo> getTableInfoList(TableData tableData) {
         return tableData.getData().stream()
-                        .map(this::getTableInfo)
-                        .collect(Collectors.toList());
+                .map(this::getTableInfo)
+                .collect(Collectors.toList());
     }
 
     private static String quote(String sqlIdentifier) {
@@ -60,7 +77,15 @@ public class TrinoCatalog {
 
     public TablesList getTablesList(Pagination nextPage, HttpServletRequest request, Map<String, String> extraCredentials) {
         try {
-            String queryStatement = String.format(QUERY_TABLE_TEMPLATE, quote(catalogName), schemaName, quote(catalogName), schemaName);
+            String queryStatement;
+            if (schemaName != null) {
+                queryStatement = String.format(QUERY_TABLE_WITH_SCHEMA_TEMPLATE,
+                        quote(catalogName), schemaName, quote(catalogName), schemaName);
+            } else {
+                queryStatement = String.format(QUERY_TABLE_WITHOUT_SCHEMA_TEMPLATE,
+                        quote(catalogName), quote(catalogName));
+            }
+
             TableData tables = dataConnectAdapter.searchAll(queryStatement, request, extraCredentials, null);
             List<TableInfo> tableInfoList = getTableInfoList(tables);
             return new TablesList(tableInfoList, null, nextPage);

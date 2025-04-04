@@ -46,6 +46,7 @@ public class TrinoDataConnectAdapter {
 
     private static final String NEXT_PAGE_SEARCH_TEMPLATE = "/search/%s"; //todo: alternatives?
     private static final String NEXT_PAGE_CATALOG_TEMPLATE = "/tables/catalog/%s/schema/%s";
+    private static final String NEXT_PAGE_CATALOG_SCHEMA_TEMPLATE = "/tables/catalog/%s";
 
     //Matches the given name against the pattern <catalog>.<schema>.<table>, "<catalog>"."<schema>"."<table>", or
     //"<catalog>.<schema>.<table>".  Note this pattern is permissive and will often allow misquoted names through.
@@ -288,6 +289,10 @@ public class TrinoDataConnectAdapter {
         return URI.create(callbackBaseUrl(request) + String.format(NEXT_PAGE_CATALOG_TEMPLATE, catalog, schema));
     }
 
+    private URI getLinkToCatalog(String catalog, HttpServletRequest request) {
+        return URI.create(callbackBaseUrl(request) + String.format(NEXT_PAGE_CATALOG_SCHEMA_TEMPLATE, catalog));
+    }
+
     private PageIndexEntry getPageIndexEntryForCatalog(String catalog, String schema, int page, HttpServletRequest request) {
         URI uri = getLinkedToSchema(catalog, schema, request);
         return PageIndexEntry.builder()
@@ -300,21 +305,19 @@ public class TrinoDataConnectAdapter {
 
     private List<PageIndexEntry> getPageIndex(Map<String, List<String>> catalogSchemas, HttpServletRequest request) {
         final int[] page = {0};
+
         return catalogSchemas.entrySet()
                 .stream()
-                .map(entry -> {
-                    String catalog = entry.getKey();
-                    List<String> schemas = entry.getValue();
-                    return schemas.stream().map(schema -> getPageIndexEntryForCatalog(catalog, schema, page[0]++, request)).toList();
-                }).toList().stream().flatMap(List::stream).toList();
+                .flatMap(entry -> entry.getValue().stream()
+                        .map(schema -> getPageIndexEntryForCatalog(entry.getKey(), schema, page[0]++, request)))
+                .toList();
     }
 
-    private TablesList getTables(String currentCatalog, String nextCatalog, String currentSchema, String nextSchema, HttpServletRequest request, Map<String, String> extraCredentials) {
-        TrinoCatalog trinoCatalog = new TrinoCatalog(this, callbackBaseUrl(request), currentCatalog, currentSchema);
+    private TablesList getTables(String currentCatalog, String nextCatalog, HttpServletRequest request, Map<String, String> extraCredentials) {
+        TrinoCatalog trinoCatalog = new TrinoCatalog(this, callbackBaseUrl(request), currentCatalog);
         Pagination nextPage = null;
-
-        if (nextCatalog != null && nextSchema != null) {
-            nextPage = new Pagination(null, getLinkedToSchema(nextCatalog, nextSchema, request), null);
+        if (nextCatalog != null) {
+            nextPage = new Pagination(null, getLinkToCatalog(nextCatalog, request), null);
         }
 
         return trinoCatalog.getTablesList(nextPage, request, extraCredentials);
@@ -349,24 +352,110 @@ public class TrinoDataConnectAdapter {
         return tablesList;
     }
 
-
-    public TablesList getTablesByCatalogAndSchema(String catalog, String schemaName, HttpServletRequest request, Map<String, String> extraCredentials) {
+    public TablesList getTablesInCatalog(String catalog, HttpServletRequest request, Map<String, String> extraCredentials) {
         Set<String> catalogs = getTrinoCatalogs(request, extraCredentials);
         Iterator<String> catalogIt = catalogs.iterator();
-
         while (catalogIt.hasNext()) {
             if (catalogIt.next().equals(catalog)) {
-                Set<String> trinoSchema = getTrinoSchema(request, catalog, extraCredentials);
-
-                Iterator<String> schemaIt = trinoSchema.iterator();
-                while (schemaIt.hasNext()) {
-                    if (schemaIt.next().equals(schemaName)) {
-                        return getTables(catalog, catalogIt.hasNext() ? catalogIt.next() : null, schemaName, schemaIt.hasNext() ? schemaIt.next() : null, request, extraCredentials);
-                    }
-                }
+                return getTables(catalog, catalogIt.hasNext() ? catalogIt.next() : null, request, extraCredentials);
             }
         }
         throw new TrinoNoSuchCatalogException("No such catalog " + catalog);
+    }
+
+    /**
+     * Fetches tables for a specific catalog and schema, calculating the correct
+     * pagination link to the next logical schema (which might be in the next catalog).
+     *
+     * @param catalog        The target catalog name.
+     * @param schemaName     The target schema name.
+     * @param request        HttpServletRequest.
+     * @param extraCredentials Extra credentials.
+     * @return TablesList containing tables for the target and a pagination link if applicable.
+     * @throws TrinoNoSuchCatalogException If the catalog or schema doesn't exist or is inaccessible/filtered.
+     */
+    public TablesList getTablesByCatalogAndSchema(String catalog, String schemaName, HttpServletRequest request, Map<String, String> extraCredentials) {
+        Set<String> catalogs = getTrinoCatalogs(request, extraCredentials);
+        Iterator<String> catalogIterator = catalogs.iterator();
+
+        String effectiveNextCatalog = null;
+        String effectiveNextSchema = null;
+        boolean foundTargetSchema = false;
+
+        while (catalogIterator.hasNext()) {
+            String currentCatalogLoop = catalogIterator.next();
+
+            if (!currentCatalogLoop.equals(catalog)) {
+                continue;
+            }
+
+            Set<String> trinoSchema = getTrinoSchema(request, catalog, extraCredentials);
+            Iterator<String> schemaIterator = trinoSchema.iterator();
+
+            while (schemaIterator.hasNext()) {
+                String currentSchemaLoop = schemaIterator.next();
+
+                if (!currentSchemaLoop.equals(schemaName)) {
+                    continue;
+                }
+
+                foundTargetSchema = true;
+
+                // Check for more schemas within the *current* catalog
+                if (schemaIterator.hasNext()) {
+                    effectiveNextSchema = schemaIterator.next(); // The immediate next schema
+                    effectiveNextCatalog = catalog; // Stay within the current catalog
+                } else {
+                    // No more schemas here. Check if there's a *next* catalog.
+                    if (catalogIterator.hasNext()) {
+                        String nextCatalogOverall = catalogIterator.next();
+                        // Find the *first* schema in that next catalog
+                        Set<String> nextCatalogSchemas = getTrinoSchema(request, nextCatalogOverall, extraCredentials);
+                        if (!nextCatalogSchemas.isEmpty()) {
+                            effectiveNextCatalog = nextCatalogOverall;
+                            effectiveNextSchema = nextCatalogSchemas.iterator().next(); // Get the first valid schema
+                        }
+                        // If next catalog has no schemas, effectiveNext* remain null (no link)
+                    }
+                    //No more schemas and no more catalogs, effectiveNext* remain null (no link)
+                }
+                // Once the next step is determined after finding the target, we can stop searching.
+                break;
+            }
+
+            if (foundTargetSchema) {
+                break; // Exit catalog loop
+            } else {
+                // If we finished iterating schemas in the target catalog but didn't find the target schema
+                throw new TrinoNoSuchCatalogException("No such schema " + schemaName + " found in catalog " + catalog);
+            }
+
+        }
+
+        // If we iterated through all catalogs and never found the target catalog/schema combination
+        if (!foundTargetSchema) {
+            throw new TrinoNoSuchCatalogException("No such catalog " + catalog + " or schema " + schemaName);
+        }
+
+        // Call the helper method. It will use effectiveNextCatalog and effectiveNextSchema
+        // ONLY IF BOTH ARE NON-NULL to create the pagination link.
+        // The logic above ensures they are non-null only when a valid next step exists.
+        return getTables(catalog, effectiveNextCatalog, schemaName, effectiveNextSchema, request, extraCredentials);
+    }
+
+    /**
+     * Helper method to get tables for a specific catalog/schema and attach a pre-calculated
+     * pagination link if the next catalog/schema are known.
+     * (This method remains unchanged)
+     */
+    private TablesList getTables(String currentCatalog, String nextCatalogIfKnown, String currentSchema, String nextSchemaIfKnown, HttpServletRequest request, Map<String, String> extraCredentials) {
+        TrinoCatalog trinoCatalog = new TrinoCatalog(this, callbackBaseUrl(request), currentCatalog, currentSchema);
+        Pagination nextPage = null;
+        if (nextCatalogIfKnown != null && nextSchemaIfKnown != null) {
+            nextPage = new Pagination(null, getLinkedToSchema(nextCatalogIfKnown, nextSchemaIfKnown, request), null);
+        }
+
+        return trinoCatalog.getTablesList(nextPage, request, extraCredentials);
     }
 
     public TableData getTableData(String tableName, HttpServletRequest request, Map<String, String> extraCredentials) {
@@ -815,7 +904,7 @@ public class TrinoDataConnectAdapter {
             if (schemasSet.contains(schema)) {
                 throw new AssertionError("Unexpected duplicate schema " + schema);
             }
-            if (schema.equalsIgnoreCase("information_schema")) {
+            if ("information_schema".equalsIgnoreCase(schema)) {
                 log.debug("Ignoring schema {}", schema);
                 continue;
             }
