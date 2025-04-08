@@ -180,35 +180,35 @@ public class TrinoDataConnectAdapterTest {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "nextUri": "http://example.com/fake-req-2"
-                        }
-                        """,
+                    {
+                        "id": "fake-req-1",
+                        "nextUri": "http://example.com/fake-req-2"
+                    }
+                """,
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "columns": [
-                                {
-                                    "name": "col1",
-                                    "typeSignature": {
-                                        "arguments": [
-                                            {
-                                                "value": {
-                                                    "rawType": "string"
-                                                }
+                    {
+                        "id": "fake-req-1",
+                        "columns": [
+                            {
+                                "name": "col1",
+                                "typeSignature": {
+                                    "arguments": [
+                                        {
+                                            "value": {
+                                                "rawType": "string"
                                             }
-                                        ],
-                                        "rawType": "array"
-                                    }
+                                        }
+                                    ],
+                                    "rawType": "array"
                                 }
-                            ],
-                            "data": [
-                                [[ "a", "b", null, "a", null ]]
-                            ]
-                        }
-                        """
+                            }
+                        ],
+                        "data": [
+                            [[ "a", "b", null, "a", null ]]
+                        ]
+                    }
+                """
         ));
 
         // When I try to get table data
@@ -217,9 +217,9 @@ public class TrinoDataConnectAdapterTest {
 
         // Then
         assertThat("Ensure that the field is not empty",
-                (Collection<?>) tableData.getData().get(0).get("col1"), not(empty()));
+                (Collection<?>) tableData.getData().getFirst().get("col1"), not(empty()));
         assertThat("Ensure that null is included",
-                (Collection<?>) tableData.getData().get(0).get("col1"), containsInRelativeOrder("a", "b", null));
+                (Collection<?>) tableData.getData().getFirst().get("col1"), containsInRelativeOrder("a", "b", null));
     }
 
     @Test
@@ -227,35 +227,35 @@ public class TrinoDataConnectAdapterTest {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "nextUri": "http://example.com/fake-req-2"
-                        }
-                        """,
+                    {
+                        "id": "fake-req-1",
+                        "nextUri": "http://example.com/fake-req-2"
+                    }
+                """,
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "columns": [
-                                {
-                                    "name": "col1",
-                                    "typeSignature": {
-                                        "arguments": [
-                                            {
-                                                "value": {
-                                                    "rawType": "string"
-                                                }
+                    {
+                        "id": "fake-req-1",
+                        "columns": [
+                            {
+                                "name": "col1",
+                                "typeSignature": {
+                                    "arguments": [
+                                        {
+                                            "value": {
+                                                "rawType": "string"
                                             }
-                                        ],
-                                        "rawType": "array"
-                                    }
+                                        }
+                                    ],
+                                    "rawType": "array"
                                 }
-                            ],
-                            "data": [
-                                [null]
-                            ]
-                        }
-                        """
+                            }
+                        ],
+                        "data": [
+                            [null]
+                        ]
+                    }
+                """
         ));
 
         // When I try to get table data
@@ -264,7 +264,7 @@ public class TrinoDataConnectAdapterTest {
 
         // Then
         assertThat("Ensure that the field is null",
-                tableData.getData().get(0).get("col1"), Matchers.nullValue());
+                tableData.getData().getFirst().get("col1"), Matchers.nullValue());
     }
 
 
@@ -273,21 +273,21 @@ public class TrinoDataConnectAdapterTest {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "nextUri": "http://example.com/fake-req-2"
-                        }
-                        """,
+                    {
+                        "id": "fake-req-1",
+                        "nextUri": "http://example.com/fake-req-2"
+                    }
+                 """,
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "columns": [
-                                { "name": "col1", "typeSignature": { "rawType": "varchar" } }
-                            ],
-                            "data": []
-                        }
-                        """
+                    {
+                        "id": "fake-req-1",
+                        "columns": [
+                            { "name": "col1", "typeSignature": { "rawType": "varchar" } }
+                        ],
+                        "data": []
+                    }
+                """
         ));
 
         // When I try to get table data
@@ -306,23 +306,23 @@ public class TrinoDataConnectAdapterTest {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "nextUri": "http://example.com/fake-req-2"
-                        }
-                        """,
+                    {
+                        "id": "fake-req-1",
+                        "nextUri": "http://example.com/fake-req-2"
+                    }
+                """,
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "columns": [
-                                { "name": "col1", "typeSignature": { "rawType": "varchar" } }
-                            ],
-                            "data": [
-                                [ "val1" ]
-                            ]
-                        }
-                        """
+                    {
+                        "id": "fake-req-1",
+                        "columns": [
+                            { "name": "col1", "typeSignature": { "rawType": "varchar" } }
+                        ],
+                        "data": [
+                            [ "val1" ]
+                        ]
+                    }
+                """
         ));
 
         // When I try to get table data
@@ -410,21 +410,21 @@ public class TrinoDataConnectAdapterTest {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "nextUri": "http://example.com/fake-req-2"
-                        }
-                        """,
+                    {
+                        "id": "fake-req-1",
+                        "nextUri": "http://example.com/fake-req-2"
+                    }
+                """,
                 //language=json
                 """
-                        {
-                            "id": "fake-req-1",
-                            "columns": [
-                                { "name": "col1", "typeSignature": { "rawType": "varchar" } }
-                            ],
-                            "data": []
-                        }
-                        """
+                    {
+                        "id": "fake-req-1",
+                        "columns": [
+                            { "name": "col1", "typeSignature": { "rawType": "varchar" } }
+                        ],
+                        "data": []
+                    }
+                 """
         ));
         fakeDataModel = null;
 

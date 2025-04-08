@@ -30,8 +30,12 @@ public class TrinoCatalogTest {
     private static final String TABLE_NAME_1 = "testTable1";
     private static final String TABLE_NAME_2 = "testTable2";
 
-    private static String quote(String sqlIdentifier) {
+    private static String quoteIdentifier(String sqlIdentifier) {
         return "\"" + sqlIdentifier.replace("\"", "\"\"") + "\"";
+    }
+
+    private static String quoteString(String value) {
+        return "'" + value.replace("'", "''") + "'";
     }
 
     private static final String EXPECTED_SQL_WITH_SCHEMA = String.format(
@@ -48,7 +52,7 @@ public class TrinoCatalogTest {
                      AND table_schema = '%s'
                     ORDER BY 1, 2, 3
                     """,
-            quote(CATALOG_NAME), quote(SCHEMA_NAME), quote(CATALOG_NAME), quote(SCHEMA_NAME)
+            quoteIdentifier(CATALOG_NAME), quoteString(SCHEMA_NAME), quoteIdentifier(CATALOG_NAME), quoteString(SCHEMA_NAME)
     );
 
     private static final String EXPECTED_SQL_WITHOUT_SCHEMA = String.format(
@@ -63,7 +67,7 @@ public class TrinoCatalogTest {
                      WHERE table_schema != 'information_schema'
                     ORDER BY 1, 2, 3
                     """,
-            quote(CATALOG_NAME), quote(CATALOG_NAME)
+            quoteIdentifier(CATALOG_NAME), quoteIdentifier(CATALOG_NAME)
     );
 
     @Mock

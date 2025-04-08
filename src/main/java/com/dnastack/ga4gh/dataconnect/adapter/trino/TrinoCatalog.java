@@ -25,43 +25,13 @@ public class TrinoCatalog {
         this(dataConnectAdapter, callbackBaseUrl, catalogName, null);
     }
 
-    // language=PostgreSQL
-    private static final String QUERY_TABLE_WITH_SCHEMA_TEMPLATE =
-            """
-                SELECT table_catalog, table_schema, table_name
-                 FROM %s.information_schema.tables
-                 WHERE table_schema != 'information_schema'
-                 AND table_schema = '%s'
-                 AND table_type IN ('BASE TABLE','VIEW')
-                UNION
-                SELECT table_catalog, table_schema, table_name
-                 FROM %s.information_schema.views
-                 WHERE table_schema != 'information_schema'
-                 AND table_schema = '%s'
-                ORDER BY 1, 2, 3
-                """;
-
-    // language=PostgreSQL
-    private static final String QUERY_TABLE_WITHOUT_SCHEMA_TEMPLATE =
-            """
-                SELECT table_catalog, table_schema, table_name
-                 FROM %s.information_schema.tables
-                 WHERE table_schema != 'information_schema'
-                 AND table_type IN ('BASE TABLE','VIEW')
-                UNION
-                SELECT table_catalog, table_schema, table_name
-                 FROM %s.information_schema.views
-                 WHERE table_schema != 'information_schema'
-                ORDER BY 1, 2, 3
-                """;
-
 
     private TableInfo getTableInfo(Map<String, Object> row) {
         String schema = (String) row.get("table_schema");
         String table = (String) row.get("table_name");
         String qualifiedTableName = catalogName + "." + schema + "." + table;
         String ref = String.format("%s/table/%s/info", callbackBaseUrl, qualifiedTableName);
-        log.trace("Got table "+qualifiedTableName);
+        log.trace("Got table " + qualifiedTableName);
         return new TableInfo(qualifiedTableName, null, DataModel.builder().ref(ref).build(), null);
     }
 
@@ -71,19 +41,43 @@ public class TrinoCatalog {
                 .collect(Collectors.toList());
     }
 
-    private static String quote(String sqlIdentifier) {
+    private static String quoteIdentifier(String sqlIdentifier) {
         return "\"" + sqlIdentifier.replace("\"", "\"\"") + "\"";
+    }
+
+    private static String quoteString(String value) {
+        return "'" + value.replace("'", "''") + "'";
     }
 
     public TablesList getTablesList(Pagination nextPage, HttpServletRequest request, Map<String, String> extraCredentials) {
         try {
             String queryStatement;
             if (schemaName != null) {
-                queryStatement = String.format(QUERY_TABLE_WITH_SCHEMA_TEMPLATE,
-                        quote(catalogName), schemaName, quote(catalogName), schemaName);
+                queryStatement = String.format("""
+                        SELECT table_catalog, table_schema, table_name
+                         FROM %s.information_schema.tables
+                         WHERE table_schema != 'information_schema'
+                         AND table_schema = '%s'
+                         AND table_type IN ('BASE TABLE','VIEW')
+                        UNION
+                        SELECT table_catalog, table_schema, table_name
+                         FROM %s.information_schema.views
+                         WHERE table_schema != 'information_schema'
+                         AND table_schema = '%s'
+                        ORDER BY 1, 2, 3
+                        """, quoteIdentifier(catalogName), quoteString(schemaName), quoteIdentifier(catalogName), quoteString(schemaName));
             } else {
-                queryStatement = String.format(QUERY_TABLE_WITHOUT_SCHEMA_TEMPLATE,
-                        quote(catalogName), quote(catalogName));
+                queryStatement = String.format("""
+                        SELECT table_catalog, table_schema, table_name
+                         FROM %s.information_schema.tables
+                         WHERE table_schema != 'information_schema'
+                         AND table_type IN ('BASE TABLE','VIEW')
+                        UNION
+                        SELECT table_catalog, table_schema, table_name
+                         FROM %s.information_schema.views
+                         WHERE table_schema != 'information_schema'
+                        ORDER BY 1, 2, 3
+                        """, quoteIdentifier(catalogName), quoteIdentifier(catalogName));
             }
 
             TableData tables = dataConnectAdapter.searchAll(queryStatement, request, extraCredentials, null);
