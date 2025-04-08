@@ -57,13 +57,13 @@ public class TrinoCatalog {
                         SELECT table_catalog, table_schema, table_name
                          FROM %s.information_schema.tables
                          WHERE table_schema != 'information_schema'
-                         AND table_schema = '%s'
+                         AND table_schema = %s
                          AND table_type IN ('BASE TABLE','VIEW')
                         UNION
                         SELECT table_catalog, table_schema, table_name
                          FROM %s.information_schema.views
                          WHERE table_schema != 'information_schema'
-                         AND table_schema = '%s'
+                         AND table_schema = %s
                         ORDER BY 1, 2, 3
                         """, quoteIdentifier(catalogName), quoteString(schemaName), quoteIdentifier(catalogName), quoteString(schemaName));
             } else {
