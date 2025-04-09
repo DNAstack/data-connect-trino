@@ -8,7 +8,7 @@ FROM amazoncorretto:21-alpine AS build
 ARG APP_NAME
 ARG APP_VERSION
 
-RUN adduser --home /build build
+RUN adduser -D -h /build build && chown build:build /build
 USER build
 WORKDIR /build
 
