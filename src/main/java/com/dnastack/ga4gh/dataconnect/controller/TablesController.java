@@ -51,6 +51,12 @@ public class TablesController {
         return ResponseEntity.ok().headers(getExtraAuthHeaders(tablesList)).body(tablesList);
     }
 
+    /**
+     * @deprecated This endpoint is deprecated and will be removed in a future release.
+     * Please use {@code GET /tables/catalog/{catalogName}/schema/{schemaName}} instead.
+     * This endpoint is maintained temporarily for backwards compatibility with the legacy GA4GH Data Connect API.
+     */
+    @Deprecated
     // This endpoint is in addition to GET /tables to allow random-access to pages in the GET /tables result
     @AuditActionUri("data-connect:get-tables-in-catalog")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
@@ -63,13 +69,34 @@ public class TablesController {
 
         try {
             tablesList = trinoDataConnectAdapter
-                .getTablesInCatalog(catalogName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                    .getTablesInCatalog(catalogName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TablesList::errorInstance);
         }
 
         return ResponseEntity.ok().headers(getExtraAuthHeaders(tablesList)).body(tablesList);
+    }
 
+    // This endpoint is in addition to GET /tables to allow random-access to pages in the GET /tables result
+    @AuditActionUri("data-connect:get-tables-in-catalog")
+    @AuditIgnoreHeaders("GA4GH-Search-Authorization")
+    @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
+    @GetMapping(value = "/tables/catalog/{catalogName}/schema/{schemaName}")
+    public ResponseEntity<TablesList> getTablesByCatalogAndSchema(@PathVariable("catalogName") String catalogName,
+                                                                  @PathVariable("schemaName") String schemaName,
+                                                                  HttpServletRequest request,
+                                                                  @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
+        TablesList tablesList;
+
+        try {
+            tablesList = trinoDataConnectAdapter
+                    .getTablesByCatalogAndSchema(catalogName, schemaName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+        } catch (Exception ex) {
+            log.error("Error getting tables for catalog {} and schema {}", catalogName, schemaName, ex);
+            throw new TableApiErrorException(ex, TablesList::errorInstance);
+        }
+
+        return ResponseEntity.ok().headers(getExtraAuthHeaders(tablesList)).body(tablesList);
     }
 
     @AuditActionUri("data-connect:get-table-info")

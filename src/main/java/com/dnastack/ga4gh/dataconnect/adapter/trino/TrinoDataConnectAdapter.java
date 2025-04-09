@@ -45,12 +45,13 @@ import java.util.stream.StreamSupport;
 public class TrinoDataConnectAdapter {
 
     private static final String NEXT_PAGE_SEARCH_TEMPLATE = "/search/%s"; //todo: alternatives?
-    private static final String NEXT_PAGE_CATALOG_TEMPLATE = "/tables/catalog/%s";
+    private static final String NEXT_PAGE_CATALOG_TEMPLATE = "/tables/catalog/%s/schema/%s";
+    private static final String NEXT_PAGE_CATALOG_SCHEMA_TEMPLATE = "/tables/catalog/%s";
 
     //Matches the given name against the pattern <catalog>.<schema>.<table>, "<catalog>"."<schema>"."<table>", or
     //"<catalog>.<schema>.<table>".  Note this pattern is permissive and will often allow misquoted names through.
     private static final Pattern qualifiedNameMatcher =
-        Pattern.compile("^\"?[^\"]+\"?\\.\"?[^\"]+\"?\\.\"?[^\"]+\"?$");
+            Pattern.compile("^\"?[^\"]+\"?\\.\"?[^\"]+\"?\\.\"?[^\"]+\"?$");
 
     private final TrinoClient client;
 
@@ -65,11 +66,11 @@ public class TrinoDataConnectAdapter {
     private final Tracing tracer;
 
     public TrinoDataConnectAdapter(
-        TrinoClient client,
-        Jdbi jdbi,
-        ApplicationConfig applicationConfig,
-        List<DataModelSupplier> dataModelSuppliers,
-        Tracing tracer
+            TrinoClient client,
+            Jdbi jdbi,
+            ApplicationConfig applicationConfig,
+            List<DataModelSupplier> dataModelSuppliers,
+            Tracing tracer
     ) {
         this.client = client;
         this.jdbi = jdbi;
@@ -88,7 +89,7 @@ public class TrinoDataConnectAdapter {
 
     // Pattern to match ga4gh_type two argument function
     static final Pattern biFunctionPattern = Pattern.compile("((ga4gh_type)\\(\\s*([^,]+)\\s*,\\s*('[^']+')\\s*\\)((\\s+as)?\\s+((?!FROM\\s+)\\w*))?)",
-        Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+            Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
 
     @Getter
     static class SQLFunction {
@@ -112,15 +113,15 @@ public class TrinoDataConnectAdapter {
     //with a_argIndex
     private String rewriteQuery(String query, String functionName, int argIndex) {
         return biFunctionPattern.matcher(query)
-            .replaceAll(matchResult -> {
-                SQLFunction sf = new SQLFunction(matchResult);
-                if (sf.getFunctionName().equals(functionName)) {
-                    String col = sf.getArgs().get(argIndex);
-                    String alias = sf.getColumnAlias();
-                    return (alias == null) ? col : col + " as " + alias;
-                }
-                return matchResult.group(1); //pass function through unchanged.
-            });
+                .replaceAll(matchResult -> {
+                    SQLFunction sf = new SQLFunction(matchResult);
+                    if (sf.getFunctionName().equals(functionName)) {
+                        String col = sf.getArgs().get(argIndex);
+                        String alias = sf.getColumnAlias();
+                        return (alias == null) ? col : col + " as " + alias;
+                    }
+                    return matchResult.group(1); //pass function through unchanged.
+                });
     }
 
     // Extracts all two-argument SQL functions from a query.
@@ -135,7 +136,7 @@ public class TrinoDataConnectAdapter {
     private String getGa4ghType(SQLFunction ga4ghFunction) {
         String ga4ghType = ga4ghFunction.getArgs().get(1).strip();
         if ((ga4ghType.startsWith("'") && ga4ghType.endsWith("'")) ||
-            (ga4ghType.startsWith("\"") && ga4ghType.endsWith("\""))) {
+                (ga4ghType.startsWith("\"") && ga4ghType.endsWith("\""))) {
             return ga4ghType.substring(1, ga4ghType.length() - 1);
         } else {
             throw new QueryParsingException("Couldn't parse query: second argument to ga4gh_type must be quoted.");
@@ -168,14 +169,14 @@ public class TrinoDataConnectAdapter {
                 throw new QueryParsingException("Unexpected second argument to ga4gh_type function, must be a valid JSON schema or the $ref:<URL> shorthand");
             }
             newColumnSchema = ColumnSchema.builder()
-                .ref(parts[1])
-                .build();
+                    .ref(parts[1])
+                    .build();
         } else {
             try {
                 newColumnSchema = objectMapper.readValue(ga4ghType, ColumnSchema.class);
             } catch (IOException e) {
                 throw new QueryParsingException("Unexpected second argument to ga4gh_type function, must be a valid JSON schema or the $ref:<URL> shorthand.",
-                    e);
+                        e);
             }
         }
 
@@ -191,10 +192,10 @@ public class TrinoDataConnectAdapter {
     // Perform the given query and gather ALL results, by following Trino's nextUrl links
     // The query should NOT contain any functions that would not be recognized by Trino.
     public TableData searchAll(
-        String statement,
-        HttpServletRequest request,
-        Map<String, String> extraCredentials,
-        DataModel dataModel
+            String statement,
+            HttpServletRequest request,
+            Map<String, String> extraCredentials,
+            DataModel dataModel
     ) {
         log.debug("searchAll: Query: {}", statement);
         TableData tableData = search(statement, request, extraCredentials, dataModel);
@@ -217,10 +218,10 @@ public class TrinoDataConnectAdapter {
     }
 
     public TableData search(
-        String query,
-        HttpServletRequest request,
-        Map<String, String> extraCredentials,
-        DataModel dataModel
+            String query,
+            HttpServletRequest request,
+            Map<String, String> extraCredentials,
+            DataModel dataModel
     ) {
 
         String rewrittenQuery = rewriteQuery(query, "ga4gh_type", 0);
@@ -230,10 +231,10 @@ public class TrinoDataConnectAdapter {
     }
 
     public TableData getNextSearchPage(
-        String page,
-        String queryJobId,
-        HttpServletRequest request,
-        Map<String, String> extraCredentials
+            String page,
+            String queryJobId,
+            HttpServletRequest request,
+            Map<String, String> extraCredentials
     ) {
         TrinoDataPage response = client.next(page, extraCredentials);
         log.debug("[getNextSearchPage]response = {}", response);
@@ -270,36 +271,46 @@ public class TrinoDataConnectAdapter {
 
         var currentTime = Instant.now();
         QueryJob queryJob = QueryJob.builder()
-            .query(query)
-            .id(queryId)
-            .originalTraceId(tracer.currentTraceContext().get().traceIdString())
-            .startedAt(currentTime)
-            .lastActivityAt(currentTime)
-            .schema(tableSchema)
-            .nextPageUrl(nextPageUrl)
-            .build();
+                .query(query)
+                .id(queryId)
+                .originalTraceId(tracer.currentTraceContext().get().traceIdString())
+                .startedAt(currentTime)
+                .lastActivityAt(currentTime)
+                .schema(tableSchema)
+                .nextPageUrl(nextPageUrl)
+                .build();
 
         jdbi.useExtension(QueryJobDao.class, dao -> dao.create(queryJob));
 
         return queryJob;
     }
 
+    private URI getLinkedToSchema(String catalog, String schema, HttpServletRequest request) {
+        return URI.create(callbackBaseUrl(request) + String.format(NEXT_PAGE_CATALOG_TEMPLATE, catalog, schema));
+    }
+
     private URI getLinkToCatalog(String catalog, HttpServletRequest request) {
-        return URI.create(callbackBaseUrl(request) + String.format(NEXT_PAGE_CATALOG_TEMPLATE, catalog));
+        return URI.create(callbackBaseUrl(request) + String.format(NEXT_PAGE_CATALOG_SCHEMA_TEMPLATE, catalog));
     }
 
-    private PageIndexEntry getPageIndexEntryForCatalog(String catalog, int page, HttpServletRequest request) {
-        URI uri = getLinkToCatalog(catalog, request);
+    private PageIndexEntry getPageIndexEntryForCatalog(String catalog, String schema, int page, HttpServletRequest request) {
+        URI uri = getLinkedToSchema(catalog, schema, request);
         return PageIndexEntry.builder()
-            .catalog(catalog)
-            .url(uri)
-            .page(page)
-            .build();
+                .catalog(catalog)
+                .schema(schema)
+                .url(uri)
+                .page(page)
+                .build();
     }
 
-    private List<PageIndexEntry> getPageIndex(Set<String> catalogs, HttpServletRequest request) {
-        final int[] page = { 0 };
-        return catalogs.stream().map(catalog -> getPageIndexEntryForCatalog(catalog, page[0]++, request)).toList();
+    private List<PageIndexEntry> getPageIndex(Map<String, List<String>> catalogSchemas, HttpServletRequest request) {
+        final int[] page = {0};
+
+        return catalogSchemas.entrySet()
+                .stream()
+                .flatMap(entry -> entry.getValue().stream()
+                        .map(schema -> getPageIndexEntryForCatalog(entry.getKey(), schema, page[0]++, request)))
+                .toList();
     }
 
     private TablesList getTables(String currentCatalog, String nextCatalog, HttpServletRequest request, Map<String, String> extraCredentials) {
@@ -317,10 +328,27 @@ public class TrinoDataConnectAdapter {
         if (catalogs.isEmpty()) {
             return new TablesList(List.of(), null, null);
         }
-        Iterator<String> catalogIt = catalogs.iterator();
 
-        TablesList tablesList = getTables(catalogIt.next(), catalogIt.hasNext() ? catalogIt.next() : null, request, extraCredentials);
-        tablesList.setIndex(getPageIndex(catalogs, request));
+        Map<String, List<String>> catalogSchemas = catalogs.stream()
+                .collect(Collectors.toMap(
+                        catalog -> catalog,
+                        catalog -> getTrinoSchema(request, catalog, extraCredentials).stream().toList(),
+                        (existing, replacement) -> existing,
+                        LinkedHashMap::new
+                ));
+
+        String currentCatalog = catalogs.iterator().next();
+        List<String> schemas = catalogSchemas.get(currentCatalog);
+        String currentSchema = schemas.isEmpty() ? null : schemas.getFirst();
+
+        String nextCatalog = catalogs.size() > 1 ?
+                catalogs.stream().skip(1).findFirst().orElse(null) : null;
+
+        String nextSchema = schemas.size() > 1 ? schemas.get(1) : null;
+
+        TablesList tablesList = getTables(currentCatalog, nextCatalog, currentSchema, nextSchema, request, extraCredentials);
+        tablesList.setIndex(getPageIndex(catalogSchemas, request));
+
         return tablesList;
     }
 
@@ -333,6 +361,101 @@ public class TrinoDataConnectAdapter {
             }
         }
         throw new TrinoNoSuchCatalogException("No such catalog " + catalog);
+    }
+
+    /**
+     * Fetches tables for a specific catalog and schema, calculating the correct
+     * pagination link to the next logical schema (which might be in the next catalog).
+     *
+     * @param catalog        The target catalog name.
+     * @param schemaName     The target schema name.
+     * @param request        HttpServletRequest.
+     * @param extraCredentials Extra credentials.
+     * @return TablesList containing tables for the target and a pagination link if applicable.
+     * @throws TrinoNoSuchCatalogException If the catalog or schema doesn't exist or is inaccessible/filtered.
+     */
+    public TablesList getTablesByCatalogAndSchema(String catalog, String schemaName, HttpServletRequest request, Map<String, String> extraCredentials) {
+        Set<String> catalogs = getTrinoCatalogs(request, extraCredentials);
+        Iterator<String> catalogIterator = catalogs.iterator();
+
+        String effectiveNextCatalog = null;
+        String effectiveNextSchema = null;
+        boolean foundTargetSchema = false;
+
+        while (catalogIterator.hasNext()) {
+            String currentCatalogLoop = catalogIterator.next();
+
+            if (!currentCatalogLoop.equals(catalog)) {
+                continue;
+            }
+
+            Set<String> trinoSchema = getTrinoSchema(request, catalog, extraCredentials);
+            Iterator<String> schemaIterator = trinoSchema.iterator();
+
+            while (schemaIterator.hasNext()) {
+                String currentSchemaLoop = schemaIterator.next();
+
+                if (!currentSchemaLoop.equals(schemaName)) {
+                    continue;
+                }
+
+                foundTargetSchema = true;
+
+                // Check for more schemas within the *current* catalog
+                if (schemaIterator.hasNext()) {
+                    effectiveNextSchema = schemaIterator.next(); // The immediate next schema
+                    effectiveNextCatalog = catalog; // Stay within the current catalog
+                } else {
+                    // No more schemas here. Check if there's a *next* catalog.
+                    if (catalogIterator.hasNext()) {
+                        String nextCatalogOverall = catalogIterator.next();
+                        // Find the *first* schema in that next catalog
+                        Set<String> nextCatalogSchemas = getTrinoSchema(request, nextCatalogOverall, extraCredentials);
+                        if (!nextCatalogSchemas.isEmpty()) {
+                            effectiveNextCatalog = nextCatalogOverall;
+                            effectiveNextSchema = nextCatalogSchemas.iterator().next(); // Get the first valid schema
+                        }
+                        // If next catalog has no schemas, effectiveNext* remain null (no link)
+                    }
+                    //No more schemas and no more catalogs, effectiveNext* remain null (no link)
+                }
+                // Once the next step is determined after finding the target, we can stop searching.
+                break;
+            }
+
+            if (foundTargetSchema) {
+                break; // Exit catalog loop
+            } else {
+                // If we finished iterating schemas in the target catalog but didn't find the target schema
+                throw new TrinoNoSuchCatalogException("No such schema " + schemaName + " found in catalog " + catalog);
+            }
+
+        }
+
+        // If we iterated through all catalogs and never found the target catalog/schema combination
+        if (!foundTargetSchema) {
+            throw new TrinoNoSuchCatalogException("No such catalog " + catalog + " or schema " + schemaName);
+        }
+
+        // Call the helper method. It will use effectiveNextCatalog and effectiveNextSchema
+        // ONLY IF BOTH ARE NON-NULL to create the pagination link.
+        // The logic above ensures they are non-null only when a valid next step exists.
+        return getTables(catalog, effectiveNextCatalog, schemaName, effectiveNextSchema, request, extraCredentials);
+    }
+
+    /**
+     * Helper method to get tables for a specific catalog/schema and attach a pre-calculated
+     * pagination link if the next catalog/schema are known.
+     * (This method remains unchanged)
+     */
+    private TablesList getTables(String currentCatalog, String nextCatalogIfKnown, String currentSchema, String nextSchemaIfKnown, HttpServletRequest request, Map<String, String> extraCredentials) {
+        TrinoCatalog trinoCatalog = new TrinoCatalog(this, callbackBaseUrl(request), currentCatalog, currentSchema);
+        Pagination nextPage = null;
+        if (nextCatalogIfKnown != null && nextSchemaIfKnown != null) {
+            nextPage = new Pagination(null, getLinkedToSchema(nextCatalogIfKnown, nextSchemaIfKnown, request), null);
+        }
+
+        return trinoCatalog.getTablesList(nextPage, request, extraCredentials);
     }
 
     public TableData getTableData(String tableName, HttpServletRequest request, Map<String, String> extraCredentials) {
@@ -360,9 +483,9 @@ public class TrinoDataConnectAdapter {
     }
 
     public TableInfo getTableInfo(
-        String tableName,
-        HttpServletRequest request,
-        Map<String, String> extraCredentials
+            String tableName,
+            HttpServletRequest request,
+            Map<String, String> extraCredentials
     ) {
         if (!isValidTrinoName(tableName)) {
             //triggers a 404.
@@ -423,9 +546,9 @@ public class TrinoDataConnectAdapter {
      * @return the converted data
      */
     private TableData toTableData(
-        TrinoDataPage trinoPage,
-        QueryJob queryJob,
-        HttpServletRequest request
+            TrinoDataPage trinoPage,
+            QueryJob queryJob,
+            HttpServletRequest request
     ) {
         if (trinoPage.error() != null) {
             handleErrorResponse(trinoPage, queryJob);
@@ -476,9 +599,9 @@ public class TrinoDataConnectAdapter {
 
         TrinoError trinoError = trinoPage.error();
         log.info("Returning Trino exception for query {}: {} {}",
-            queryJob.getId(),
-            trinoError.getFailureInfo().getType(),
-            trinoError.getFailureInfo().getMessage());
+                queryJob.getId(),
+                trinoError.getFailureInfo().getType(),
+                trinoError.getFailureInfo().getMessage());
 
         if (trinoError.getErrorName().equals("CATALOG_NOT_FOUND")) {
             throw new TrinoNoSuchCatalogException(trinoError);
@@ -520,8 +643,8 @@ public class TrinoDataConnectAdapter {
         Stream<SQLFunction> responseTransformingFunctions = parseSQLBiFunctions(query);
 
         responseTransformingFunctions
-            .filter(sqlFunction -> sqlFunction.functionName.equals("ga4gh_type"))
-            .forEach(sqlFunction -> applyGa4ghTypeSqlFunction(sqlFunction, tableData));
+                .filter(sqlFunction -> sqlFunction.functionName.equals("ga4gh_type"))
+                .forEach(sqlFunction -> applyGa4ghTypeSqlFunction(sqlFunction, tableData));
     }
 
     @SneakyThrows
@@ -554,7 +677,6 @@ public class TrinoDataConnectAdapter {
      * It may or may not have a path (depending on X-Forwarded-Prefix) and it will never end with a slash.
      *
      * @param request Http Servlet Request
-     *
      * @return Base URL
      */
     private String callbackBaseUrl(HttpServletRequest request) {
@@ -586,7 +708,7 @@ public class TrinoDataConnectAdapter {
             // we need to eliminate the default port numbers because of Wallet pickiness
             String scheme = urlBuilder.build().getScheme();
             if (("https".equals(scheme) && !forwardedPort.equals("443")) ||
-                ("http".equals(scheme) && !forwardedPort.equals("80"))) {
+                    ("http".equals(scheme) && !forwardedPort.equals("80"))) {
                 urlBuilder.port(Integer.parseInt(forwardedPort));
             }
         }
@@ -607,13 +729,15 @@ public class TrinoDataConnectAdapter {
     }
 
     private static <T, K, U> Collector<T, ?, Map<K, U>> toLinkedHashMap(
-        Function<? super T, ? extends K> keyMapper,
-        Function<? super T, ? extends U> valueMapper
+            Function<? super T, ? extends K> keyMapper,
+            Function<? super T, ? extends U> valueMapper
     ) {
         return Collectors.toMap(keyMapper,
-            valueMapper,
-            (k, v) -> {throw new UnexpectedQueryResponseException("Duplicate key " + k);},
-            LinkedHashMap::new);
+                valueMapper,
+                (k, v) -> {
+                    throw new UnexpectedQueryResponseException("Duplicate key " + k);
+                },
+                LinkedHashMap::new);
     }
 
 
@@ -623,7 +747,7 @@ public class TrinoDataConnectAdapter {
      * The conversion is based on the schema of the column from the trino data page.
      *
      * @param trinoColumnSchema The schema of the row, from the trino response
-     * @param trinoData The row data to be converted
+     * @param trinoData         The row data to be converted
      * @return the converted row
      */
     private Object convertTrinoFieldToDataConnect(ColumnSchema trinoColumnSchema, JsonNode trinoData) {
@@ -673,7 +797,7 @@ public class TrinoDataConnectAdapter {
             return objectMapper.readTree(trinoData.asText());
         } catch (JsonProcessingException e) {
             throw new UnexpectedQueryResponseException(
-                "JSON came back badly formatted: trinoDataArray.asText() = " + trinoData.asText() + ". Exception message=" + e.getMessage());
+                    "JSON came back badly formatted: trinoDataArray.asText() = " + trinoData.asText() + ". Exception message=" + e.getMessage());
         }
     }
 
@@ -681,8 +805,8 @@ public class TrinoDataConnectAdapter {
         if (trinoData.getNodeType() == JsonNodeType.ARRAY) {
             ColumnSchema itemSchema = columnSchema.getItems();
             return StreamSupport.stream(trinoData.spliterator(), false)
-                .map(arrayValue -> convertTrinoFieldToDataConnect(itemSchema, arrayValue))
-                .toList();
+                    .map(arrayValue -> convertTrinoFieldToDataConnect(itemSchema, arrayValue))
+                    .toList();
         } else if (trinoData.getNodeType() == JsonNodeType.NULL) {
             return null;
         } else {
@@ -707,7 +831,7 @@ public class TrinoDataConnectAdapter {
      * In some cases, e.g. the memory schema, the row is represented as a JSON Array.
      *
      * @param columnSchema The schema of the column, from the trino response
-     * @param trinoData The row data to be converted
+     * @param trinoData    The row data to be converted
      * @return the converted row
      */
     private @NotNull Map<String, Object> convertRowColumnFromArray(ColumnSchema columnSchema, JsonNode trinoData) {
@@ -725,15 +849,15 @@ public class TrinoDataConnectAdapter {
      * In some cases, e.g. ORC files, the row is represented as a JSON object.
      *
      * @param columnSchema The schema of the column, from the trino response
-     * @param trinoData The row data to be converted
+     * @param trinoData    The row data to be converted
      * @return the converted row
      */
     private Map<String, Object> convertRowColumnFromObject(ColumnSchema columnSchema, JsonNode trinoData) {
         return Streams.stream(trinoData.fields())
-            .map(mapEntry ->
-                Map.entry(mapEntry.getKey(), convertTrinoFieldToDataConnect(columnSchema.getProperties().get(mapEntry.getKey()), mapEntry.getValue()))
-            )
-            .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
+                .map(mapEntry ->
+                        Map.entry(mapEntry.getKey(), convertTrinoFieldToDataConnect(columnSchema.getProperties().get(mapEntry.getKey()), mapEntry.getValue()))
+                )
+                .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     private Map<String, Object> convertMapColumn(ColumnSchema columnSchema, JsonNode trinoData) {
@@ -743,8 +867,8 @@ public class TrinoDataConnectAdapter {
 
         ColumnSchema mapEntryColumnSchema = columnSchema.getProperties().get("value");
         return Streams.stream(trinoData.fields())
-            .map(mapEntry -> Map.entry(mapEntry.getKey(), convertTrinoFieldToDataConnect(mapEntryColumnSchema, mapEntry.getValue())))
-            .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
+                .map(mapEntry -> Map.entry(mapEntry.getKey(), convertTrinoFieldToDataConnect(mapEntryColumnSchema, mapEntry.getValue())))
+                .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /**
@@ -771,11 +895,30 @@ public class TrinoDataConnectAdapter {
         return catalogSet;
     }
 
+
+    private Set<String> getTrinoSchema(HttpServletRequest request, String catalog, Map<String, String> extraCredentials) {
+        TableData schemas = searchAll("select schema_name from %s.information_schema.schemata".formatted(catalog), request, extraCredentials, null);
+        Set<String> schemasSet = new LinkedHashSet<>();
+        for (Map<String, Object> row : schemas.getData()) {
+            String schema = (String) row.get("schema_name");
+            if (schemasSet.contains(schema)) {
+                throw new AssertionError("Unexpected duplicate schema " + schema);
+            }
+            if ("information_schema".equalsIgnoreCase(schema)) {
+                log.debug("Ignoring schema {}", schema);
+                continue;
+            }
+            schemasSet.add(schema);
+        }
+        return schemasSet;
+    }
+
+
     private void attachCommentsToDataModel(
-        DataModel dataModel,
-        String tableName,
-        HttpServletRequest request,
-        Map<String, String> extraCredentials
+            DataModel dataModel,
+            String tableName,
+            HttpServletRequest request,
+            Map<String, String> extraCredentials
     ) {
         if (dataModel == null) {
             return;
@@ -833,7 +976,7 @@ public class TrinoDataConnectAdapter {
 
     private QueryJob getQueryJob(String id) {
         return jdbi.withExtension(QueryJobDao.class, dao -> dao.get(id))
-            .orElseThrow(() -> new InvalidQueryJobException(id));
+                .orElseThrow(() -> new InvalidQueryJobException(id));
     }
 
 }
