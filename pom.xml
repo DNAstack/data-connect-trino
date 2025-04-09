@@ -311,6 +311,20 @@
       <version>${logback-extensions.version}</version>
     </dependency>
 
+    <!-- Zonky Test-->
+    <dependency>
+      <groupId>io.zonky.test</groupId>
+      <artifactId>embedded-database-spring-test</artifactId>
+      <version>2.5.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.zonky.test</groupId>
+      <artifactId>embedded-postgres</artifactId>
+      <version>2.0.7</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>

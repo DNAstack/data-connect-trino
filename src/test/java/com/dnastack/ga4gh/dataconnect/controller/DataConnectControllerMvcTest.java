@@ -8,6 +8,8 @@ import com.dnastack.ga4gh.dataconnect.model.Pagination;
 import com.dnastack.ga4gh.dataconnect.model.TableInfo;
 import com.dnastack.ga4gh.dataconnect.model.TablesList;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.zonky.test.db.AutoConfigureEmbeddedDatabase;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -25,13 +27,18 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
-import static org.hamcrest.Matchers.*;
-import static org.mockito.ArgumentMatchers.*;
+import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.DatabaseProvider.ZONKY;
+import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.RefreshMode.AFTER_EACH_TEST_METHOD;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@AutoConfigureEmbeddedDatabase(provider = ZONKY, refresh = AFTER_EACH_TEST_METHOD, type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.MOCK,
@@ -50,6 +57,10 @@ public class DataConnectControllerMvcTest {
 
     @MockBean
     private TrinoDataConnectAdapter trinoDataConnectAdapter;
+
+    @MockBean
+    private Jdbi jdbi; // Mock the JDBI instance if used
+
 
     private TablesList sampleTablesList;
     private String sampleCatalog = "test_catalog";
