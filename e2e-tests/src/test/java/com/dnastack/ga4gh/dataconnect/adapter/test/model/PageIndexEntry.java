@@ -10,6 +10,9 @@ public class PageIndexEntry {
     @JsonProperty("description")
     private String description;
 
+    @JsonProperty("schema")
+    private String schema;
+
     @JsonProperty("url")
     private URI url;
 
