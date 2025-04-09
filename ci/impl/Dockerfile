@@ -7,6 +7,9 @@
 FROM amazoncorretto:21-alpine AS build
 ARG APP_NAME
 ARG APP_VERSION
+
+RUN adduser --home /build build
+USER build
 WORKDIR /build
 
 # Add the memory calculator to the image
