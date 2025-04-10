@@ -305,19 +305,8 @@ public class TrinoDataConnectAdapter {
 
     private List<PageIndexEntry> generatePageIndex(List<CatalogWithSchema> catalogWithSchemas, HttpServletRequest request) {
         final int[] page = {0};
-        List<PageIndexEntry> entries = catalogWithSchemas.stream()
+        return catalogWithSchemas.stream()
                 .map(catalogWithSchema -> getPageIndexEntryForCatalog(catalogWithSchema.catalogName(), catalogWithSchema.schema(), page[0]++, request))
-                .toList();
-        return entries;
-    }
-
-    private List<PageIndexEntry> getPageIndex(Map<String, List<String>> catalogSchemas, HttpServletRequest request) {
-        final int[] page = {0};
-
-        return catalogSchemas.entrySet()
-                .stream()
-                .flatMap(entry -> entry.getValue().stream()
-                        .map(schema -> getPageIndexEntryForCatalog(entry.getKey(), schema, page[0]++, request)))
                 .toList();
     }
 
@@ -413,6 +402,40 @@ public class TrinoDataConnectAdapter {
             next = new CatalogWithSchema(catalog, orderedSchemas.get(schemaIdx + 1));
         } else {
             List<String> orderedCatalogs = catalogs.stream().sorted().toList();
+            List<String> followingCatalogs =
+                    orderedCatalogs.subList(orderedCatalogs.indexOf(catalog) + 1,
+                            orderedCatalogs.size());
+
+            next = firstSchemaOfNextNonEmptyCatalog(
+                    followingCatalogs, request, extraCredentials)
+                    .orElse(null);
+        }
+
+        return getTables(current, next, request, extraCredentials);
+    }
+
+    private Optional<CatalogWithSchema> firstSchemaOfNextNonEmptyCatalog(
+            List<String> catalogsAfterCurrent,
+            HttpServletRequest request,
+            Map<String, String> extraCredentials) {
+
+        return catalogsAfterCurrent.stream()
+                .map(cat -> getTrinoSchema(request, cat, extraCredentials).stream()
+                        .sorted()
+                        .map(schema -> new CatalogWithSchema(cat, schema))
+                        .findFirst()
+                        .orElse(null))
+                .filter(Objects::nonNull)
+                .findFirst();
+    }
+
+    @Nullable
+    private CatalogWithSchema findNextCatalogWithSchema(String catalog, HttpServletRequest request, Map<String, String> extraCredentials, int schemaIdx, List<String> orderedSchemas, Set<String> catalogs) {
+        CatalogWithSchema next;
+        if (schemaIdx < orderedSchemas.size() - 1) {
+            next = new CatalogWithSchema(catalog, orderedSchemas.get(schemaIdx + 1));
+        } else {
+            List<String> orderedCatalogs = catalogs.stream().sorted().toList();
             int catIdx = orderedCatalogs.indexOf(catalog);
 
             next = orderedCatalogs.stream()
@@ -426,8 +449,7 @@ public class TrinoDataConnectAdapter {
                     .findFirst()
                     .orElse(null);
         }
-
-        return getTables(current, next, request, extraCredentials);
+        return next;
     }
 
     /**
