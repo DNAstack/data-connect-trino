@@ -881,7 +881,7 @@ public class TrinoDataConnectAdapterTest {
 
 
     @Test(expected = TrinoNoSuchCatalogException.class)
-    public void getTablesByCatalogAndSchema_SchemaNotFound() {
+    public void getTablesByCatalogAndSchema_schemaNotFound() {
 
         String targetCatalog = "catalog1";
         String targetSchema = "nonexistentSchema";
@@ -943,4 +943,63 @@ public class TrinoDataConnectAdapterTest {
 
         dataConnectAdapter.getTablesByCatalogAndSchema(targetCatalog, targetSchema, request, Map.of());
     }
+
+    @Test
+    public void getTablesByCatalogAndSchema_singleCatalog_lastSchema() {
+        String targetCatalog = "catalog1";
+        String targetSchema  = "schemaA";          // only schema in the catalog
+
+        when(mockApplicationConfig.getHiddenCatalogs()).thenReturn(Collections.emptySet());
+
+        mockTrinoClient.setResponsePages(List.of(
+                // 1. Catalog query  → only one catalog
+                //language=json
+                """
+                {
+                    "id": "catalog-req",
+                    "columns": [ { "name": "catalog_name",
+                                   "typeSignature": { "rawType": "varchar" } } ],
+                    "data": [ ["catalog1"] ]
+                }
+                """,
+                // 2. Schema query for catalog1 → only one schema
+                //language=json
+                """
+                {
+                    "id": "schema-req-cat1",
+                    "columns": [ { "name": "schema_name",
+                                   "typeSignature": { "rawType": "varchar" } } ],
+                    "data": [ ["schemaA"] ]
+                }
+                """,
+                // 3. Table query for catalog1.schemaA
+                //language=json
+                """
+                {
+                    "id": "tables-req-cat1-schA",
+                    "columns": [
+                        { "name": "table_catalog", "typeSignature": { "rawType": "varchar" } },
+                        { "name": "table_schema",  "typeSignature": { "rawType": "varchar" } },
+                        { "name": "table_name",    "typeSignature": { "rawType": "varchar" } }
+                    ],
+                    "data": [ ["catalog1", "schemaA", "table1"] ],
+                    "stats": { "state": "FINISHED" }
+                }
+                """
+        ));
+
+        MockHttpServletRequest request = createRequestWithForwardedHeaders();
+        Map<String, String> credentials = Map.of();
+
+        TablesList tablesList = dataConnectAdapter
+                .getTablesByCatalogAndSchema(targetCatalog, targetSchema, request, credentials);
+
+        assertThat(tablesList.getTableInfos(), hasSize(1));
+        assertThat(tablesList.getTableInfos().getFirst().getName(),
+                equalTo("catalog1.schemaA.table1"));
+
+        assertNull(tablesList.getPagination());
+        assertNull(tablesList.getErrors());
+    }
+
 }
