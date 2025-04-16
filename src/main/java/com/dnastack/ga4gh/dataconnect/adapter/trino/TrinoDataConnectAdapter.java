@@ -871,8 +871,17 @@ public class TrinoDataConnectAdapter {
     }
 
     private Map<String, Object> convertMapColumn(ColumnSchema columnSchema, JsonNode trinoData) {
+        // Expected data format under trinoData:
+        // {
+        //   "key1": "value1",
+        //   "key2": "value2",
+        //   ...
+        // }
+        if (trinoData.getNodeType() == JsonNodeType.NULL) {
+            return null;
+        }
         if (trinoData.getNodeType() != JsonNodeType.OBJECT) {
-            throw new UnexpectedQueryResponseException("Expected value for map was not of type object for schema " + columnSchema);
+            throw new UnexpectedQueryResponseException("Unexpected value for map-typed data: " + trinoData + " for schema " + columnSchema);
         }
 
         ColumnSchema mapEntryColumnSchema = columnSchema.getProperties().get("value");

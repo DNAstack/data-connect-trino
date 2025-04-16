@@ -31,7 +31,7 @@ public class GlobalControllerExceptionHandler {
     public ResponseEntity<?> handleTableApiErrorException(TableApiErrorException throwable) {
         String traceId = tracer.currentSpan().context().traceIdString();
         TableError error = TableError.fromThrowable(throwable.getCause(), null);
-        log.error("Generating response with error that escaped controller: {}", error);
+        log.error("Generating response with error that escaped controller: {}", error, throwable);
 
         if (traceId != null) {
             error.setDetails(traceId + ": " + error.getDetails());

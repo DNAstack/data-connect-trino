@@ -267,6 +267,106 @@ public class TrinoDataConnectAdapterTest {
                 tableData.getData().getFirst().get("col1"), Matchers.nullValue());
     }
 
+    @Test
+    public void getTableData_should_handleMapWithIntegerKey() throws Exception {
+        mockTrinoClient.setResponsePages(List.of(
+                //language=json
+                """
+                    {
+                        "id": "fake-req-1",
+                        "nextUri": "http://example.com/fake-req-2"
+                    }
+                """,
+                //language=json
+                """
+                    {
+                       "id" : "fake-req-1",
+                       "columns" : [ {
+                         "name" : "value_counts",
+                         "type" : "map(integer, bigint)",
+                         "typeSignature" : {
+                           "rawType" : "map",
+                           "arguments" : [ {
+                             "kind" : "TYPE",
+                             "value" : {
+                               "rawType" : "integer",
+                               "arguments" : [ ]
+                             }
+                           }, {
+                             "kind" : "TYPE",
+                             "value" : {
+                               "rawType" : "bigint",
+                               "arguments" : [ ]
+                             }
+                           } ]
+                         }
+                       } ],
+                       "data" : [ [ {
+                         "1" : 1
+                       } ] ]
+                     }
+                """
+        ));
+
+        // When I try to get table data
+        dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+
+        // Then
+        Map<?, ?> valueCountsRow = (Map<?, ?>) tableData.getData().getFirst().get("value_counts");
+        assertThat("The integer key should have converted to a string",
+                valueCountsRow.keySet().iterator().next(), instanceOf(String.class));
+        assertThat("The bigint value should have converted to a string",
+                valueCountsRow.keySet().iterator().next(), instanceOf(String.class));
+    }
+
+    @Test
+    public void getTableData_should_handleNullMapValue() throws Exception {
+        mockTrinoClient.setResponsePages(List.of(
+                //language=json
+                """
+                    {
+                        "id": "fake-req-1",
+                        "nextUri": "http://example.com/fake-req-2"
+                    }
+                """,
+                //language=json
+                """
+                    {
+                       "id" : "fake-req-1",
+                       "columns" : [ {
+                         "name" : "value_counts",
+                         "type" : "map(integer, bigint)",
+                         "typeSignature" : {
+                           "rawType" : "map",
+                           "arguments" : [ {
+                             "kind" : "TYPE",
+                             "value" : {
+                               "rawType" : "integer",
+                               "arguments" : [ ]
+                             }
+                           }, {
+                             "kind" : "TYPE",
+                             "value" : {
+                               "rawType" : "bigint",
+                               "arguments" : [ ]
+                             }
+                           } ]
+                         }
+                       } ],
+                       "data" : [ [ null ] ]
+                     }
+                """
+        ));
+
+        // When I try to get table data
+        dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+
+        // Then
+        assertThat("The row value should be null",
+                tableData.getData().getFirst().get("value_counts"), nullValue());
+    }
 
     @Test
     public void getTableData_should_includeDataModel_when_supplierProvidesOne_and_tableIsEmpty() throws Exception {
