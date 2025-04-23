@@ -5,9 +5,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.dnastack.starter</groupId>
-    <artifactId>spring-boot-parent</artifactId>
-    <version>3.4.4-1-g44981b7</version>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.2.1</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -15,6 +15,47 @@
   <artifactId>data-connect-trino</artifactId>
   <version>1.0-SNAPSHOT</version>
   <name>Data Connect Backend with Trino</name>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>${spring-boot.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-dependencies</artifactId>
+        <version>${spring-cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>joda-time</groupId>
+        <artifactId>joda-time</artifactId>
+        <version>${version.joda}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jdbi</groupId>
+        <artifactId>jdbi3-bom</artifactId>
+        <type>pom</type>
+        <version>${jdbi.version}</version>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-core</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <properties>
     <java.version>21</java.version>
@@ -29,6 +70,7 @@
     <oauth-client-factory.version>1.0.1</oauth-client-factory.version>
     <!-- Other -->
     <spring-cloud.version>2021.0.9</spring-cloud.version>
+    <spring-boot.version>3.2.5</spring-boot.version>
     <jdbi.version>3.32.0</jdbi.version>
     <version.okhttp>4.12.0</version.okhttp>
     <version.trino>359</version.trino>
@@ -40,6 +82,7 @@
     <feign.version>13.1</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
+    <logback.version>1.4.12</logback.version>
     <lombok.version>1.18.36</lombok.version>
     <resilience4j.version>2.2.0</resilience4j.version>
 
