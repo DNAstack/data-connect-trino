@@ -44,9 +44,13 @@ import java.util.stream.StreamSupport;
 @Configuration
 public class TrinoDataConnectAdapter {
 
-    private static final String NEXT_PAGE_SEARCH_TEMPLATE = "/search/%s"; //todo: alternatives?
-    private static final String NEXT_PAGE_CATALOG_TEMPLATE = "/tables/catalog/%s/schema/%s";
-    private static final String NEXT_PAGE_CATALOG_SCHEMA_TEMPLATE = "/tables/catalog/%s";
+    /** Tracks a {@code catalog.schema} name pair. */
+    public record CatalogSchema(String catalog, String schema) {
+        @Override
+        public String toString() {
+            return catalog + "." + schema;
+        }
+    }
 
     //Matches the given name against the pattern <catalog>.<schema>.<table>, "<catalog>"."<schema>"."<table>", or
     //"<catalog>.<schema>.<table>".  Note this pattern is permissive and will often allow misquoted names through.
@@ -285,16 +289,20 @@ public class TrinoDataConnectAdapter {
         return queryJob;
     }
 
-    private URI getLinkedToSchema(String catalog, String schema, HttpServletRequest request) {
-        return URI.create(callbackBaseUrl(request) + String.format(NEXT_PAGE_CATALOG_TEMPLATE, catalog, schema));
+    private URI computeLinkToSchema(String catalog, String schema, HttpServletRequest request) {
+        //return URI.create(callbackBaseUrl(request) + String.format("/tables/catalog/%s/schema/%s", catalog, schema)); // TODO use URIBuilder
+        return UriComponentsBuilder.fromUriString(callbackBaseUrl(request))
+                .path("/tables/catalog/{catalog}/schema/{schema}")
+                .buildAndExpand(catalog, schema)
+                .toUri();
     }
 
-    private URI getLinkToCatalog(String catalog, HttpServletRequest request) {
-        return URI.create(callbackBaseUrl(request) + String.format(NEXT_PAGE_CATALOG_SCHEMA_TEMPLATE, catalog));
+    private URI computeLinkToCatalog(String catalog, HttpServletRequest request) {
+        return URI.create(callbackBaseUrl(request) + String.format("/tables/catalog/%s", catalog)); // TODO use URIBuilder
     }
 
     private PageIndexEntry getPageIndexEntryForCatalog(String catalog, String schema, int page, HttpServletRequest request) {
-        URI uri = getLinkedToSchema(catalog, schema, request);
+        URI uri = computeLinkToSchema(catalog, schema, request);
         return PageIndexEntry.builder()
                 .catalog(catalog)
                 .schema(schema)
@@ -303,10 +311,10 @@ public class TrinoDataConnectAdapter {
                 .build();
     }
 
-    private List<PageIndexEntry> generatePageIndex(List<CatalogWithSchema> catalogWithSchemas, HttpServletRequest request) {
+    private List<PageIndexEntry> generatePageIndex(List<CatalogSchema> catalogSchemas, HttpServletRequest request) {
         final int[] page = {0};
-        return catalogWithSchemas.stream()
-                .map(catalogWithSchema -> getPageIndexEntryForCatalog(catalogWithSchema.catalogName(), catalogWithSchema.schema(), page[0]++, request))
+        return catalogSchemas.stream()
+                .map(catalogSchema -> getPageIndexEntryForCatalog(catalogSchema.catalog(), catalogSchema.schema(), page[0]++, request))
                 .toList();
     }
 
@@ -314,7 +322,7 @@ public class TrinoDataConnectAdapter {
         TrinoCatalog trinoCatalog = new TrinoCatalog(this, callbackBaseUrl(request), currentCatalog);
         Pagination nextPage = null;
         if (nextCatalog != null) {
-            nextPage = new Pagination(null, getLinkToCatalog(nextCatalog, request), null);
+            nextPage = new Pagination(null, computeLinkToCatalog(nextCatalog, request), null);
         }
 
         return trinoCatalog.getTablesList(nextPage, request, extraCredentials);
@@ -326,22 +334,22 @@ public class TrinoDataConnectAdapter {
             return new TablesList(List.of(), null, null);
         }
 
-        List<CatalogWithSchema> catalogWithSchemas = catalogs.stream()
+        List<CatalogSchema> catalogSchemas = catalogs.stream()
                 .flatMap(catalog -> getTrinoSchema(request, catalog, extraCredentials)
                         .stream()
-                        .map(schema -> new CatalogWithSchema(catalog, schema))
+                        .map(schema -> new CatalogSchema(catalog, schema))
                 )
                 .toList();
 
-        if (catalogWithSchemas.isEmpty()) {
+        if (catalogSchemas.isEmpty()) {
             return new TablesList(List.of(), null, null);
         }
 
-        CatalogWithSchema current = catalogWithSchemas.getFirst();
-        CatalogWithSchema next = catalogWithSchemas.size() > 1 ? catalogWithSchemas.get(1) : null;
+        CatalogSchema current = catalogSchemas.getFirst();
+        CatalogSchema next = catalogSchemas.size() > 1 ? catalogSchemas.get(1) : null;
 
         TablesList tablesList = getTables(current, next, request, extraCredentials);
-        tablesList.setIndex(generatePageIndex(catalogWithSchemas, request));
+        tablesList.setIndex(generatePageIndex(catalogSchemas, request));
 
         return tablesList;
     }
@@ -395,11 +403,11 @@ public class TrinoDataConnectAdapter {
                     "No such schema " + schemaName + " found in catalog " + catalog);
         }
 
-        CatalogWithSchema current = new CatalogWithSchema(catalog, schemaName);
-        CatalogWithSchema next;
+        CatalogSchema current = new CatalogSchema(catalog, schemaName);
+        CatalogSchema next;
 
         if (schemaIdx < orderedSchemas.size() - 1) {
-            next = new CatalogWithSchema(catalog, orderedSchemas.get(schemaIdx + 1));
+            next = new CatalogSchema(catalog, orderedSchemas.get(schemaIdx + 1));
         } else {
             List<String> orderedCatalogs = catalogs.stream().sorted().toList();
             List<String> followingCatalogs =
@@ -414,7 +422,7 @@ public class TrinoDataConnectAdapter {
         return getTables(current, next, request, extraCredentials);
     }
 
-    private Optional<CatalogWithSchema> firstSchemaOfNextNonEmptyCatalog(
+    private Optional<CatalogSchema> firstSchemaOfNextNonEmptyCatalog(
             List<String> catalogsAfterCurrent,
             HttpServletRequest request,
             Map<String, String> extraCredentials) {
@@ -422,7 +430,7 @@ public class TrinoDataConnectAdapter {
         return catalogsAfterCurrent.stream()
                 .map(cat -> getTrinoSchema(request, cat, extraCredentials).stream()
                         .sorted()
-                        .map(schema -> new CatalogWithSchema(cat, schema))
+                        .map(schema -> new CatalogSchema(cat, schema))
                         .findFirst()
                         .orElse(null))
                 .filter(Objects::nonNull)
@@ -430,10 +438,10 @@ public class TrinoDataConnectAdapter {
     }
 
     @Nullable
-    private CatalogWithSchema findNextCatalogWithSchema(String catalog, HttpServletRequest request, Map<String, String> extraCredentials, int schemaIdx, List<String> orderedSchemas, Set<String> catalogs) {
-        CatalogWithSchema next;
+    private CatalogSchema findNextCatalogWithSchema(String catalog, HttpServletRequest request, Map<String, String> extraCredentials, int schemaIdx, List<String> orderedSchemas, Set<String> catalogs) {
+        CatalogSchema next;
         if (schemaIdx < orderedSchemas.size() - 1) {
-            next = new CatalogWithSchema(catalog, orderedSchemas.get(schemaIdx + 1));
+            next = new CatalogSchema(catalog, orderedSchemas.get(schemaIdx + 1));
         } else {
             List<String> orderedCatalogs = catalogs.stream().sorted().toList();
             int catIdx = orderedCatalogs.indexOf(catalog);
@@ -442,7 +450,7 @@ public class TrinoDataConnectAdapter {
                     .skip(catIdx + 1)
                     .map(nextCat -> getTrinoSchema(request, nextCat, extraCredentials).stream()
                             .sorted()
-                            .map(sch -> new CatalogWithSchema(nextCat, sch))
+                            .map(sch -> new CatalogSchema(nextCat, sch))
                             .findFirst()
                             .orElse(null))
                     .filter(Objects::nonNull)
@@ -458,11 +466,11 @@ public class TrinoDataConnectAdapter {
      * (This method remains unchanged)
      */
 
-    private TablesList getTables(CatalogWithSchema current, CatalogWithSchema next, HttpServletRequest request, Map<String, String> extraCredentials) {
-        TrinoCatalog trinoCatalog = new TrinoCatalog(this, callbackBaseUrl(request), current.catalogName(), current.schema());
+    private TablesList getTables(CatalogSchema current, CatalogSchema next, HttpServletRequest request, Map<String, String> extraCredentials) {
+        TrinoCatalog trinoCatalog = new TrinoCatalog(this, callbackBaseUrl(request), current.catalog(), current.schema());
         Pagination nextPage = null;
         if (next != null) {
-            nextPage = new Pagination(null, getLinkedToSchema(next.catalogName(), next.schema(), request), null);
+            nextPage = new Pagination(null, computeLinkToSchema(next.catalog(), next.schema(), request), null);
         }
 
         return trinoCatalog.getTablesList(nextPage, request, extraCredentials);
@@ -667,7 +675,7 @@ public class TrinoDataConnectAdapter {
             log.debug("generatePagination: rawTrinoResponseUri => {}", rawTrinoResponseUri);
             final String rawTrinoRelayedPath = URI.create(rawTrinoResponseUri).getPath().replaceFirst("^/+", "");
             log.debug("generatePagination: rawTrinoRelayedPath => {}", rawTrinoRelayedPath);
-            final String localForwardedPath = String.format(TrinoDataConnectAdapter.NEXT_PAGE_SEARCH_TEMPLATE, rawTrinoRelayedPath);
+            final String localForwardedPath = String.format("/search/%s", rawTrinoRelayedPath);
             log.debug("generatePagination: localForwardedPath => {}", localForwardedPath);
 
             nextPageUri = URI.create(callbackBaseUrl(request) + localForwardedPath);
@@ -997,5 +1005,4 @@ public class TrinoDataConnectAdapter {
         return jdbi.withExtension(QueryJobDao.class, dao -> dao.get(id))
                 .orElseThrow(() -> new InvalidQueryJobException(id));
     }
-
 }
