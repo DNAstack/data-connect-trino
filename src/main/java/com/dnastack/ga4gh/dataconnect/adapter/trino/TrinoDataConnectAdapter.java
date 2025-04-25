@@ -59,6 +59,7 @@ public class TrinoDataConnectAdapter {
             Pattern.compile("^\"?[^\"]+\"?\\.\"?[^\"]+\"?\\.\"?[^\"]+\"?$");
 
     private final Map<String,Set<String>> trinoSchemaCache = new CachingConcurrentHashMap<>(300_000,100, null);
+    private final Map<String,Set<String>> trinoCatalogCache = new CachingConcurrentHashMap<>(300_000,100, null);
 
     private final TrinoClient client;
 
@@ -901,12 +902,17 @@ public class TrinoDataConnectAdapter {
                 .collect(toLinkedHashMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
+    private Set<String> getTrinoCatalogs(HttpServletRequest request, Map<String, String> extraCredentials) {
+        String cacheKey = getCacheKey(extraCredentials);
+        return trinoCatalogCache.computeIfAbsent(cacheKey, k -> getTrinoCatalogsNoCache(request, extraCredentials));
+    }
+
     /**
      * Get a list of the catalogs served by the connected instance of Trino.
      *
      * @return A List of Strings, where each String is the name of the catalog.
      */
-    private Set<String> getTrinoCatalogs(HttpServletRequest request, Map<String, String> extraCredentials) {
+    private Set<String> getTrinoCatalogsNoCache(HttpServletRequest request, Map<String, String> extraCredentials) {
         TableData catalogs = searchAll("select catalog_name FROM system.metadata.catalogs ORDER BY catalog_name", request, extraCredentials, null);
         Set<String> catalogSet = new LinkedHashSet<>();
         for (Map<String, Object> row : catalogs.getData()) {
@@ -949,6 +955,13 @@ public class TrinoDataConnectAdapter {
         return schemasSet;
     }
 
+    private String getCacheKey(Map<String,String> extraCredentials) {
+            String userToken = extraCredentials.get("userToken");
+            if (userToken == null) {
+                return "anonymous";
+            }
+            return userToken;
+        }
 
 
     private String getCacheKey(String catalog, Map<String,String> extraCredentials) {
