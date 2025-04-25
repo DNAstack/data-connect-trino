@@ -661,9 +661,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void nextPageTrailIsConsistentWithIndexOverFirst10Pages() throws Exception {
-        final int MAX_PAGES_TO_TRAVERSE = 10;
-
+    public void nextPageTrailIsConsistentWithIndex() throws Exception {
         ListTableResponse currentPage = getFirstPageOfTableListing();
 
         if (currentPage.getErrors() != null) {
@@ -680,9 +678,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
         assertThat(currentPage.getPagination(), not(nullValue()));
 
         //assert that the nth page has next url equal to the n+1st index.
-        for (int i = 1; i < Math.min(MAX_PAGES_TO_TRAVERSE, pageIndex.size() - 1); ++i) {
+        for (int i = 1; i <  pageIndex.size() - 1; ++i) {
             log.info("Follow-up: Page {}: Start", i);
-
             currentPage = globalMethodSecurityEnabled ? getListTableResponse(currentPage.getPagination().getNextPageUrl().toString()) :
                     dataConnectApiGetRequest(
                             currentPage.getPagination().getNextPageUrl().toString(),
@@ -705,9 +702,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 assertThat(currentPage.getPagination().getNextPageUrl(), is(pageIndex.get(i + 1).getUrl()));
             }
             log.info("Follow-up: Page {}: End", i);
-        }
-        if (pageIndex.size() > MAX_PAGES_TO_TRAVERSE) {
-            log.info("next page trail did not end after " + MAX_PAGES_TO_TRAVERSE + " requests, but was consistent with page index over that range.");
         }
     }
 
