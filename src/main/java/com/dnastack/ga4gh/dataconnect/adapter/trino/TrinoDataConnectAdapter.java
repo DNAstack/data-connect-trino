@@ -305,7 +305,6 @@ public class TrinoDataConnectAdapter {
     }
 
     private URI computeLinkToSchema(String catalog, String schema, HttpServletRequest request) {
-        //return URI.create(callbackBaseUrl(request) + String.format("/tables/catalog/%s/schema/%s", catalog, schema)); // TODO use URIBuilder
         return UriComponentsBuilder.fromUriString(callbackBaseUrl(request))
             .path("/tables/catalog/{catalog}/schema/{schema}")
             .buildAndExpand(catalog, schema)
@@ -313,7 +312,10 @@ public class TrinoDataConnectAdapter {
     }
 
     private URI computeLinkToCatalog(String catalog, HttpServletRequest request) {
-        return URI.create(callbackBaseUrl(request) + String.format("/tables/catalog/%s", catalog)); // TODO use URIBuilder
+        return UriComponentsBuilder.fromUriString(callbackBaseUrl(request))
+            .path("/tables/catalog/{catalog}")
+            .buildAndExpand(catalog)
+            .toUri();
     }
 
     private PageIndexEntry getPageIndexEntryForCatalog(String catalog, String schema, int page, HttpServletRequest request) {
