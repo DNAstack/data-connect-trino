@@ -1,6 +1,7 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
 import brave.Tracing;
+import com.dnastack.auth.cache.CachingConcurrentHashMap;
 import com.dnastack.ga4gh.dataconnect.ApplicationConfig;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.*;
@@ -56,6 +57,8 @@ public class TrinoDataConnectAdapter {
     //"<catalog>.<schema>.<table>".  Note this pattern is permissive and will often allow misquoted names through.
     private static final Pattern qualifiedNameMatcher =
             Pattern.compile("^\"?[^\"]+\"?\\.\"?[^\"]+\"?\\.\"?[^\"]+\"?$");
+
+    private final Map<String,Set<String>> trinoSchemaCache = new CachingConcurrentHashMap<>(300_000,100, null);
 
     private final TrinoClient client;
 
@@ -924,6 +927,12 @@ public class TrinoDataConnectAdapter {
 
 
     private Set<String> getTrinoSchema(HttpServletRequest request, String catalog, Map<String, String> extraCredentials) {
+        String cacheKey = getCacheKey(catalog, extraCredentials);
+        return trinoSchemaCache.computeIfAbsent(cacheKey,k -> getTrinoSchemaNoCache(request,catalog,extraCredentials));
+    }
+
+    @NotNull
+    private Set<String> getTrinoSchemaNoCache(HttpServletRequest request, String catalog, Map<String, String> extraCredentials) {
         TableData schemas = searchAll("select schema_name from %s.information_schema.schemata".formatted(catalog), request, extraCredentials, null);
         Set<String> schemasSet = new LinkedHashSet<>();
         for (Map<String, Object> row : schemas.getData()) {
@@ -938,6 +947,16 @@ public class TrinoDataConnectAdapter {
             schemasSet.add(schema);
         }
         return schemasSet;
+    }
+
+
+
+    private String getCacheKey(String catalog, Map<String,String> extraCredentials) {
+        String userToken = extraCredentials.get("userToken");
+        if (userToken == null) {
+            return "anonymous_" + catalog;
+        }
+        return catalog + userToken;
     }
 
 
