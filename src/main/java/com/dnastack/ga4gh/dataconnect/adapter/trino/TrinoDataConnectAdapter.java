@@ -991,9 +991,7 @@ public class TrinoDataConnectAdapter {
         if (userToken == null) {
             return "anonymous_" + catalog;
         }
-        return catalog + userToken;
-    }
-
+        return catalog + "_" + userToken;
 
     private void attachCommentsToDataModel(
         DataModel dataModel,
