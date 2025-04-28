@@ -29,6 +29,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -141,7 +142,7 @@ public class TrinoDataConnectAdapterTest {
         when(mockApplicationConfig.getHiddenCatalogs()).thenReturn(Collections.emptySet()); // Default: no hidden catalogs
 
         dataConnectAdapter = new TrinoDataConnectAdapter(
-                mockTrinoClient, jdbi, mockApplicationConfig, List.of(dataModelSupplier), tracing
+                mockTrinoClient, jdbi, mockApplicationConfig, List.of(dataModelSupplier), tracing, Duration.ofMinutes(5),100
         );
     }
 
