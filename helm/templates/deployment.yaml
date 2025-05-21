@@ -315,8 +315,8 @@ spec:
               value: "false"
             - name: DD_APPSEC_ENABLED
               value: "false"
-            - name: DD_PROPAGATION_STYLE_EXTRACT
-              value: "Datadog,B3"
+            - name: DD_TRACE_PROPAGATION_STYLE
+              value: "datadog,b3single,b3multi"
             - name: DD_TRACE_PARTIAL_FLUSH_MIN_SPANS
               value: "400"
             # Optional environment variables
