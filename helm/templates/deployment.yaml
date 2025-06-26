@@ -310,15 +310,11 @@ spec:
             # Auditing
             - name: AUDITING_ENABLED
               value: "true"
-            # Datadog Config
-            - name: DD_PROFILING_ENABLED
-              value: "false"
-            - name: DD_APPSEC_ENABLED
-              value: "false"
-            - name: DD_TRACE_PROPAGATION_STYLE
-              value: "datadog,b3single,b3multi"
-            - name: DD_TRACE_PARTIAL_FLUSH_MIN_SPANS
-              value: "400"
+            # Global instrumentation environment variables (DataDog, etc.)
+            {{- range .Values.global.instrumentation.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
             # Optional environment variables
             {{- range .Values.env }}
             - name: {{ .name }}
