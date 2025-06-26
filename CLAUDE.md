@@ -2,6 +2,10 @@
 
 This file provides context and guidelines for AI assistants working with the DNAstack Data Connect Trino repository.
 
+
+## General directions
+- Read @../CLAUDE.md for general context and conventions.
+
 ## Repository Overview
 
 Data Connect Trino is an implementation of the GA4GH Discovery Data Connect API on top of Trino (formerly PrestoSQL). This service enables users to enumerate and query data surfaced by a Trino instance in a manner compliant with GA4GH Discovery specifications, returning responses in the Table specification format.
