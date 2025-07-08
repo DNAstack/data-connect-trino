@@ -24,6 +24,8 @@ global:
     appName: trino # Host portion of the trino URL to be used for authorization e.g. trino
   wallet:
     appName: wallet # Host portion of the wallet URL to be used for authorization e.g. wallet
+  instrumentation:
+    env:
 
 image:
   secretName: # the image pull secret used to pull images from GCP artifact registry
