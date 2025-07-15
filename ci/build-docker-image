@@ -12,6 +12,11 @@ target_image_name=$1
 app_name=$2
 app_version=$3
 
+## Get git info to setup DD test monitoring
+commit_sha=$(git rev-parse HEAD)
+commit_author_email=$(git log -1 --pretty=format:'%ae')
+commit_message=$(git log -1 --pretty=format:'%s')
+
 # This script does all its staging in a directory called target for easy cleanup and effective .gitignore.
 docker_context_dir=ci/impl/target
 rm -rf ${docker_context_dir}
@@ -24,5 +29,8 @@ cp -rp .mvn mvnw pom.xml src ${docker_context_dir}
 docker build \
   --build-arg APP_NAME=${app_name} \
   --build-arg APP_VERSION=${app_version} \
+  --build-arg GIT_COMMIT_SHA="${commit_sha}" \
+  --build-arg GIT_COMMIT_AUTHOR_EMAIL="${commit_author_email}" \
+  --build-arg GIT_COMMIT_MESSAGE="${commit_message}" \
   -t ${target_image_name} \
   ci/impl
