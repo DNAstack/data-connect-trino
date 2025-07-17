@@ -113,23 +113,9 @@ spec:
               value: '{{- include "dnastack.wallet.resourceUrl" . }}/'
             - name: WALLET_ADMIN_KUBEKEY
               value: "wallet-cloud-init-client-credentials"
-            # Optional cloud-init environment variables
-            {{- range .Values.cloudInitEnv }}
-            - name: {{ .name }}
-              {{- if .valueFrom  }}
-              valueFrom:
-                {{- if .valueFrom.fieldRef  }}
-                fieldRef:
-                  fieldPath: '{{ .valueFrom.fieldRef.fieldPath }}'
-                {{- else}}
-                secretKeyRef:
-                  name: '{{ .valueFrom.secretKeyRef.name }}'
-                  key: '{{ .valueFrom.secretKeyRef.key }}'
-                {{- end}}
-              {{- else }}
-              value: '{{ .value }}'
-              {{- end }}
-            {{- end }}
+            # Combined environment variables (optional env + global.instrumentation)
+            {{- include "mergeEnvLists" (dict "lists" (list .Values.env .Values.global.instrumentation.env) "template" $) | nindent 12 }}
+
           envFrom:
             - secretRef:
                 name: publisher-cloud-init-secrets
@@ -310,28 +296,8 @@ spec:
             # Auditing
             - name: AUDITING_ENABLED
               value: "true"
-            # Global instrumentation environment variables (DataDog, etc.)
-            {{- range .Values.global.instrumentation.env }}
-            - name: {{ .name }}
-              value: {{ .value | quote }}
-            {{- end }}
-            # Optional environment variables
-            {{- range .Values.env }}
-            - name: {{ .name }}
-              {{- if .valueFrom  }}
-              valueFrom:
-                {{- if .valueFrom.fieldRef  }}
-                fieldRef:
-                  fieldPath: '{{ .valueFrom.fieldRef.fieldPath }}'
-                {{- else}}
-                secretKeyRef:
-                  name: '{{ .valueFrom.secretKeyRef.name }}'
-                  key: '{{ .valueFrom.secretKeyRef.key }}'
-                {{- end}}
-              {{- else }}
-              value: '{{ .value }}'
-              {{- end }}
-            {{- end }}
+            # Combined environment variables (optional env + global.instrumentation)
+            {{- include "mergeEnvLists" (dict "lists" (list .Values.env .Values.global.instrumentation.env) "template" $) | nindent 12 }}
 
 ---
 apiVersion: v1
