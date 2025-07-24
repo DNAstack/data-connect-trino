@@ -37,17 +37,6 @@ RUN ./mvnw -B -X package
 FROM amazoncorretto:21-alpine
 ARG APP_NAME
 ARG APP_VERSION
-ARG GIT_COMMIT_SHA
-ARG GIT_COMMIT_AUTHOR_EMAIL
-ARG GIT_COMMIT_MESSAGE
-
-ENV DD_GIT_COMMIT_SHA=$GIT_COMMIT_SHA
-ENV DD_GIT_COMMIT_AUTHOR_EMAIL=$GIT_COMMIT_AUTHOR_EMAIL
-ENV DD_GIT_COMMIT_MESSAGE=$GIT_COMMIT_MESSAGE
-# Needs to be set to the repository URL without the protocol
-ENV DD_GIT_REPOSITORY_URL="github.com/DNAstack/$APP_NAME.git"
-ENV DD_GIT_BRANCH="main"
-ENV DD_SERVICE=$APP_NAME
 
 # gcompat required for statically-linked java-buildpack-memory-calculator to work under alpine
 RUN apk add --no-cache gcompat
