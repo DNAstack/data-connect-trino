@@ -1,10 +1,6 @@
 package com.dnastack.ga4gh.dataconnect.adapter;
 
-import brave.Tracing;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.*;
-import com.dnastack.trino.TrinoHttpClient;
-import com.dnastack.trino.adapter.security.AuthConfig;
-import com.dnastack.trino.adapter.security.ServiceAccountAuthenticator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,11 +11,9 @@ import io.restassured.http.Method;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.HttpStatus;
 import org.assertj.core.api.Assertions;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,9 +38,9 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.*;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -150,33 +144,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     private static final List<String> dataConnectScopes = List.of("data-connect:query", "data-connect:data", "data-connect:info");
 
-    private static TrinoHttpClient trinoHttpClient;
-    private static final String trinoHostname = optionalEnv("E2E_TRINO_HOSTNAME", "http://localhost:8091");
-    private static final boolean trinoIsPublic = Boolean.parseBoolean(optionalEnv("E2E_TRINO_IS_PUBLIC", "false"));
-
     @BeforeAll
-    public static void beforeClass() throws InterruptedException {
-        AuthConfig.OauthClientConfig clientConfig = new AuthConfig.OauthClientConfig();
-        clientConfig.setTokenUri(walletTokenUrl);
-        clientConfig.setClientId(walletClientId);
-        clientConfig.setClientSecret(walletClientSecret);
-        clientConfig.setScopes(trinoScopes);
-        clientConfig.setAudience(trinoAudience);
-
-        Tracing tracing = Tracing.newBuilder().build();
-        tracing.setNoop(true);
-
-        ServiceAccountAuthenticator serviceAccountAuthenticator = trinoIsPublic ? new ServiceAccountAuthenticator() : new ServiceAccountAuthenticator(clientConfig);
-
-        trinoHttpClient = new TrinoHttpClient(
-            tracing,
-            new OkHttpClient(),
-            trinoHostname,
-            serviceAccountAuthenticator,
-            Map.of(),
-            true
-        );
-
+    public static void beforeClass() throws IOException {
         log.info("Setting up test tables");
         setupTestTables();
         log.info("Done setting up test tables");
@@ -187,7 +156,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static String trinoJsonTestTable;
     private static String unqualifiedPaginationTestTable; //just the table name (no catalog or schema)
 
-    private static void setupTestTables() throws InterruptedException {
+    private static void setupTestTables() throws IOException {
         String randomFactor = RandomStringUtils.randomAlphanumeric(16);
         List<String> queries = new LinkedList<>();
 
@@ -233,13 +202,13 @@ public class DataConnectE2eTest extends BaseE2eTest {
         log.info("Creating table for pagination tests.");
         unqualifiedPaginationTestTable = "pagination_" + randomFactor;
         trinoPaginationTestTableName = qualifyTestTableName(unqualifiedPaginationTestTable).toLowerCase();
-        queries.add(createPaginationTable());
+        queries.add(createPaginationTable(trinoPaginationTestTableName));
         dropAfterAllTests(trinoPaginationTestTableName);
-        queries.add(insertIntoPaginationTable(120));
+        queries.add(insertIntoPaginationTable(trinoPaginationTestTableName, 120));
 
         for (String query : queries) {
             try {
-                waitForQueryToFinish(query);
+                dataConnectQuery(query);
             } catch (Exception e) {
                 throw new RuntimeException("During test table setup, failed to execute: " + query, e);
             }
@@ -247,14 +216,21 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
         // Give the tables a moment to settle, we've seen some flakiness in the tests
         // and suspect that the memory connector for trino may be eventually consistent
-        Thread.sleep(1000);
+        Table lastResult = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            lastResult = dataConnectQueryNoErrorCheck("select * from " + trinoJsonTestTable);
+            if (lastResult.getErrors().isEmpty() && !lastResult.getData().isEmpty()) {
+                return;
+            }
+        }
+        throw new RuntimeException("Tables didn't settle: " + lastResult);
     }
 
     /** Enquques a cleanup operation for the given table */
     private static void dropAfterAllTests(String tableName) {
         afterAllCleanups.add(() -> {
             log.info("Dropping {}...", tableName);
-            waitForQueryToFinish(dropTable(tableName));
+            dataConnectQuery(dropTable(tableName));
         });
     }
 
@@ -262,19 +238,23 @@ public class DataConnectE2eTest extends BaseE2eTest {
         return String.format("DROP TABLE %s", trinoDateTimeTestTable);
     }
 
-    private static @NotNull String createPaginationTable() {
-        return String.format("CREATE TABLE %s(id integer, bogusfield varchar(64))", trinoPaginationTestTableName);
+    private static String createPaginationTable(String tableName) {
+        return String.format("CREATE TABLE %s(id integer, bogusfield varchar)", tableName);
     }
 
-    private static String insertIntoPaginationTable(int rows) {
+    /**
+     * Creates an insert statement that fills the given table's {@code bogusfield} column with enough rows of data
+     * to exceed one Trino page of response data (about 600 rows per page).
+     */
+    private static String insertIntoPaginationTable(String tableName, int rows) {
         ArrayList<String> testValues = new ArrayList<>();
         for (int i = 0; i < rows; ++i) {
-            testValues.add(String.format("('testValue_%s')", i));
+            testValues.add(String.format("(REPLACE('testValue_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_%s', 'x', 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'))", i));
         }
-        return String.format("INSERT INTO %s (bogusfield) VALUES %s", trinoPaginationTestTableName, String.join(", ", testValues));
+        return String.format("INSERT INTO %s (bogusfield) VALUES %s", tableName, String.join(", ", testValues));
     }
 
-    private static @NotNull String createDateTimeTable() {
+    private static String createDateTimeTable() {
         return String.format("""
                 CREATE TABLE %s (
                 zone VARCHAR(255),
@@ -288,7 +268,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 """, trinoDateTimeTestTable);
     }
 
-    private static @NotNull String insertIntoDateTimeTable(String zone, String date, String time, String timestamp, String timestampWithTimeZone, String timestampWithoutTimeZone, String timeWithoutTimeZone, String timeWithTimeZone) {
+    private static String insertIntoDateTimeTable(String zone, String date, String time, String timestamp, String timestampWithTimeZone, String timestampWithoutTimeZone, String timeWithoutTimeZone, String timeWithTimeZone) {
         return String.format(
                 "INSERT INTO %s(zone, thedate, thetime, thetimestamp, thetimestampwithtimezone, thetimestampwithouttimezone, thetimewithouttimezone, thetimewithtimezone)"
                     + " VALUES(%s, date %s, time %s, timestamp %s, timestamp %s, timestamp %s, time %s, time %s)",
@@ -304,11 +284,11 @@ public class DataConnectE2eTest extends BaseE2eTest {
         );
     }
 
-    private static @NotNull String createJsonTestTable() {
+    private static String createJsonTestTable() {
         return String.format("CREATE TABLE %s (id varchar(25), data json)", trinoJsonTestTable);
     }
 
-    private static @NotNull String insertIntoJsonTable(String id, String jsonLiteral) {
+    private static String insertIntoJsonTable(String id, String jsonLiteral) {
         return String.format("INSERT INTO %s (id, data) VALUES(%s, json_parse(%s))",
                 trinoJsonTestTable,
                 quoteSqlString(id),
@@ -320,17 +300,6 @@ public class DataConnectE2eTest extends BaseE2eTest {
             return "null";
         }
         return "'" + s.replaceAll("'", "''") + "'";
-    }
-
-    private static void waitForQueryToFinish(String query) throws IOException {
-        JsonNode node = trinoHttpClient.query(query, Map.of());
-        String state = node.get("stats").get("state").asText();
-        String nextPageUri = node.has("nextUri") ? node.get("nextUri").asText() : null;
-        while (!state.equals("FINISHED") && nextPageUri != null) {
-            node = trinoHttpClient.next(nextPageUri, Map.of());
-            state = node.get("stats").get("state").asText();
-            nextPageUri = node.has("nextUri") ? node.get("nextUri").asText() : null;
-        }
     }
 
     @AfterAll
@@ -368,8 +337,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     private ListTableResponse getListTableResponse(String url) {
-        String bearerToken = getToken(null, dataConnectScopes, List.of(dataConnectAdapterResource));
-        String searchAuthorizationToken = getToken(null, dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
+        String bearerToken = getToken(dataConnectScopes, List.of(dataConnectAdapterResource));
+        String searchAuthorizationToken = getToken(dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
 
         Map<String, Object> headers = new HashMap<>();
         headers.put("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
@@ -387,7 +356,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     @EnabledIfEnvironmentVariable(named = "E2E_INDEXING_SERVICE_ENABLED", matches = "true", disabledReason = "This test requires data-connect-trino to be hooked up to indexing-service")
     @Test
     public void getTableInfo_should_returnCustomSchema_from_indexingService() throws IOException {
-        final String indexingServiceBearerToken = getToken(null, List.of("ins:library:write"), List.of(INDEXING_SERVICE_RESOURCE_URI + "library/") );
+        final String indexingServiceBearerToken = getToken(List.of("ins:library:write"), List.of(INDEXING_SERVICE_RESOURCE_URI + "library/") );
 
         log.info("Verifying table info for [{}]", trinoPaginationTestTableName);
         TableInfo tableInfo = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/info", 200, TableInfo.class);
@@ -455,7 +424,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 return matcher.group(1);
             }
             return null;
-        }).filter(Objects::nonNull).collect(Collectors.toList());
+        }).filter(Objects::nonNull).toList();
 
         return groups.stream().flatMap(group -> {
             String tableName = requiredEnv(String.format("E2E_%s_TABLE_NAME", group));
@@ -523,12 +492,11 @@ public class DataConnectE2eTest extends BaseE2eTest {
         assertThat(tableInfo.getDataModel().getProperties(), not(nullValue()));
         assertThat(tableInfo.getDataModel().getProperties().entrySet(), not(empty()));
 
-        EXPECTED_FORMATS.entrySet().stream()
-            .forEach((entry) -> {
-                assertThat(tableInfo.getDataModel().getProperties(), hasKey(entry.getKey()));
-                assertThat(tableInfo.getDataModel().getProperties().get(entry.getKey()).getFormat(), is(entry.getValue()));
-                assertThat(tableInfo.getDataModel().getProperties().get(entry.getKey()).getType(), is("string"));
-            });
+        EXPECTED_FORMATS.forEach((key, value) -> {
+            assertThat(tableInfo.getDataModel().getProperties(), hasKey(key));
+            assertThat(tableInfo.getDataModel().getProperties().get(key).getFormat(), is(value));
+            assertThat(tableInfo.getDataModel().getProperties().get(key).getType(), is("string"));
+        });
     }
 
     @Test
@@ -637,27 +605,20 @@ public class DataConnectE2eTest extends BaseE2eTest {
         assertThat(result.getDataModel().getProperties(), not(nullValue()));
 
         final Map<String, ColumnSchema> properties = result.getDataModel().getProperties();
-        final Map<String, Object> row = result.getData().get(0);
-        EXPECTED_FORMATS.entrySet().stream().forEach(entry -> {
-            String columnName = entry.getKey();
-            String expectedColumnFormat = entry.getValue();
+        final Map<String, Object> row = result.getData().getFirst();
+        EXPECTED_FORMATS.forEach((columnName, expectedColumnFormat) -> {
             assertThat("Expected column with format " + expectedColumnFormat + " for column " + columnName + " (" + zone + " time zone)", properties.get(columnName).getFormat(), is(expectedColumnFormat));
             assertThat("Expected column with type string for column " + columnName + " (" + zone + " time zone)", properties.get(columnName).getType(), is("string"));
-            assertThat("date/time/datetime column " + columnName + " had an unexpected value for zone "+zone, row.get(columnName), is(expectedValues.get(columnName)));
+            assertThat("date/time/datetime column " + columnName + " had an unexpected value for zone " + zone, row.get(columnName), is(expectedValues.get(columnName)));
         });
     }
 
     @Test
     public void datesAndTimesHaveCorrectValuesForDatesAndTimesInsertedWithZone() throws IOException {
         for (Map.Entry<String, Map<String, String>> e : EXPECTED_VALUES.entrySet()) {
-            log.info("Checking date and time was inserted correctly for zone " + e.getKey());
+            log.info("Checking date and time was inserted correctly for zone {}", e.getKey());
             assertDatesAndTimesHaveCorrectValuesForZone(e.getKey(), e.getValue());
         }
-    }
-
-    @Test
-    public void indexIsPresentOnFirstPage() throws Exception {
-        getFirstPageOfTableListing();
     }
 
     @Test
@@ -706,8 +667,13 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void sending_delete_request_to_next_page_url_should_terminate_query() throws IOException {
-        DataConnectRequest query = new DataConnectRequest(String.format("SELECT * FROM " + trinoJsonTestTable));
+    public void deleteNextPageUrl_should_terminateQuery() throws IOException {
+        String tableName = qualifyTestTableName("query_termination_test_table_" + System.currentTimeMillis());
+        dataConnectQuery(createPaginationTable(tableName));
+        dropAfterAllTests(tableName);
+        dataConnectQuery(insertIntoPaginationTable(tableName, 600));
+
+        DataConnectRequest query = new DataConnectRequest(String.format("SELECT * FROM " + tableName));
         log.info("Running query {} and following the next page URL", query);
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         String nextPageUrl = result.getPagination().getNextPageUrl().toString();
@@ -718,7 +684,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         assertThat("Following next page URL of a cancelled query should return errors", result.getErrors(), hasSize(1));
         assertThat(
             "Following next page URL of a cancelled query should mention that it was cancelled: " + result,
-            result.getErrors().get(0).getDetails().toLowerCase(),
+            result.getErrors().getFirst().getDetails().toLowerCase(),
             containsString("canceled")); // Trino uses the american spelling
     }
 
@@ -782,7 +748,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         DataConnectRequest query = new DataConnectRequest("SELECT * FROM FROM E2ETEST LIMIT STRAWBERRY");
         Table data = dataConnectUntilException(query, HttpStatus.SC_BAD_REQUEST);
         runBasicAssertionOnTableErrorList(data.getErrors());
-        assertThat(data.getErrors().get(0).getStatus(), equalTo(400));
+        assertThat(data.getErrors().getFirst().getStatus(), equalTo(400));
     }
 
     @Test
@@ -790,7 +756,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         DataConnectRequest query = new DataConnectRequest("SELECT e2etest_olywolypolywoly FROM " + trinoPaginationTestTableName + " LIMIT 10");
         Table data = dataConnectUntilException(query, HttpStatus.SC_BAD_REQUEST);
         runBasicAssertionOnTableErrorList(data.getErrors());
-        assertThat(data.getErrors().get(0).getStatus(), equalTo(400));
+        assertThat(data.getErrors().getFirst().getStatus(), equalTo(400));
     }
 
     @Test
@@ -819,7 +785,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         final String trinoTableWithBadCatalog = "e2etest_olywlypolywoly.public." + unqualifiedPaginationTestTable;
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadCatalog + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
-        assertThat(info.getErrors().get(0).getStatus(), equalTo(404));
+        assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
     }
 
     @Test
@@ -827,7 +793,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         final String trinoTableWithBadSchema = inMemoryCatalog + ".e2etest_olywolypolywoly." + unqualifiedPaginationTestTable;
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadSchema + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
-        assertThat(info.getErrors().get(0).getStatus(), equalTo(404));
+        assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
     }
 
     @Test
@@ -835,7 +801,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         final String trinoTableWithBadTable = inMemoryCatalog + "." + inMemorySchema + "." + "e2etest_olywolypolywoly";
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadTable + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
-        assertThat(info.getErrors().get(0).getStatus(), equalTo(404));
+        assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
     }
 
     @Test
@@ -843,7 +809,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         final String trinoTableWithBadTable = "e2etest_olywolypolywoly";
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadTable + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
-        assertThat(info.getErrors().get(0).getStatus(), equalTo(404));
+        assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
     }
 
     @Test
@@ -888,7 +854,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void searchQuery_should_require_searchDataAndSearchQuery_scopes() {
+    public void searchQuery_should_requireDataAndQueryScopes() {
         assumeTrue(globalMethodSecurityEnabled);
         assumeTrue(scopeCheckingEnabled);
 
@@ -965,8 +931,26 @@ public class DataConnectE2eTest extends BaseE2eTest {
     static void runBasicAssertionOnTableErrorList(List<TableError> errors) {
         assertThat(errors, not(nullValue()));
         assertThat(errors.size(), equalTo(1));
-        assertThat(errors.get(0).getTitle(), not(nullValue()));
-        assertThat(errors.get(0).getDetails(), not(nullValue()));
+        assertThat(errors.getFirst().getTitle(), not(nullValue()));
+        assertThat(errors.getFirst().getDetails(), not(nullValue()));
+    }
+
+    /**
+     * Sends the query and retrieves all pages, accumulating all data and errors into the returned Table object.
+     *
+     * @param sql
+     * @return
+     */
+    static Table dataConnectQuery(String sql) throws IOException {
+        Table result = dataConnectQueryNoErrorCheck(sql);
+        assertThat("Query failed: " + sql, result.getErrors(), empty());
+        return result;
+    }
+
+    static Table dataConnectQueryNoErrorCheck(String sql) throws IOException {
+        Table table = dataConnectApiRequest(POST, "/search", Map.of("query", sql), 200, Table.class);
+        dataConnectApiGetAllPages(table);
+        return table;
     }
 
     /**
@@ -1004,7 +988,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     public void sendDeleteRequest(String path) throws IOException {
-        getResponse(DELETE, path, null)
+        sendHttpRequest(DELETE, path, null)
             .then()
             .log().ifValidationFails(LogDetail.ALL)
             .statusCode(204);
@@ -1033,7 +1017,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
             fail("This method handles auth challenges and retries on 401. You can't use it when you want a 401 response.");
         }
 
-        return getResponse(method, path, body)
+        return sendHttpRequest(method, path, body)
             .then()
             .log().ifValidationFails()
             .statusCode(expectedStatus)
@@ -1045,17 +1029,16 @@ public class DataConnectE2eTest extends BaseE2eTest {
      * Executes a data connect query and follows nextUri links until a response returns the HTTP error code in expectedErrorStatus.
      * If the expected status is never reached, an assertion error is thrown.
      *
-     * @return UserFacingError The error object describing the expected error.
-     * @throws IOException
+     * @return The last page of the response (does not contain the accumulated rows from previous pages).
+     * @throws AssertionError if the expected error is not encountered by the last page, or when a different error is encountered.
      */
     private static Table dataConnectUntilException(Object query, int expectedErrorStatus) throws IOException {
-        Response response = getResponse(Method.POST, "/search", query);
+        Response response = sendHttpRequest(Method.POST, "/search", query);
         if (response.getStatusCode() == HttpStatus.SC_OK) {
-            log.info("Got status OK after POSTing data connect");
             Table table = response.then().log().ifValidationFails(LogDetail.ALL).extract().as(Table.class);
             while (table.getPagination() != null && table.getPagination().getNextPageUrl() != null) {
                 String nextPageUri = table.getPagination().getNextPageUrl().toString();
-                Response nextPageResponse = getResponse(Method.GET, nextPageUri, null);
+                Response nextPageResponse = sendHttpRequest(Method.GET, nextPageUri, null);
                 log.info("Looking for status " + expectedErrorStatus + " by following nextPageUri trail, most recent request returned " + nextPageResponse.getStatusCode());
                 if (nextPageResponse.getStatusCode() == expectedErrorStatus) {
                     return nextPageResponse.then().log().ifValidationFails(LogDetail.ALL).extract().as(Table.class);
@@ -1071,7 +1054,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         throw new AssertionError("Expected to receive status " + expectedErrorStatus + " somewhere on the nextUri trail, but never found it.");
     }
 
-    private static Response getResponse(Method method, String path, Object body) throws IOException {
+    private static Response sendHttpRequest(Method method, String path, Object body) throws IOException {
         Optional<HttpAuthChallenge> wwwAuthenticate;
         for (int attempt = 0; attempt < MAX_REAUTH_ATTEMPTS; attempt++) {
 
@@ -1175,12 +1158,11 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     static RequestSpecification givenAuthenticatedRequest(String... scopes) {
-        RequestSpecification req = given()
-            .config(config);
+        RequestSpecification req = given();
 
         // Add auth if auth properties are configured
         if (globalMethodSecurityEnabled && walletClientId != null && walletClientSecret != null && dataConnectAdapterResource != null) {
-            String accessToken = getToken(null, List.of(scopes), List.of(dataConnectAdapterResource));
+            String accessToken = getToken(List.of(scopes), List.of(dataConnectAdapterResource));
             req.auth().oauth2(accessToken);
             if (optionalEnv("E2E_LOG_TOKENS", "false").equalsIgnoreCase("true")) {
                 log.info("Using access token {}", accessToken);
@@ -1188,7 +1170,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         }
 
         if (PUBLISHER_DATA_RESOURCE_URI != null) {
-            String searchAuthorizationToken = getToken(null, dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
+            String searchAuthorizationToken = getToken(dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
             req.header("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
         }
 

@@ -28,7 +28,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Slf4j
 public abstract class BaseE2eTest {
     protected static final ObjectMapper objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    protected static RestAssuredConfig config;
     protected static String walletClientId = optionalEnv("E2E_WALLET_CLIENT_ID", "data-connect-trino-e2e-test");
     protected static String walletClientSecret = optionalEnv("E2E_WALLET_CLIENT_SECRET", "dev-secret-never-use-in-prod");
     protected static String dataConnectAdapterResource = optionalEnv("E2E_WALLET_RESOURCE", "http://localhost:8089/");
@@ -63,6 +62,11 @@ public abstract class BaseE2eTest {
     public static void setupRestAssured() {
         RestAssured.baseURI = optionalEnv("E2E_BASE_URI", "http://localhost:8089");
         RestAssured.replaceFiltersWith(new TraceLoggingFilter());
+        RestAssured.config = RestAssured.config()
+                .objectMapperConfig(
+                        ObjectMapperConfig.objectMapperConfig()
+                                .jackson2ObjectMapperFactory((type, s) -> objectMapper)
+                );
         try {
             if (new URI(RestAssured.baseURI).getHost().equalsIgnoreCase("localhost")) {
                 log.info("E2E BASE URI is at localhost, allowing localhost to occur within URLs of JSON responses.");
@@ -108,16 +112,6 @@ public abstract class BaseE2eTest {
         }
     }
 
-    @BeforeAll
-    public static void setupObjectMapper() {
-        config = RestAssuredConfig.config()
-            .objectMapperConfig(
-                ObjectMapperConfig.objectMapperConfig()
-                    .defaultObjectMapperType(ObjectMapperType.JACKSON_2)
-                    .jackson2ObjectMapperFactory((cls, charset) -> objectMapper)
-            );
-    }
-
     protected static String requiredEnv(String name) {
         String val = System.getenv(name);
         if (val == null) {
@@ -134,43 +128,21 @@ public abstract class BaseE2eTest {
         return val;
     }
 
-    interface ExceptionalSupplier<T, E extends Exception> {
-        T get() throws E;
-    }
-
-    protected static <E extends Exception> String lazyOptionalEnv(String name, ExceptionalSupplier<String, E> defaultValue) throws E {
-        String val = System.getenv(name);
-        if (val == null) {
-            return defaultValue.get();
-        }
-        return val;
-    }
-
-    static String getToken(String audience, String... scopes) {
-        return getToken(audience, Arrays.asList(scopes) , List.of());
-    }
-
-    static String getToken(String audience, List<String> scopes, List<String> resources) {
+    static String getToken(List<String> scopes, List<String> resources) {
         RequestSpecification specification = new RequestSpecBuilder().setBaseUri(walletTokenUrl)
             .build();
 
-        //@formatter:off
         RequestSpecification requestSpecification = given(specification)
-            .config(config)
             .auth().basic(walletClientId, walletClientSecret)
             .formParam("grant_type", "client_credentials")
             .formParam("client_id", walletClientId)
             .formParam("client_secret", walletClientSecret);
 
-        if (audience != null) {
-            requestSpecification.formParam("audience", audience);
-        }
-
-        if (scopes.size() > 0) {
+        if (!scopes.isEmpty()) {
             requestSpecification.formParam("scope", String.join(" ", scopes));
         }
 
-        if (resources.size() > 0) {
+        if (!resources.isEmpty()) {
             for (String resource : resources) {
                 requestSpecification.formParam("resource", resource);
             }
@@ -183,7 +155,6 @@ public abstract class BaseE2eTest {
             .log().ifValidationFails()
             .statusCode(200)
             .extract().jsonPath();
-        //@formatter:on
 
         return tokenResponse.getString("access_token");
     }

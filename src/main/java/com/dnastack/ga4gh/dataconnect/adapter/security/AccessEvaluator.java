@@ -22,7 +22,7 @@ public class AccessEvaluator {
     @Value("${app.url}")
     private String appUrl;
 
-    @Autowired(required = false)
+    @Autowired
     private AccessEvaluatorMethod accessEvaluatorMethod;
 
     /**
@@ -37,10 +37,7 @@ public class AccessEvaluator {
      * @return boolean value specifying whether the user can access the resource
      */
     public boolean canAccessResource(String requiredResource, Set<String> requiredActions, Set<String> requiredScopes) {
-        if (this.accessEvaluatorMethod == null) {
-            useDefaultAccessEvaluatorMethod();
-        }
-        return this.accessEvaluatorMethod.checkAccessResource(requiredResource, requiredActions, requiredScopes);
+        return accessEvaluatorMethod.checkAccessResource(requiredResource, requiredActions, requiredScopes);
     }
 
     public static abstract class AccessEvaluatorMethod {
@@ -87,12 +84,14 @@ public class AccessEvaluator {
     @Bean
     @ConditionalOnClass(name = "com.dnastack.auth.PermissionChecker")
     @ConditionalOnExpression("'${app.auth.access-evaluator}' == 'wallet'")
-    public AccessEvaluatorMethod walletAccessEvaluatorMethod(PermissionChecker permissionChecker) {
+    public AccessEvaluatorMethod walletAccessEvaluator(PermissionChecker permissionChecker) {
         return new WalletAccessEvaluatorMethod(appUrl, permissionChecker);
     }
 
-    private void useDefaultAccessEvaluatorMethod() {
-        this.accessEvaluatorMethod = new AccessEvaluatorMethod() {
+    @Bean
+    @ConditionalOnExpression("'${app.auth.authorization-type}' == 'none'")
+    private AccessEvaluatorMethod allowAllAccessEvaluator() {
+        return new AccessEvaluatorMethod() {
             @Override
             public boolean checkAccessResource(String requiredResource, Set<String> requiredActions, Set<String> requiredScopes) {
                 return true;

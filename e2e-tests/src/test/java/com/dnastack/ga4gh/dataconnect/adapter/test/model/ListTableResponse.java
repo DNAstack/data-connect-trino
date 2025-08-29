@@ -1,14 +1,14 @@
 package com.dnastack.ga4gh.dataconnect.adapter.test.model;
 
-import java.util.List;
-import java.util.Map;
-
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Data;
 
+import java.util.List;
+import java.util.Map;
+
 @Data
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class ListTableResponse {
     private List<Table> tables;
     private Pagination pagination;

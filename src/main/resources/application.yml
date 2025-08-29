@@ -85,6 +85,8 @@ auditing:
   json-printer-style: dense_print
 
 spring:
+  profiles:
+    default: wallet-auth
   application:
     name: data-connect-trino
   main:
@@ -121,31 +123,6 @@ management:
   endpoints:
     web.exposure.include: info, health
 
----
-
-spring:
-  config:
-    activate:
-      on-profile: default
-
-app:
-  # Sample Auth configuration - works with local Wallet, Gatekeeper, Trino (see README.md)
-  auth:
-    authorization-type: bearer
-    access-evaluator: scope
-    global-method-security:
-      enabled: true
-
-    token-issuers:
-      - issuer-uri: http://localhost:8081
-        jwk-set-uri: http://localhost:8081/oauth/jwks
-        audiences: ["http://localhost:${server.port}"]
-
-    trino-oauth-client:
-      token-uri: http://localhost:8081/oauth/token
-      client-id: data-connect-trino
-      client-secret: dev-secret-never-use-in-prod
-      audience: http://trino.local
 ---
 
 spring:

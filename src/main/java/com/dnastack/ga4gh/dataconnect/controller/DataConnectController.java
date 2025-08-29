@@ -36,13 +36,13 @@ public class DataConnectController {
     private final TrinoDataConnectAdapter trinoDataConnectAdapter;
 
     private static final RetryConfig retryConfig = RetryConfig.<TableData>custom()
-        .maxAttempts(8) // 7 retries ~16 seconds
+        .intervalFunction(IntervalFunction.of(1)) // trino throttles us for up to 10 seconds per page request when no further results are ready
+        .maxAttempts(4) // first page is always very quick; next 3 tries will take maximum 30s
         .retryOnResult(tableData ->
             tableData.getPagination() != null
             && tableData.getPagination().getNextPageUrl() != null
             && (tableData.getData() == null || tableData.getData().isEmpty()))
         .retryOnException(e -> false)
-        .intervalFunction(IntervalFunction.ofExponentialBackoff(500L, 1.5D))
         .build();
     private static final RetryRegistry retryRegistry = RetryRegistry.of(retryConfig);
 

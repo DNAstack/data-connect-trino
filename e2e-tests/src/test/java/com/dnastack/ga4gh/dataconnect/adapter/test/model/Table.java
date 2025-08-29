@@ -2,7 +2,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.test.model;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Data;
 
@@ -12,12 +12,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Table Data
- *
- * This is equivalent to the TableData class
+ * Holds a Data Connect TableData response.
  */
 @Data
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class Table {
     private String name;
     private String description;
@@ -36,31 +34,26 @@ public class Table {
         return additionalProperties;
     }
 
-    private static <T> List<T> concat(List<T> l1, List<T> l2) {
-        if (l1 != null && l2 != null) {
-            List<T> result = new ArrayList<>(l1.size() + l2.size());
-            result.addAll(l1);
-            result.addAll(l2);
-            return result;
-        } else if (l1 != null) {
-            return List.copyOf(l1);
-        } else if (l2 != null) {
-            return List.copyOf(l2);
-        } else {
-            return null;
+    public List<Map<String, Object>> getData() {
+        if (data == null) {
+            data = new ArrayList<>();
         }
+        return data;
+    }
+
+    public List<TableError> getErrors() {
+        if (errors == null) {
+            errors = new ArrayList<>();
+        }
+        return errors;
     }
 
     public void append(Table tableData) {
-        if (tableData != null) {
-            if (tableData.getData() != null) {
-                this.data = concat(this.data, tableData.getData());
-            }
-            if (tableData.getDataModel() != null) {
-                this.dataModel = tableData.getDataModel();
-            }
-            this.pagination = tableData.getPagination();
+        getData().addAll(tableData.getData());
+        if (tableData.getDataModel() != null) {
+            this.dataModel = tableData.getDataModel();
         }
-
+        getErrors().addAll(tableData.getErrors());
+        this.pagination = tableData.getPagination();
     }
 }

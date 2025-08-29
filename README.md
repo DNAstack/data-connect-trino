@@ -41,7 +41,7 @@ CREATE USER dataconnecttrino PASSWORD 'dataconnecttrino' CREATEDB CREATEROLE;
 CREATE DATABASE dataconnecttrino OWNER dataconnecttrino;
 ```
 ### Run
-```$xslt
+```bash
 mvn clean spring-boot:run
 ```
 
@@ -56,20 +56,18 @@ Each profile also enables the following set of spring configuration variables:
 
 ```bash
 APP_AUTH_AUTHORIZATIONTYPE="bearer" or "basic" or "none"
-APP_AUTH_ACCESSEVALUATOR="scope" or "wallet" # only applies when AUTHORIZATIONTYPE=bearer
+APP_AUTH_ACCESSEVALUATOR="wallet" # only applies when AUTHORIZATIONTYPE=bearer
 APP_AUTH_GLOBALMETHODSECURITY_ENABLED=true or false # enables security annotations on REST endpoints 
 ```
 
 To set a profile simply set the `SPRING_PROFILES_ACTIVE` environment variable 
 to one of the three profiles outlined below:
 
-#### `default` (JWT Authentication)
+#### `wallet-auth` (Wallet Authentication - DNAstack)
 
-The default profile requires every inbound request to include a JWT, validated by the settings configured below.
+The wallet-auth profile requires every inbound request to include a JWT, validated by the settings configured below.
 The configuration is described by the [AuthConfig](src/main/java/org/ga4gh/discovery/search/security/AuthConfig.java)
 class. This is the profile used if no profile is set.
-
-Set the environment variables below, replacing the values below with values appropriate to your context. 
 
 ```bash
 # (Required) The STS which issued this token.
@@ -82,16 +80,7 @@ APP_AUTH_TOKENISSUERS_0_AUDIENCES_0_="ga4gh-search-adapter-presto"
 APP_AUTH_TOKENISSUERS_0_SCOPES_0_="read:*"
 ```
 
-One may alternatively set the token validation key directly by setting the environment variable `APP_AUTH_TOKENISSUERS_1_RSAPUBLICKEY` to the desired key,
-and omitting the `JWKSETURI` variable.
-
-#### `wallet-auth` (Wallet Authentication - DNAstack)
-
-The wallet-auth profile requires every inbound request to include a JWT, validated by the settings configured below.
-The configuration is described by the [AuthConfig](src/main/java/org/ga4gh/discovery/search/security/AuthConfig.java)
-class. This is the profile used if no profile is set.
-
-The wallet-auth profile also sets up JWT-based authentication, and is configured with the same environment variables as the above, but also enables evaluation of Wallet-based access policies at endpoints.
+Token validation in this mode requires resource and action claims issued in the form of DNAstack's Wallet authorization server.
 
 #### `no-auth` (No Authentication)
 **DO NOT USE IN PRODUCTION**
