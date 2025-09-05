@@ -179,9 +179,9 @@ spec:
               path: /actuator/health
               port: 8080
               scheme: HTTP
-            periodSeconds: 10
-            timeoutSeconds: 2
-            failureThreshold: 1
+            periodSeconds: 15
+            timeoutSeconds: 30
+            failureThreshold: 3
           env:
             - name: JAVA_OPTS
               value: "-XX:+PrintFlagsFinal -XX:+ExitOnOutOfMemoryError"
