@@ -56,7 +56,7 @@ EXPOSE 8080
 # If the container doesn't have a set memory limit, the file will be blank, hence we fall back to a default value of 2GiB
 CMD container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memory/memory.limit_in_bytes") ; \
     effective_mem=$([ "$container_mem" = "max" -o -z "$container_mem" -o "$container_mem" = "9223372036854771712" ] && echo "2097152000" || echo "$container_mem"); \
-    direct_mem_mb=$((effective_mem * 1 / 100 / 1048576)); \
+    direct_mem_mb=$((effective_mem * 10 / 100 / 1048576)); \
     echo "Calculated direct memory: ${direct_mem_mb}MB from ${effective_mem} bytes total memory (1%)"; \
     direct_mem_option="-XX:MaxDirectMemorySize=${direct_mem_mb}M"; \
     exec java $(/java-buildpack-memory-calculator \
