@@ -59,6 +59,7 @@ CMD # Memory management constants for Data-Connect-Trino service \
     DEFAULT_MEMORY="2097152000"; \
     DIRECT_MEMORY_PERCENT="10"; \
     BYTES_TO_MB_FACTOR="1048576"; \
+    MIN_DIRECT_MEMORY_MB="100"; \
     DEFAULT_LOADED_CLASSES="20000"; \
     DEFAULT_THREADS="50"; \
     DEFAULT_HEAD_ROOM="10"; \
@@ -66,7 +67,8 @@ CMD # Memory management constants for Data-Connect-Trino service \
     container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memory/memory.limit_in_bytes") ; \
     effective_mem=$([ "$container_mem" = "max" -o -z "$container_mem" -o "$container_mem" = "$MAX_MEMORY_UNLIMITED_VALUE" ] && echo "$DEFAULT_MEMORY" || echo "$container_mem"); \
     direct_mem_mb=$((effective_mem * DIRECT_MEMORY_PERCENT / 100 / BYTES_TO_MB_FACTOR)); \
-    echo "Calculated direct memory: ${direct_mem_mb}MB from ${effective_mem} bytes total memory (${DIRECT_MEMORY_PERCENT}%)"; \
+    direct_mem_mb=$((direct_mem_mb < MIN_DIRECT_MEMORY_MB ? MIN_DIRECT_MEMORY_MB : direct_mem_mb)); \
+    echo "Calculated direct memory: ${direct_mem_mb}MB from ${effective_mem} bytes total memory (${DIRECT_MEMORY_PERCENT}%, min ${MIN_DIRECT_MEMORY_MB}MB)"; \
     direct_mem_option="-XX:MaxDirectMemorySize=${direct_mem_mb}M"; \
     exec java $(/java-buildpack-memory-calculator \
     --total-memory=${effective_mem}B \
