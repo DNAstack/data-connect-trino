@@ -54,15 +54,24 @@ EXPOSE 8080
 # If the container doesn't have a set memory limit, the file contains "max", hence we fall back to a default value of 2GiB
 # In Linux 5.4.129, the value comes from memory/memory.limit_in_bytes
 # If the container doesn't have a set memory limit, the file will be blank, hence we fall back to a default value of 2GiB
-CMD container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memory/memory.limit_in_bytes") ; \
-    effective_mem=$([ "$container_mem" = "max" -o -z "$container_mem" -o "$container_mem" = "9223372036854771712" ] && echo "2097152000" || echo "$container_mem"); \
-    direct_mem_mb=$((effective_mem * 10 / 100 / 1048576)); \
-    echo "Calculated direct memory: ${direct_mem_mb}MB from ${effective_mem} bytes total memory (1%)"; \
+CMD # Memory management constants for Data-Connect-Trino service \
+    MAX_MEMORY_UNLIMITED_VALUE="9223372036854771712"; \
+    DEFAULT_MEMORY="2097152000"; \
+    DIRECT_MEMORY_PERCENT="10"; \
+    BYTES_TO_MB_FACTOR="1048576"; \
+    DEFAULT_LOADED_CLASSES="20000"; \
+    DEFAULT_THREADS="50"; \
+    DEFAULT_HEAD_ROOM="10"; \
+    \
+    container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memory/memory.limit_in_bytes") ; \
+    effective_mem=$([ "$container_mem" = "max" -o -z "$container_mem" -o "$container_mem" = "$MAX_MEMORY_UNLIMITED_VALUE" ] && echo "$DEFAULT_MEMORY" || echo "$container_mem"); \
+    direct_mem_mb=$((effective_mem * DIRECT_MEMORY_PERCENT / 100 / BYTES_TO_MB_FACTOR)); \
+    echo "Calculated direct memory: ${direct_mem_mb}MB from ${effective_mem} bytes total memory (${DIRECT_MEMORY_PERCENT}%)"; \
     direct_mem_option="-XX:MaxDirectMemorySize=${direct_mem_mb}M"; \
     exec java $(/java-buildpack-memory-calculator \
     --total-memory=${effective_mem}B \
-    --loaded-class-count="${ESTIMATED_LOADED_CLASSES:-20000}" \
-    --thread-count="${ESTIMATED_THREADS:-50}" \
-    --head-room="${HEAD_ROOM:-10}" \
+    --loaded-class-count="${ESTIMATED_LOADED_CLASSES:-$DEFAULT_LOADED_CLASSES}" \
+    --thread-count="${ESTIMATED_THREADS:-$DEFAULT_THREADS}" \
+    --head-room="${HEAD_ROOM:-$DEFAULT_HEAD_ROOM}" \
     --jvm-options="${JAVA_OPTS} ${direct_mem_option}") ${JAVA_OPTS} \
     -jar app.jar
