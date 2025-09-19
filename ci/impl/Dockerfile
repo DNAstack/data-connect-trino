@@ -54,17 +54,15 @@ EXPOSE 8080
 # If the container doesn't have a set memory limit, the file contains "max", hence we fall back to a default value of 2GiB
 # In Linux 5.4.129, the value comes from memory/memory.limit_in_bytes
 # If the container doesn't have a set memory limit, the file will be blank, hence we fall back to a default value of 2GiB
-CMD # Memory management constants for Data-Connect-Trino service \
-    MAX_MEMORY_UNLIMITED_VALUE="9223372036854771712"; \
-    DEFAULT_MEMORY="2097152000"; \
-    DIRECT_MEMORY_PERCENT="10"; \
-    BYTES_TO_MB_FACTOR="1048576"; \
-    MIN_DIRECT_MEMORY_MB="100"; \
-    DEFAULT_LOADED_CLASSES="20000"; \
-    DEFAULT_THREADS="50"; \
-    DEFAULT_HEAD_ROOM="10"; \
-    \
-    container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memory/memory.limit_in_bytes") ; \
+ENV MAX_MEMORY_UNLIMITED_VALUE="9223372036854771712"
+ENV DEFAULT_MEMORY="2097152000"
+ENV DIRECT_MEMORY_PERCENT="10"
+ENV BYTES_TO_MB_FACTOR="1048576"
+ENV MIN_DIRECT_MEMORY_MB="100"
+ENV DEFAULT_LOADED_CLASSES="20000"
+ENV DEFAULT_THREADS="50"
+ENV DEFAULT_HEAD_ROOM="10"
+CMD container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memory/memory.limit_in_bytes") ; \
     effective_mem=$([ "$container_mem" = "max" -o -z "$container_mem" -o "$container_mem" = "$MAX_MEMORY_UNLIMITED_VALUE" ] && echo "$DEFAULT_MEMORY" || echo "$container_mem"); \
     direct_mem_mb=$((effective_mem * DIRECT_MEMORY_PERCENT / 100 / BYTES_TO_MB_FACTOR)); \
     direct_mem_mb=$((direct_mem_mb < MIN_DIRECT_MEMORY_MB ? MIN_DIRECT_MEMORY_MB : direct_mem_mb)); \
