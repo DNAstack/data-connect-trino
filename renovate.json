@@ -1,3 +1,84 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    ":automergeRequireAllStatusChecks",
+    "mergeConfidence:all-badges",
+    "npm:unpublishSafe",
+    ":dependencyDashboard"
+  ],
+  "minimumReleaseAge": "7 days",
+  "osvVulnerabilityAlerts": true,
+  "ignoreTests": false,
+  "automergeStrategy": "merge-commit",
+  "platformAutomerge": false,
+  "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "labels": [
+        "Major"
+      ],
+      "automerge": false
+    },
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "matchDepTypes": [
+        "dependencies"
+      ],
+      "minimumReleaseAge": "14 days",
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "minimumReleaseAge": "14 days",
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "matchManagers": [
+        "maven"
+      ],
+      "minimumReleaseAge": "14 days",
+      "automerge": true
+    },
+    {
+      "description": "Automerge internal DNAstack development tools updates",
+      "matchPackageNames": [
+        "DNAstack/dnastack-development-tools"
+      ],
+      "matchUpdateTypes": [
+        "digest",
+        "patch",
+        "minor"
+      ],
+      "minimumReleaseAge": "1 hour",
+      "automerge": true,
+      "labels": [
+        "internal-infrastructure"
+      ]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": [
+      "renovate-security"
+    ],
+    "enabled": true
+  },
+  "commitMessagePrefix": "[CU-86b4umhm1]",
+  "prTitle": "{{{commitMessagePrefix}}} {{{commitMessageAction}}} {{{commitMessageTopic}}} {{{commitMessageExtra}}} {{{commitMessageSuffix}}}",
+  "configMigration": true
 }
