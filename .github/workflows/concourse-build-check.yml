@@ -7,7 +7,7 @@ on:
 jobs:
   concourse-build-check:
     name: Concourse Build Check
-    uses: DNAstack/dnastack-development-tools/.github/workflows/concourse-build-check.yml@4f3ab84f922ae9829598631c30fcba26df4a733f
+    uses: DNAstack/dnastack-development-tools/.github/workflows/concourse-build-check.yml@d37b9f8328df55d8c4fb0833095462158f57c54a
     with:
       pipeline_name: 'publisher-dev'
       job_name: 'data-connect-trino-e2e-test-alpha'
