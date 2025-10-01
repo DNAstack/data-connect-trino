@@ -16,7 +16,7 @@
 		<maven-go-offline.plugin.version>1.2.8</maven-go-offline.plugin.version>
 		<maven.surefire-plugin.version>3.5.4</maven.surefire-plugin.version>
 		<surefire-junit-platform.version>3.5.4</surefire-junit-platform.version>
-		<junit-platform-launcher.version>1.10.1</junit-platform-launcher.version>
+		<junit-platform-launcher.version>1.13.4</junit-platform-launcher.version>
 		<reportsDirectory/>
 		<actuator-e2e-test.version>1.0.20</actuator-e2e-test.version>
 		<jupiter.version>5.10.1</jupiter.version>
