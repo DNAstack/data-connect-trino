@@ -20,7 +20,7 @@
 		<reportsDirectory/>
 		<actuator-e2e-test.version>1.0.20</actuator-e2e-test.version>
 		<jupiter.version>5.10.1</jupiter.version>
-		<jackson.version>2.16.1</jackson.version>
+		<jackson.version>2.20.0</jackson.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<logback-extensions.version>1.0.0</logback-extensions.version>
 		<logback.contrib.version>0.1.5</logback.contrib.version>
