@@ -28,7 +28,7 @@
 		<dd-javac-plugin.version>0.2.4</dd-javac-plugin.version>
 		<rest-assured.version>5.5.6</rest-assured.version>
 		<lombok.version>1.18.40</lombok.version>
-		<awaitility.version>4.2.0</awaitility.version>
+		<awaitility.version>4.3.0</awaitility.version>
 		<assertj.version>3.27.4</assertj.version>
 		<guava.version>33.4.8-jre</guava.version>
 		<google-oauth-lib.version>1.39.0</google-oauth-lib.version>
