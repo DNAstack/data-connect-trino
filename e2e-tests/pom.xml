@@ -30,7 +30,7 @@
 		<lombok.version>1.18.40</lombok.version>
 		<awaitility.version>4.2.0</awaitility.version>
 		<assertj.version>3.25.1</assertj.version>
-		<guava.version>33.0.0-jre</guava.version>
+		<guava.version>33.4.8-jre</guava.version>
 		<google-oauth-lib.version>1.22.0</google-oauth-lib.version>
 		<commons-validator.version>1.8.0</commons-validator.version>
 	</properties>
