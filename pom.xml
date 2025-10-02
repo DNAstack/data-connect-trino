@@ -71,7 +71,7 @@
     <version.joda>2.14.0</version.joda>
     <version.bouncy.castle>1.82</version.bouncy.castle>
     <assertj.version>3.27.4</assertj.version>
-    <feign.version>13.1</feign.version>
+    <feign.version>13.6</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
     <logback.version>1.5.18</logback.version>
