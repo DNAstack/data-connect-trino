@@ -19,7 +19,7 @@
 		<junit-platform-launcher.version>1.13.4</junit-platform-launcher.version>
 		<reportsDirectory/>
 		<actuator-e2e-test.version>1.0.20</actuator-e2e-test.version>
-		<jupiter.version>5.10.1</jupiter.version>
+		<jupiter.version>5.13.4</jupiter.version>
 		<jackson.version>2.20.0</jackson.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<logback-extensions.version>1.0.0</logback-extensions.version>
