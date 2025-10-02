@@ -70,7 +70,14 @@
       "labels": [
         "internal-infrastructure"
       ]
-    }
+    },
+    {
+       "description": "Ignore git-describe formatted versions for spring-boot-audit-event-logger",
+       "matchPackageNames": [
+         "com.dnastack:spring-boot-audit-event-logger"
+       ],
+       "allowedVersions": "!/.*-\\d+-g[0-9a-f]{7}$/"
+     }
   ],
   "vulnerabilityAlerts": {
     "labels": [

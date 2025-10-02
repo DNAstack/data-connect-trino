@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.4.4</version>
+    <version>3.5.5</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -58,12 +58,12 @@
     <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- DNAstack Libs-->
-    <dnastack-token-validator.version>1.0.9</dnastack-token-validator.version>
+    <dnastack-token-validator.version>1.0.18</dnastack-token-validator.version>
     <audit-event-logger.version>1.0.20</audit-event-logger.version>
     <oauth-client-factory.version>1.0.5</oauth-client-factory.version>
     <!-- Other -->
     <spring-cloud.version>2021.0.9</spring-cloud.version>
-    <jdbi.version>3.32.0</jdbi.version>
+    <jdbi.version>3.49.5</jdbi.version>
     <version.okhttp>4.12.0</version.okhttp>
     <version.trino>359</version.trino>
     <version.guava>32.1.3-jre</version.guava>
@@ -71,15 +71,15 @@
     <version.joda>2.14.0</version.joda>
     <version.bouncy.castle>1.82</version.bouncy.castle>
     <assertj.version>3.27.4</assertj.version>
-    <feign.version>13.1</feign.version>
+    <feign.version>13.6</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <logback-extensions.version>1.0.0</logback-extensions.version>
     <logback.version>1.5.18</logback.version>
-    <lombok.version>1.18.40</lombok.version>
-    <resilience4j.version>2.2.0</resilience4j.version>
+    <lombok.version>1.18.42</lombok.version>
+    <resilience4j.version>2.3.0</resilience4j.version>
 
     <!-- Testing - Java 23 support. These overrides can be removed when we upgrade spring-boot-starter-parent to a version that supports Java 23. -->
-    <mockito.version>5.15.2</mockito.version>
+    <mockito.version>5.19.0</mockito.version>
     <byte-buddy.version>1.14.16</byte-buddy.version>
   </properties>
 

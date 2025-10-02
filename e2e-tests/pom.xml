@@ -16,21 +16,22 @@
 		<maven-go-offline.plugin.version>1.2.8</maven-go-offline.plugin.version>
 		<maven.surefire-plugin.version>3.5.4</maven.surefire-plugin.version>
 		<surefire-junit-platform.version>3.5.4</surefire-junit-platform.version>
-		<junit-platform-launcher.version>1.10.1</junit-platform-launcher.version>
+		<junit-platform-launcher.version>1.13.4</junit-platform-launcher.version>
 		<reportsDirectory/>
-		<actuator-e2e-test.version>1.0.20</actuator-e2e-test.version>
-		<jupiter.version>5.10.1</jupiter.version>
+		<actuator-e2e-test.version>1.0.5</actuator-e2e-test.version>
+		<jupiter.version>5.13.4</jupiter.version>
 		<jackson.version>2.20.0</jackson.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<logback-extensions.version>1.0.0</logback-extensions.version>
 		<logback.contrib.version>0.1.5</logback.contrib.version>
-		<logback.version>1.3.15</logback.version>
+		<logback.version>1.5.18</logback.version>
+		<dd-javac-plugin.version>0.2.4</dd-javac-plugin.version>
 		<rest-assured.version>5.5.6</rest-assured.version>
-		<lombok.version>1.18.40</lombok.version>
+		<lombok.version>1.18.42</lombok.version>
 		<awaitility.version>4.3.0</awaitility.version>
 		<assertj.version>3.27.4</assertj.version>
-		<guava.version>33.4.8-jre</guava.version>
-		<google-oauth-lib.version>1.39.0</google-oauth-lib.version>
+		<guava.version>33.5.0-jre</guava.version>
+		<google-oauth-lib.version>1.39.1</google-oauth-lib.version>
 		<commons-validator.version>1.10.0</commons-validator.version>
 	</properties>
 
