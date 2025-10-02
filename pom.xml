@@ -58,7 +58,7 @@
     <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- DNAstack Libs-->
-    <dnastack-token-validator.version>1.0.9</dnastack-token-validator.version>
+    <dnastack-token-validator.version>1.0.18</dnastack-token-validator.version>
     <audit-event-logger.version>1.0.20</audit-event-logger.version>
     <oauth-client-factory.version>1.0.5</oauth-client-factory.version>
     <!-- Other -->
