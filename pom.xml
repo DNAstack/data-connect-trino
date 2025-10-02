@@ -76,7 +76,7 @@
     <logback-extensions.version>1.0.0</logback-extensions.version>
     <logback.version>1.5.18</logback.version>
     <lombok.version>1.18.42</lombok.version>
-    <resilience4j.version>2.2.0</resilience4j.version>
+    <resilience4j.version>2.3.0</resilience4j.version>
 
     <!-- Testing - Java 23 support. These overrides can be removed when we upgrade spring-boot-starter-parent to a version that supports Java 23. -->
     <mockito.version>5.19.0</mockito.version>
