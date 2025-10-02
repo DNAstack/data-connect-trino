@@ -73,7 +73,7 @@
     <assertj.version>3.27.4</assertj.version>
     <feign.version>13.6</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
-    <logback-extensions.version>1.0.0</logback-extensions.version>
+    <logback-extensions.version>1.0.1</logback-extensions.version>
     <logback.version>1.5.18</logback.version>
     <lombok.version>1.18.42</lombok.version>
     <resilience4j.version>2.3.0</resilience4j.version>
