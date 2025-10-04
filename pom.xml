@@ -79,7 +79,7 @@
     <resilience4j.version>2.3.0</resilience4j.version>
 
     <!-- Testing - Java 23 support. These overrides can be removed when we upgrade spring-boot-starter-parent to a version that supports Java 23. -->
-    <mockito.version>5.19.0</mockito.version>
+    <mockito.version>5.20.0</mockito.version>
     <byte-buddy.version>1.14.16</byte-buddy.version>
   </properties>
 
