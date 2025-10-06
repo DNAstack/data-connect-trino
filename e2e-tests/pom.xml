@@ -29,7 +29,7 @@
 		<rest-assured.version>5.5.6</rest-assured.version>
 		<lombok.version>1.18.42</lombok.version>
 		<awaitility.version>4.3.0</awaitility.version>
-		<assertj.version>3.27.5</assertj.version>
+		<assertj.version>3.27.6</assertj.version>
 		<guava.version>33.5.0-jre</guava.version>
 		<google-oauth-lib.version>1.39.1</google-oauth-lib.version>
 		<commons-validator.version>1.10.0</commons-validator.version>
