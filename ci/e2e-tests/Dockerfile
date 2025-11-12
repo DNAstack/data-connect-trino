@@ -6,7 +6,7 @@
 
 # This stage depends on a JDK image and uses Maven Wrapper to pull in dependencies and build the project
 # from source.
-FROM amazoncorretto:21-alpine@sha256:fda60fd7965970ce7ed7ce789b18418647b56ac6112fc17df006337bdc6355c4 AS build
+FROM amazoncorretto:21.0.9-alpine@sha256:801b86a5da334ca9dfa60008e6e1171cf364ca6e81061fa161c681721c1c7018 AS build
 ARG APP_NAME
 ARG APP_VERSION
 WORKDIR /build
@@ -35,7 +35,7 @@ RUN ./mvnw -B -o process-test-classes
 
 # This stage uses a JRE rather than JDK because it doesn't have to compile any Java sources.
 # It is assembling the runnable test container and packaging all its Maven dependencies
-FROM amazoncorretto:21-alpine@sha256:fda60fd7965970ce7ed7ce789b18418647b56ac6112fc17df006337bdc6355c4
+FROM amazoncorretto:21.0.9-alpine@sha256:801b86a5da334ca9dfa60008e6e1171cf364ca6e81061fa161c681721c1c7018
 ARG APP_NAME
 ARG APP_VERSION
 
