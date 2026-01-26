@@ -70,7 +70,7 @@
     <version.nimbus>9.48</version.nimbus>
     <version.joda>2.14.0</version.joda>
     <version.bouncy.castle>1.82</version.bouncy.castle>
-    <assertj.version>3.27.6</assertj.version>
+    <assertj.version>3.27.7</assertj.version>
     <feign.version>13.6</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <logback-extensions.version>1.0.1</logback-extensions.version>
