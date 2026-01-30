@@ -1103,4 +1103,40 @@ public class TrinoDataConnectAdapterTest {
         assertNull(tablesList.getErrors());
     }
 
+    @Test
+    public void getTableNameInCorrectFormat_should_quoteAllParts() {
+        // Test normal table name
+        String result = ReflectionTestUtils.invokeMethod(dataConnectAdapter, "getTableNameInCorrectFormat", "catalog.schema.table");
+        assertThat(result, equalTo("\"catalog\".\"schema\".\"table\""));
+    }
+
+    @Test
+    public void getTableNameInCorrectFormat_should_handleTableNameStartingWithUnderscore() {
+        // Table names starting with underscore (e.g., from cleanseIdentifier transforming "03_table" to "_03_table")
+        String result = ReflectionTestUtils.invokeMethod(dataConnectAdapter, "getTableNameInCorrectFormat", "catalog.schema._03_table");
+        assertThat(result, equalTo("\"catalog\".\"schema\".\"_03_table\""));
+    }
+
+    @Test
+    public void getTableNameInCorrectFormat_should_handleCatalogWithSpecialChars() {
+        // BigQuery-style catalog names with underscores and UUIDs
+        String result = ReflectionTestUtils.invokeMethod(dataConnectAdapter, "getTableNameInCorrectFormat",
+                "enhanced_bigquery_a8ea3cde_425a_463b_9ba8_645b166aaf65.structural_variants_dataset._03_table");
+        assertThat(result, equalTo("\"enhanced_bigquery_a8ea3cde_425a_463b_9ba8_645b166aaf65\".\"structural_variants_dataset\".\"_03_table\""));
+    }
+
+    @Test
+    public void getTableNameInCorrectFormat_should_escapeQuotesInIdentifiers() {
+        // Table name with quotes should be escaped
+        String result = ReflectionTestUtils.invokeMethod(dataConnectAdapter, "getTableNameInCorrectFormat", "catalog.schema.table\"with\"quotes");
+        assertThat(result, equalTo("\"catalog\".\"schema\".\"table\"\"with\"\"quotes\""));
+    }
+
+    @Test
+    public void getTableNameInCorrectFormat_should_returnUnchanged_whenLessThanTwoDots() {
+        // Less than 2 dots should return unchanged (with warning logged)
+        String result = ReflectionTestUtils.invokeMethod(dataConnectAdapter, "getTableNameInCorrectFormat", "schema.table");
+        assertThat(result, equalTo("schema.table"));
+    }
+
 }

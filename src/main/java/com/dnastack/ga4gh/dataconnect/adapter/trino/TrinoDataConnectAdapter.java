@@ -555,25 +555,22 @@ public class TrinoDataConnectAdapter {
     }
 
     private String getTableNameInCorrectFormat(String tableName) {
-        String validTableName = tableName;
         if (StringUtils.countMatches(tableName, ".") >= 2) {
-
-            // If there are two or more dots, then quote the entire part after the second dot(assuming that this will be the table name).
-            int secondIndex = StringUtils.ordinalIndexOf(tableName, ".", 2);
-
-            //Everything before second catalog name will be catalog(+schema)
-            String catalogAndSchema = tableName.substring(0, secondIndex + 1);
-            String table = tableName.substring(secondIndex + 1);
-
-            //If the table name doesn't starts with or ends with quotes then add quotes
-            if (!table.startsWith("\"") || !table.endsWith("\"")) {
-                table = "\"" + table + "\"";
-            }
-            validTableName = catalogAndSchema + table;
+            // Split into catalog, schema, and table parts, then quote each part
+            String[] parts = tableName.split("\\.", 3);
+            return quoteIdentifier(parts[0]) + "." + quoteIdentifier(parts[1]) + "." + quoteIdentifier(parts[2]);
         } else {
             log.warn("Table name {} has less than 2 dots in it.", tableName);
+            return tableName;
         }
-        return validTableName;
+    }
+
+    /**
+     * Quotes the given string so it can be used in a SQL query as an identifier
+     * (for example, a catalog, schema, table, or column name).
+     */
+    private static String quoteIdentifier(String identifier) {
+        return "\"" + identifier.replace("\"", "\"\"") + "\"";
     }
 
     private boolean isValidTrinoName(String tableName) {
