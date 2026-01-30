@@ -1103,4 +1103,12 @@ public class TrinoDataConnectAdapterTest {
         assertNull(tablesList.getErrors());
     }
 
+    @Test
+    public void quoteTableNamesInQuery_should_quoteTableNameStartingWithDigit() {
+        // Table names starting with a digit (e.g., "03_test") cause Trino parsing errors if unquoted
+        String query = "SELECT * FROM bigquery_catalog.some_dataset.03_test_table WHERE id = 1";
+        String result = ReflectionTestUtils.invokeMethod(dataConnectAdapter, "quoteTableNamesInQuery", query);
+        assertThat(result, equalTo("SELECT * FROM \"bigquery_catalog\".\"some_dataset\".\"03_test_table\" WHERE id = 1"));
+    }
+
 }
