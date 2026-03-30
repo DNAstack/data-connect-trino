@@ -148,6 +148,7 @@ public class ApplicationConfig {
                 .authorizeHttpRequests(authorizeHttpRequestsConfig -> authorizeHttpRequestsConfig
                     .requestMatchers(
                         "/actuator/health",
+                        "/actuator/health/**",
                         "/actuator/info",
                         "/service-info"
                     )
@@ -197,6 +198,7 @@ public class ApplicationConfig {
                 .authorizeHttpRequests(authorizeHttpRequestsConfig -> authorizeHttpRequestsConfig
                     .requestMatchers(
                         "/actuator/health",
+                        "/actuator/health/**",
                         "/actuator/info",
                         "/service-info"
                     )
