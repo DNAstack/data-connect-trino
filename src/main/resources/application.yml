@@ -122,6 +122,10 @@ management:
         enabled: false
   endpoints:
     web.exposure.include: info, health
+  endpoint:
+    health:
+      probes:
+        enabled: true
 
 ---
 
