@@ -1,0 +1,50 @@
+# ==============================================================================
+# data-connect-trino-access-policy (syncMode: CREATE_AND_UPDATE)
+# ==============================================================================
+apiVersion: dnastack.com/v1
+kind: WalletPolicy
+metadata:
+  name: data-connect-trino-access-policy
+  labels:
+    app: data-connect-trino
+spec:
+  syncMode: CREATE_AND_UPDATE
+  data:
+    id: data-connect-trino-access-policy
+    name: Access Policy for Data Connect Trino
+    statements:
+      - principals:
+          - type: service
+            id: data-connect-trino-e2e-test
+        actions:
+          - data-connect:info
+          - data-connect:data
+          - data-connect:query
+        resources:
+          - uri: "{{- include "dnastack.dataConnectTrino.resourceUrl" . }}"
+          - uri: "{{- include "dnastack.dataConnectTrino.resourceUrl" . }}/"
+          - uri: "{{- include "dnastack.publisherData.resourceUrl" . }}/data-connect/table/publisher"
+          - uri: "{{- include "dnastack.publisherData.resourceUrl" . }}/data-connect/table/publisher/public"
+          - uri: "{{- include "dnastack.publisherData.resourceUrl" . }}/data-connect/table/publisher/public/library"
+      - principals:
+          - type: service
+            id: data-connect-trino-e2e-test
+        actions:
+          - ins:library:read
+          - ins:library:write
+        resources:
+          - uri: "{{- include "dnastack.indexingService.resourceUrl" . }}/library/"
+      - principals:
+          - type: service
+            id: data-connect-trino
+        actions:
+          - ins:library:read
+        resources:
+          - uri: "{{- include "dnastack.indexingService.resourceUrl" . }}/library/"
+      - principals:
+          - type: service
+            id: data-connect-trino
+        actions:
+          - collection_item:read
+        resources:
+          - uri: "{{- include "dnastack.collectionService.resourceUrl" . }}/collection/"
