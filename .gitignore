@@ -22,3 +22,4 @@ README.html
 *.tgz
 Chart.lock
 env\.sh
+test-secrets.env
