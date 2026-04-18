@@ -1,0 +1,6 @@
+# Gitleaks ignore file — suppresses known/accepted secret findings.
+# Each line is a fingerprint from gitleaks output. New secrets in the same
+# files will still be caught — only these specific findings are suppressed.
+#
+# To add a new entry: run `gitleaks detect --source . --no-git -v`,
+# copy the Fingerprint line, and add it here with a comment explaining why.

@@ -1,0 +1,15 @@
+# Gitleaks configuration — controls secret scanning behavior.
+# See: https://github.com/gitleaks/gitleaks#configuration
+
+# Use the default detection rules.
+[extend]
+  useDefault = true
+
+# Exclude build artifacts and dependency directories from scanning.
+[[allowlists]]
+  description = "exclude build artifacts and dependency directories"
+  paths = [
+    '''target/''',
+    '''node_modules/''',
+    '''node_installation/''',
+  ]

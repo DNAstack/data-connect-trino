@@ -1,0 +1,16 @@
+# Trivy ignore file for known/accepted vulnerabilities.
+# See: https://trivy.dev/docs/configuration/filtering/#trivyignoreyaml
+#
+# Format:
+#   vulnerabilities:
+#     - id: CVE-XXXX-XXXXX
+#       reason: "Why this is acceptable"
+#       expired_at: 2026-XX-XXT00:00:00Z
+
+vulnerabilities:
+  - id: CVE-2026-34483
+    reason: "Transitive via Spring Boot 3.5.13 parent (pins tomcat 10.1.53; fix in 10.1.54). Affects Tomcat's JsonAccessLogValve — not configured. Resolves when Spring Boot 3.5.14+ bumps tomcat."
+    expired_at: 2026-10-18T00:00:00Z
+  - id: CVE-2026-34487
+    reason: "Transitive via Spring Boot 3.5.13 parent (pins tomcat 10.1.53; fix in 10.1.54). Affects Tomcat access-log logging of sensitive data — no access log valve configured. Resolves when Spring Boot 3.5.14+ bumps tomcat."
+    expired_at: 2026-10-18T00:00:00Z
