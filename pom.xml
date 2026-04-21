@@ -65,7 +65,7 @@
          removed-in-2.19 PropertyNamingStrategy.SNAKE_CASE API. Remove when bumping the lib. -->
     <jackson-bom.version>2.18.6</jackson-bom.version>
     <!-- Other -->
-    <spring-cloud.version>2021.0.9</spring-cloud.version>
+    <spring-cloud.version>2025.1.1</spring-cloud.version>
     <jdbi.version>3.49.5</jdbi.version>
     <version.okhttp>4.12.0</version.okhttp>
     <version.trino>359</version.trino>
