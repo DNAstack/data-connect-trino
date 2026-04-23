@@ -59,7 +59,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- DNAstack Libs-->
     <dnastack-token-validator.version>1.0.18</dnastack-token-validator.version>
-    <audit-event-logger.version>1.0.20</audit-event-logger.version>
+    <audit-event-logger.version>1.0.23</audit-event-logger.version>
     <oauth-client-factory.version>1.0.5</oauth-client-factory.version>
     <!-- Pin Jackson to 2.18.x: dnastack-oauth-client-factory-spring-starter 1.0.5 uses
          removed-in-2.19 PropertyNamingStrategy.SNAKE_CASE API. Remove when bumping the lib. -->
