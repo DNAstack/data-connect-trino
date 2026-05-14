@@ -5,7 +5,7 @@ import com.dnastack.ga4gh.dataconnect.client.tablesregistry.model.AccessToken;
 import com.dnastack.ga4gh.dataconnect.client.tablesregistry.model.OAuthRequest;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import feign.Feign;
 import feign.Logger;
 import feign.RequestInterceptor;
@@ -42,7 +42,7 @@ public class TablesRegistryClientConfig {
     private OAuthClientConfig oAuthClientConfig;
 
     private ObjectMapper mapper = new ObjectMapper()
-            .setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE)
+            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     private OAuthRequest getOAuthRequest() {

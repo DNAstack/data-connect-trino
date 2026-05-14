@@ -3,7 +3,7 @@ package com.dnastack.ga4gh.dataconnect.client.tablesregistry;
 import com.dnastack.ga4gh.dataconnect.client.common.SimpleLogger;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import feign.Feign;
 import feign.Logger;
 import feign.codec.Encoder;
@@ -53,7 +53,7 @@ public class OAuthClientConfig {
     Encoder encoder;
 
     private ObjectMapper mapper = new ObjectMapper()
-        .setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE)
+        .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @Bean
