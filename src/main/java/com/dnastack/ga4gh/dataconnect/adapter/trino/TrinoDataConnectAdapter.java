@@ -1,6 +1,5 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
-import brave.Tracing;
 import com.dnastack.auth.cache.CachingConcurrentHashMap;
 import com.dnastack.ga4gh.dataconnect.ApplicationConfig;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
@@ -15,6 +14,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.common.collect.Streams;
+import io.micrometer.tracing.Tracer;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -86,14 +86,14 @@ public class TrinoDataConnectAdapter {
 
     private final ObjectMapper objectMapper;
 
-    private final Tracing tracer;
+    private final Tracer tracer;
 
     public TrinoDataConnectAdapter(
         TrinoClient client,
         Jdbi jdbi,
         ApplicationConfig applicationConfig,
         List<DataModelSupplier> dataModelSuppliers,
-        Tracing tracer,
+        Tracer tracer,
         // We use CachingConcurrentHashMap to cache the schema and catalog names to increase performance
         // When paginating through the tables
         @Value("${app.caching.expire-after:PT5M}") Duration expireAfter,
@@ -309,7 +309,7 @@ public class TrinoDataConnectAdapter {
         QueryJob queryJob = QueryJob.builder()
             .query(query)
             .id(queryId)
-            .originalTraceId(tracer.currentTraceContext().get().traceIdString())
+            .originalTraceId(tracer.currentTraceContext().context().traceId())
             .startedAt(currentTime)
             .lastActivityAt(currentTime)
             .schema(tableSchema)

@@ -1,10 +1,10 @@
 package com.dnastack.ga4gh.dataconnect;
 
-import brave.Tracing;
 import com.dnastack.auth.JwtTokenParser;
 import com.dnastack.auth.JwtTokenParserFactory;
 import com.dnastack.auth.PermissionChecker;
 import com.dnastack.auth.PermissionCheckerFactory;
+import com.dnastack.auth.client.OidcHttpClient;
 import com.dnastack.auth.client.TokenActionsHttpClientFactory;
 import com.dnastack.auth.keyresolver.CachingIssuerPubKeyJwksResolver;
 import com.dnastack.auth.keyresolver.IssuerPubKeyStaticResolver;
@@ -21,8 +21,10 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.JwtException;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -96,9 +98,14 @@ public class ApplicationConfig {
     }
 
     @Bean
-    public TrinoClient getTrinoClient(OkHttpClient httpClient, Tracing tracing, ServiceAccountAuthenticator accountAuthenticator, MeterRegistry registry) {
+    public TrinoClient getTrinoClient(OkHttpClient httpClient, io.micrometer.tracing.Tracer tracer, ServiceAccountAuthenticator accountAuthenticator, MeterRegistry registry) {
         return new TrinoTelemetryClient(
-            new TrinoHttpClient(tracing, httpClient, trinoDatasourceUrl, accountAuthenticator), registry);
+            new TrinoHttpClient(tracer, httpClient, trinoDatasourceUrl, accountAuthenticator), registry);
+    }
+
+    @Bean
+    public ConnectionPool tokenValidatorConnectionPool() {
+        return new ConnectionPool();
     }
 
     @Bean
@@ -210,7 +217,12 @@ public class ApplicationConfig {
         }
 
         @Bean
-        public List<IssuerInfo> allowedIssuers(AuthConfig authConfig) {
+        public OidcHttpClient oidcHttpClient(ObservationRegistry observationRegistry, ConnectionPool tokenValidatorConnectionPool) {
+            return new OidcHttpClient(observationRegistry, tokenValidatorConnectionPool);
+        }
+
+        @Bean
+        public List<IssuerInfo> allowedIssuers(AuthConfig authConfig, OidcHttpClient oidcHttpClient) {
             List<AuthConfig.IssuerConfig> issuers = authConfig.getTokenIssuers();
             if (issuers == null || issuers.isEmpty()) {
                 throw new IllegalArgumentException("At least one token issuer must be defined");
@@ -224,7 +236,7 @@ public class ApplicationConfig {
                         .allowedAudiences(issuerConfig.getAudiences())
                         .publicKeyResolver(issuerConfig.getRsaPublicKey() != null
                             ? new IssuerPubKeyStaticResolver(issuerUri, issuerConfig.getRsaPublicKey())
-                            : new CachingIssuerPubKeyJwksResolver(issuerUri))
+                            : CachingIssuerPubKeyJwksResolver.create(issuerUri, oidcHttpClient))
                         .build();
                 })
                 .toList();
@@ -236,10 +248,11 @@ public class ApplicationConfig {
             List<IssuerInfo> allowedIssuers,
             @Value("${app.url}") String policyEvaluationRequester,
             @Value("${app.auth.token-issuers[0].issuer-uri}") String walletUrl,
-            Tracing tracing
+            ObservationRegistry observationRegistry,
+            ConnectionPool tokenValidatorConnectionPool
         ) {
             String policyEvaluationUrl = stripTrailingSlashes(walletUrl) + "/policies/evaluations";
-            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester, policyEvaluationUrl, tracing);
+            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester, policyEvaluationUrl, observationRegistry, tokenValidatorConnectionPool);
         }
 
         private String stripTrailingSlashes(String url) {
@@ -251,8 +264,9 @@ public class ApplicationConfig {
         }
 
         @Bean
-        public JwtDecoder jwtDecoder(List<IssuerInfo> allowedIssuers, PermissionChecker permissionChecker, Tracing tracing) {
-            final JwtTokenParser jwtTokenParser = JwtTokenParserFactory.create(allowedIssuers, TokenActionsHttpClientFactory.create(tracing));
+        public JwtDecoder jwtDecoder(List<IssuerInfo> allowedIssuers, PermissionChecker permissionChecker, ObservationRegistry observationRegistry, ConnectionPool tokenValidatorConnectionPool) {
+            final JwtTokenParser jwtTokenParser = JwtTokenParserFactory.create(allowedIssuers,
+                TokenActionsHttpClientFactory.create(observationRegistry, tokenValidatorConnectionPool));
             return (jwtToken) -> {
                 try {
                     permissionChecker.checkPermissions(jwtToken);

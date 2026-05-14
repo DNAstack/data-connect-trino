@@ -1,6 +1,6 @@
 package com.dnastack.ga4gh.dataconnect.adapter.shared;
 
-import brave.Tracer;
+import io.micrometer.tracing.Tracer;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
 import com.dnastack.ga4gh.dataconnect.model.TableError;
 import lombok.extern.slf4j.Slf4j;
@@ -24,12 +24,12 @@ public class GlobalControllerExceptionHandler {
         return ResponseEntity.status(401)
             .contentType(MediaType.APPLICATION_JSON_UTF8)
             .header("WWW-Authenticate", "GA4GH-Search realm=\"" + escapeQuotes(cr.getKey()) + "\"")
-            .body(Map.of("authorization-request", cr, "trace_id", tracer.currentSpan().context().traceIdString()));
+            .body(Map.of("authorization-request", cr, "trace_id", tracer.currentSpan().context().traceId()));
     }
 
     @ExceptionHandler({TableApiErrorException.class})
     public ResponseEntity<?> handleTableApiErrorException(TableApiErrorException throwable) {
-        String traceId = tracer.currentSpan().context().traceIdString();
+        String traceId = tracer.currentSpan().context().traceId();
         TableError error = TableError.fromThrowable(throwable.getCause(), null);
         log.error("Generating response with error that escaped controller: {}", error, throwable);
 

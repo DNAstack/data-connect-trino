@@ -1,9 +1,5 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
-import brave.Span;
-import brave.Tracer;
-import brave.Tracing;
-import brave.propagation.B3SingleFormat;
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.AuthRequiredException;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.DataConnectAuthRequest;
@@ -14,6 +10,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.TraceContext;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -46,22 +45,20 @@ public class TrinoHttpClient implements TrinoClient {
     private final ServiceAccountAuthenticator authenticator;
     private final OkHttpClient httpClient;
     private final Tracer tracer;
-    private Tracing tracing;
     private final ObjectMapper objectMapper = new ObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    public TrinoHttpClient(Tracing tracing, OkHttpClient httpClient, String trinoServerUrl, ServiceAccountAuthenticator accountAuthenticator) {
+    public TrinoHttpClient(Tracer tracer, OkHttpClient httpClient, String trinoServerUrl, ServiceAccountAuthenticator accountAuthenticator) {
         this.trinoServer = trinoServerUrl;
         this.trinoSearchEndpoint = trinoServerUrl + "/v1/statement";
         this.authenticator = accountAuthenticator;
-        this.tracing = tracing;
-        this.tracer = tracing.tracer();
+        this.tracer = tracer;
         this.httpClient = httpClient;
     }
 
     public TrinoDataPage query(String statement, Map<String, String> extraCredentials) {
-        Span span = tracer.nextSpan().name("trinoQuery");
-        try (Tracer.SpanInScope ws = tracer.withSpanInScope(span.start())) {
+        Span span = tracer.nextSpan().name("trinoQuery").start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
                 log.debug("Posting to " + trinoSearchEndpoint);
             try (Response response = post(trinoSearchEndpoint, statement, extraCredentials)) {
                 log.debug("Got response, now polling for query results");
@@ -73,14 +70,14 @@ public class TrinoHttpClient implements TrinoClient {
                 throw new TrinoIOException("Unable to initiate search (I/O error).", e);
             }
         } finally {
-            span.finish();
+            span.end();
         }
 
     }
 
     public TrinoDataPage next(String page, Map<String, String> extraCredentials) {
-        Span span = tracer.nextSpan().name("trinoNext");
-        try (Tracer.SpanInScope ws = tracer.withSpanInScope(span.start())) {
+        Span span = tracer.nextSpan().name("trinoNext").start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
             //TODO: better url construction
             String url = page.startsWith("/") ? this.trinoServer + page : this.trinoServer + "/" + page;
 
@@ -90,7 +87,7 @@ public class TrinoHttpClient implements TrinoClient {
                 throw new TrinoIOException("Unable to fetch more search or listing results (I/O error).", ie);
             }
         } finally {
-            span.finish();
+            span.end();
         }
     }
 
@@ -212,11 +209,15 @@ public class TrinoHttpClient implements TrinoClient {
 
     private Response execute(final Request.Builder request, Map<String, String> extraCredentials) throws IOException {
         request.header("X-Forwarded-Proto", "https");
-        request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
-        if (tracing.currentTraceContext().get() != null) {
-            request.header("X-Trino-Trace-Token",tracing.currentTraceContext().get().traceIdString());
-            // We're adding the b3 contents to the Extra-Credential header, so we can extract it inside the SAC plugin & ga4gh-tables-connector
-            request.header("X-Trino-Extra-Credential", "b3=" + B3SingleFormat.writeB3SingleFormat(tracing.currentTraceContext().get()));
+        TraceContext traceContext = tracer.currentTraceContext().context();
+        if (traceContext != null) {
+            request.header("X-Trino-Trace-Token", traceContext.traceId());
+            // Pass W3C traceparent through to Trino as an extra credential so the SAC plugin &
+            // ga4gh-tables-connector can correlate downstream activity. Format follows the W3C Trace
+            // Context spec: version-traceId-spanId-flags.
+            String traceFlags = Boolean.TRUE.equals(traceContext.sampled()) ? "01" : "00";
+            String traceparent = "00-" + traceContext.traceId() + "-" + traceContext.spanId() + "-" + traceFlags;
+            request.header("X-Trino-Extra-Credential", "traceparent=" + traceparent);
         }
         extraCredentials.forEach((k, v) -> request.addHeader("X-Trino-Extra-Credential", k + "=" + v));
 
