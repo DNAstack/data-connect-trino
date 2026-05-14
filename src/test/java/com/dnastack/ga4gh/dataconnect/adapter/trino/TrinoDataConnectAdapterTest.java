@@ -1,7 +1,5 @@
 package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
-import brave.Tracer;
-import brave.Tracing;
 import com.dnastack.ga4gh.dataconnect.ApplicationConfig;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoNoSuchCatalogException;
@@ -15,6 +13,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.micrometer.tracing.CurrentTraceContext;
+import io.micrometer.tracing.TraceContext;
+import io.micrometer.tracing.Tracer;
 import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matchers;
 import org.jdbi.v3.core.Jdbi;
@@ -47,8 +48,7 @@ public class TrinoDataConnectAdapterTest {
             .registerModule(new JavaTimeModule())
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
-    private Tracing tracing;
-    private Tracer.SpanInScope spanInScope;
+    private Tracer tracer;
 
     /**
      * The object under test
@@ -108,8 +108,14 @@ public class TrinoDataConnectAdapterTest {
 
     @Before
     public void setUp() throws Exception {
-        tracing = Tracing.newBuilder().build();
-        spanInScope = tracing.tracer().withSpanInScope(tracing.tracer().nextSpan());
+        // Minimal Tracer stub: only currentTraceContext().context().traceId() is exercised
+        // by the code under test (when persisting QueryJob.originalTraceId).
+        TraceContext traceContext = mock(TraceContext.class);
+        when(traceContext.traceId()).thenReturn("00000000000000000000000000000000");
+        CurrentTraceContext currentTraceContext = mock(CurrentTraceContext.class);
+        when(currentTraceContext.context()).thenReturn(traceContext);
+        tracer = mock(Tracer.class);
+        when(tracer.currentTraceContext()).thenReturn(currentTraceContext);
 
         // mock QueryJobDao and JDBI
         QueryJobDao queryJobDao = mock(QueryJobDao.class);
@@ -142,14 +148,12 @@ public class TrinoDataConnectAdapterTest {
         when(mockApplicationConfig.getHiddenCatalogs()).thenReturn(Collections.emptySet()); // Default: no hidden catalogs
 
         dataConnectAdapter = new TrinoDataConnectAdapter(
-                mockTrinoClient, jdbi, mockApplicationConfig, List.of(dataModelSupplier), tracing, Duration.ofMinutes(5),100
+                mockTrinoClient, jdbi, mockApplicationConfig, List.of(dataModelSupplier), tracer, Duration.ofMinutes(5),100
         );
     }
 
     @After
     public void tearDown() throws Exception {
-        spanInScope.close();
-        tracing.close();
     }
 
     private MockHttpServletRequest createRequestWithForwardedHeaders() {
