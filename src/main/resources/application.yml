@@ -109,8 +109,6 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 5
-  zipkin:
-    enabled: false
 
 management:
   metrics:
