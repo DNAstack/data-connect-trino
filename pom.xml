@@ -7,7 +7,7 @@
   <parent>
     <groupId>com.dnastack.starter</groupId>
     <artifactId>spring-boot-parent</artifactId>
-    <version>4.0.0-rc2-9-gd79f5a8</version>
+    <version>4.0.0</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -306,11 +306,6 @@
   </build>
 
   <repositories>
-    <repository>
-      <id>github</id>
-      <name>DNAstack Private Github Packages</name>
-      <url>https://maven.pkg.github.com/DNAstack/dnastack-packages</url>
-    </repository>
     <repository>
       <id>spring-milestones</id>
       <name>Spring Milestones</name>
