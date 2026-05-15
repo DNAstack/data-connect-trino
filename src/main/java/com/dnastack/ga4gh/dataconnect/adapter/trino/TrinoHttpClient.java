@@ -220,8 +220,8 @@ public class TrinoHttpClient implements TrinoClient {
             String b3SampledFlag = Boolean.TRUE.equals(traceContext.sampled()) ? "1" : "0";
             String traceparent = "00-" + traceContext.traceId() + "-" + traceContext.spanId() + "-" + traceFlags;
             String b3 = traceContext.traceId() + "-" + traceContext.spanId() + "-" + b3SampledFlag;
-            request.header("X-Trino-Extra-Credential", "b3=" + b3);
-            request.header("X-Trino-Extra-Credential", "traceparent=" + traceparent);
+            request.addHeader("X-Trino-Extra-Credential", "b3=" + b3);
+            request.addHeader("X-Trino-Extra-Credential", "traceparent=" + traceparent);
         }
         extraCredentials.forEach((k, v) -> request.addHeader("X-Trino-Extra-Credential", k + "=" + v));
 
