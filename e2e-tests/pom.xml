@@ -26,7 +26,7 @@
 		<logback.contrib.version>0.1.5</logback.contrib.version>
 		<logback.version>1.5.25</logback.version>
 		<dd-javac-plugin.version>0.2.4</dd-javac-plugin.version>
-		<rest-assured.version>5.5.6</rest-assured.version>
+		<rest-assured.version>5.5.7</rest-assured.version>
 		<lombok.version>1.18.42</lombok.version>
 		<awaitility.version>4.3.0</awaitility.version>
 		<assertj.version>3.27.7</assertj.version>
