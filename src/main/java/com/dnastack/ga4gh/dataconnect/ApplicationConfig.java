@@ -16,6 +16,7 @@ import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticat
 import com.dnastack.ga4gh.dataconnect.adapter.telemetry.TrinoTelemetryClient;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient;
+import com.dnastack.oauth.okhttp.OkHttpClients;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
@@ -92,9 +93,14 @@ public class ApplicationConfig {
         }
     }
 
+    /**
+     * The client that talks to Trino. Observation-instrumented so that every request carries the caller's trace context
+     * in a {@code traceparent} header, which is how Trino's plugins come to make their authorization decisions — and the
+     * collection-service access checks behind them — under the trace of the query that provoked them.
+     */
     @Bean
-    public OkHttpClient httpClient() {
-        return new OkHttpClient();
+    public OkHttpClient httpClient(ObservationRegistry observationRegistry) {
+        return OkHttpClients.getBuilder("trino", observationRegistry).build();
     }
 
     @Bean

@@ -211,17 +211,17 @@ public class TrinoHttpClient implements TrinoClient {
         request.header("X-Forwarded-Proto", "https");
         TraceContext traceContext = tracer.currentTraceContext().context();
         if (traceContext != null) {
+            // Trino's own client trace token, which makes this query findable by our trace id in Trino's query history.
             request.header("X-Trino-Trace-Token", traceContext.traceId());
-            // Pass both the W3C traceparent and a legacy single-format B3 header through to Trino
-            // as extra credentials. The publisher SAC plugin and ga4gh-tables-connector currently
-            // read `b3`; once they migrate to the OpenTelemetry SPI (CU-86b9ybr65, CU-86b9ybr0e),
-            // the `b3` line can be removed in a follow-up to CU-86b9ybg6d.
+
+            // The observation interceptor on this client already puts a traceparent header on the request, but Trino
+            // only reads that where its own tracing is enabled, and it is not (CU-86bbh3xz8): with no exporter
+            // configured airlift hands Trino OpenTelemetry.noop(), whose propagator extracts nothing. An extra
+            // credential arrives regardless, because it travels on the query's identity rather than through Trino's
+            // tracing, and that is what the Trino plugins parent their work to.
             String traceFlags = Boolean.TRUE.equals(traceContext.sampled()) ? "01" : "00";
-            String b3SampledFlag = Boolean.TRUE.equals(traceContext.sampled()) ? "1" : "0";
-            String traceparent = "00-" + traceContext.traceId() + "-" + traceContext.spanId() + "-" + traceFlags;
-            String b3 = traceContext.traceId() + "-" + traceContext.spanId() + "-" + b3SampledFlag;
-            request.addHeader("X-Trino-Extra-Credential", "b3=" + b3);
-            request.addHeader("X-Trino-Extra-Credential", "traceparent=" + traceparent);
+            request.addHeader("X-Trino-Extra-Credential", "traceparent=00-%s-%s-%s"
+                .formatted(traceContext.traceId(), traceContext.spanId(), traceFlags));
         }
         extraCredentials.forEach((k, v) -> request.addHeader("X-Trino-Extra-Credential", k + "=" + v));
 
