@@ -3,8 +3,8 @@ package com.dnastack.ga4gh.dataconnect.adapter;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.auth.oauth2.GoogleCredentials;
 import io.restassured.filter.log.LogDetail;
 import io.restassured.http.ContentType;
@@ -31,7 +31,6 @@ import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.Method.*;
@@ -556,7 +555,7 @@ class DataConnectE2eTest extends BaseE2eTest {
             List<Object[]> params = new ArrayList<>();
             params.add(new Object[]{ tableName, expectedJsonDataModel });
             return params.stream();
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     static boolean noExpectedDataModelsAreConfigured() {
@@ -624,93 +623,71 @@ class DataConnectE2eTest extends BaseE2eTest {
         });
     }
 
+    /**
+     * The reference the ga4gh_type tests ask for, in whichever notation the case under test uses.
+     */
+    private static final String GA4GH_TYPE_REF = "http://path/to/whatever.com";
+
     @Test
     void searchQuery_should_returnAnInlineColumnSchema_when_ga4ghTypeIsGivenOne() throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-
         ColumnSchema columnSchema = ColumnSchema.builder()
             .format("foo")
             .type("string")
             .build();
 
-        String json = objectMapper.writeValueAsString(columnSchema);
-        String q = "SELECT ga4gh_type(bogusfield, '%s') FROM %s".formatted(json, tables().pagination().qualifiedName());
-        DataConnectRequest query = new DataConnectRequest(q);
-        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
-        dataConnectApiGetAllPages(result);
-        if (result.getData() == null) {
-            throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
-        }
+        Table result = searchSelecting(
+                "ga4gh_type(bogusfield, '%s')".formatted(objectMapper.writeValueAsString(columnSchema)));
 
         assertThat(result.getDataModel()).isNotNull();
-        assertThat(result.getDataModel().getProperties()).isNotNull();
-        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bogusfield");
-        assertThat(result.getDataModel().getProperties().get("bogusfield").getFormat()).isEqualTo("foo");
-        assertThat(result.getDataModel().getProperties().get("bogusfield").getType()).isEqualTo("string");
+        assertThat(result.getDataModel().getProperties())
+                .hasEntrySatisfying("bogusfield", column -> {
+                    assertThat(column.getFormat()).isEqualTo("foo");
+                    assertThat(column.getType()).isEqualTo("string");
+                })
+                .containsOnlyKeys("bogusfield");
     }
 
-    @Test
-    void searchQuery_should_returnTheRefUnderTheColumnName_when_ga4ghTypeHasNoAlias() throws IOException {
-        DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') FROM %s",
-            tables().pagination().qualifiedName()));
-        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
-        dataConnectApiGetAllPages(result);
-        if (result.getData() == null) {
-            throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
-        }
-
-        assertThat(result.getDataModel()).isNotNull();
-        assertThat(result.getDataModel().getProperties()).isNotNull();
-        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bogusfield");
-        assertThat(result.getDataModel().getProperties().get("bogusfield").getRef()).isEqualTo("http://path/to/whatever.com");
+    /**
+     * The ways of naming a reference that ga4gh_type accepts, and the column each one puts the result under: the
+     * alias where the expression has one, and the name of the column the expression read otherwise.
+     */
+    static Collection<Object[]> ga4ghTypeReferenceNotations() {
+        return List.of(
+            new Object[]{ "unaliased", "ga4gh_type(bogusfield, '$ref:%s')".formatted(GA4GH_TYPE_REF), "bogusfield" },
+            new Object[]{ "aliased with as", "ga4gh_type(bogusfield, '$ref:%s') as bf".formatted(GA4GH_TYPE_REF), "bf" },
+            new Object[]{ "aliased without as", "ga4gh_type(bogusfield, '$ref:%s') bf".formatted(GA4GH_TYPE_REF), "bf" },
+            new Object[]{ "given the reference as JSON",
+                "ga4gh_type(bogusfield, '{\"$ref\":\"%s\"}') as bf".formatted(GA4GH_TYPE_REF), "bf" });
     }
 
-    @Test
-    void searchQuery_should_returnTheRefUnderTheAlias_when_ga4ghTypeIsAliasedWithAs() throws IOException {
-        DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') as bf FROM %s",
-            tables().pagination().qualifiedName()));
-        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
-        dataConnectApiGetAllPages(result);
-        if (result.getData() == null) {
-            throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("ga4ghTypeReferenceNotations")
+    void searchQuery_should_returnTheRefUnderTheOutputColumnName_when_ga4ghTypeNamesARef(
+            String notation, String selectExpression, String expectedColumnName) throws IOException {
+
+        Table result = searchSelecting(selectExpression);
 
         assertThat(result.getDataModel()).isNotNull();
-        assertThat(result.getDataModel().getProperties()).isNotNull();
-        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bf");
-        assertThat(result.getDataModel().getProperties().get("bf").getRef()).isEqualTo("http://path/to/whatever.com");
+        assertThat(result.getDataModel().getProperties())
+                .hasEntrySatisfying(expectedColumnName, column -> assertThat(column.getRef()).isEqualTo(GA4GH_TYPE_REF))
+                .containsOnlyKeys(expectedColumnName);
     }
 
-    @Test
-    void searchQuery_should_returnTheRefUnderTheAlias_when_ga4ghTypeIsAliasedWithoutAs() throws IOException {
-        DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') bf FROM %s",
-            tables().pagination().qualifiedName()));
+    /**
+     * Runs {@code SELECT <selectExpression> FROM <the pagination test table>} and retrieves all of its pages.
+     *
+     * @throws AssertionError if the query returned no rows, since a data model without rows to describe says
+     *                        nothing about how the expression was interpreted.
+     */
+    private Table searchSelecting(String selectExpression) throws IOException {
+        DataConnectRequest query = new DataConnectRequest(
+                "SELECT %s FROM %s".formatted(selectExpression, tables().pagination().qualifiedName()));
+
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
-        if (result.getData() == null) {
-            throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
-        }
 
-        assertThat(result.getDataModel()).isNotNull();
-        assertThat(result.getDataModel().getProperties()).isNotNull();
-        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bf");
-        assertThat(result.getDataModel().getProperties().get("bf").getRef()).isEqualTo("http://path/to/whatever.com");
-    }
-
-    @Test
-    void searchQuery_should_returnTheRefUnderTheAlias_when_ga4ghTypeIsGivenAJsonRef() throws IOException {
-        DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '{\"$ref\":\"http://path/to/whatever.com\"}') as bf FROM %s",
-            tables().pagination().qualifiedName()));
-        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
-        dataConnectApiGetAllPages(result);
-        if (result.getData() == null) {
-            throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
-        }
-
-        assertThat(result.getDataModel()).isNotNull();
-        assertThat(result.getDataModel().getProperties()).isNotNull();
-        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bf");
-        assertThat(result.getDataModel().getProperties().get("bf").getRef()).isEqualTo("http://path/to/whatever.com");
+        assertThat(result.getData()).as("rows returned by %s".formatted(query.getQuery())).isNotNull();
+        return result;
     }
 
     private void assertDatesAndTimesHaveCorrectValuesForZone(String zone, Map<String, String> expectedValues) throws IOException {
@@ -739,9 +716,9 @@ class DataConnectE2eTest extends BaseE2eTest {
             assertThat(properties.get(columnName).getType())
                     .as("type of column %s in the %s row".formatted(columnName, zone))
                     .isEqualTo("string");
-            assertThat(row.get(columnName))
-                    .as("value of column %s in the %s row".formatted(columnName, zone))
-                    .isEqualTo(expectedValues.get(columnName));
+            assertThat(row)
+                    .as("the %s row".formatted(zone))
+                    .containsEntry(columnName, expectedValues.get(columnName));
         });
     }
 
@@ -1073,7 +1050,7 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     static void runBasicAssertionOnTableErrorList(List<TableError> errors) {
         assertThat(errors).isNotNull();
-        assertThat(errors.size()).isEqualTo(1);
+        assertThat(errors).hasSize(1);
         assertThat(errors.getFirst().getTitle()).isNotNull();
         assertThat(errors.getFirst().getDetails()).isNotNull();
     }
@@ -1254,7 +1231,7 @@ class DataConnectE2eTest extends BaseE2eTest {
     private static void assertAuthChallengeIsValid(HttpAuthChallenge wwwAuthenticate, DataConnectAuthRequest dataConnectAuthRequest) {
         assertThat(dataConnectAuthRequest).as("authorization-request in the auth challenge body").isNotNull();
         assertThat(dataConnectAuthRequest.getKey()).isNotNull();
-        assertThat(wwwAuthenticate.getParams().get("realm")).as("realm in the WWW-Authenticate header").isEqualTo(dataConnectAuthRequest.getKey());
+        assertThat(wwwAuthenticate.getParams()).as("realm in the WWW-Authenticate header").containsEntry("realm", dataConnectAuthRequest.getKey());
         assertThat(dataConnectAuthRequest.getResourceDescription()).isNotNull();
     }
 
@@ -1354,7 +1331,7 @@ class DataConnectE2eTest extends BaseE2eTest {
             case "array_of_json_objects" -> assertThat(node)
                     .extracting(JsonNode::getNodeType)
                     .containsExactly(JsonNodeType.OBJECT, JsonNodeType.OBJECT);
-            default -> { }
+            default -> throw new AssertionError("Unexpected id " + id + " for JSON data check");
         }
     }
 
