@@ -155,6 +155,12 @@ class DataConnectE2eTest extends BaseE2eTest {
     private static final Pattern TEST_CATALOG_PATTERN = Pattern.compile(Pattern.quote(TEST_CATALOG_PREFIX) + "(\\d+)");
 
     /**
+     * How many pages of the table listing to follow at each end of the next page trail. An environment can have
+     * hundreds of schemas, and hence hundreds of pages, whose middle exercises nothing the ends do not.
+     */
+    private static final int PAGES_TO_FOLLOW_AT_EACH_END = 3;
+
+    /**
      * The column list of a table whose rows are wide enough that a few hundred of them span several response pages.
      */
     private static final String PAGINATION_TABLE_COLUMNS = "id integer, bogusfield varchar";
@@ -438,16 +444,21 @@ class DataConnectE2eTest extends BaseE2eTest {
 
 
     private ListTableResponse getFirstPageOfTableListing() throws Exception {
-        ListTableResponse listTableResponse = GLOBAL_METHOD_SECURITY_ENABLED ? getListTableResponse("/tables") :
-                dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
+        ListTableResponse listTableResponse = getTableListingPage("/tables");
 
         assertThat(listTableResponse.getIndex()).isNotNull();
 
         for (int i = 0; i < listTableResponse.getIndex().size(); ++i) {
-            assertThat(listTableResponse.getIndex().get(i).getUrl()).isNotNull();
-            assertThat(listTableResponse.getIndex().get(i).getPage()).isEqualTo(i);
+            assertThat(listTableResponse.getIndex().get(i).getUrl()).as("URL of index entry %d".formatted(i)).isNotNull();
+            assertThat(listTableResponse.getIndex().get(i).getPage()).as("page number of index entry %d".formatted(i)).isEqualTo(i);
         }
         return listTableResponse;
+    }
+
+    private ListTableResponse getTableListingPage(String url) throws Exception {
+        return GLOBAL_METHOD_SECURITY_ENABLED
+                ? getListTableResponse(url)
+                : dataConnectApiGetRequest(url, 200, ListTableResponse.class);
     }
 
     private ListTableResponse getListTableResponse(String url) {
@@ -743,46 +754,64 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     void getTables_should_returnAPageIndexMatchingTheNextPageTrail() throws Exception {
-        ListTableResponse currentPage = getFirstPageOfTableListing();
+        ListTableResponse firstPage = getFirstPageOfTableListing();
+        List<PageIndexEntry> index = firstPage.getIndex();
 
-        if (currentPage.getErrors() != null) {
-            log.warn("First page of table listing contained errors: {} ", currentPage.getErrors());
-            log.info("Proceeding with the test");
-        }
-
-        List<PageIndexEntry> pageIndex = currentPage.getIndex();
-        if (pageIndex.size() == 1) {
-            assertThat(currentPage.getPagination()).isNull();
+        if (index.size() == 1) {
+            assertThat(firstPage.getPagination()).as("pagination of a listing that fits on one page").isNull();
             return;
         }
 
-        assertThat(currentPage.getPagination()).isNotNull();
+        int pagesAtTheHead = Math.min(PAGES_TO_FOLLOW_AT_EACH_END, index.size());
+        followNextPageTrail(firstPage, 0, pagesAtTheHead, index);
 
-        //assert that the nth page has next url equal to the n+1st index.
-        for (int i = 1; i <  pageIndex.size() - 1; ++i) {
-            log.info("Follow-up: Page {}: Start", i);
-            currentPage = GLOBAL_METHOD_SECURITY_ENABLED ? getListTableResponse(currentPage.getPagination().getNextPageUrl().toString()) :
-                    dataConnectApiGetRequest(
-                            currentPage.getPagination().getNextPageUrl().toString(),
-                            200,
-                            ListTableResponse.class
-                    );
+        int firstPageOfTheTail = Math.max(pagesAtTheHead, index.size() - PAGES_TO_FOLLOW_AT_EACH_END);
+        if (firstPageOfTheTail < index.size()) {
+            log.info("Skipping to page {} of {} to follow the end of the trail", firstPageOfTheTail, index.size());
+            followNextPageTrail(
+                    getTableListingPage(index.get(firstPageOfTheTail).getUrl().toString()),
+                    firstPageOfTheTail,
+                    index.size() - firstPageOfTheTail,
+                    index);
+        }
+    }
 
-            log.info("Follow-up: Page {}: currentPage: {}", i, currentPage);
+    /**
+     * Follows the next page trail from the given page, requiring each page to link to the URL its successor has in
+     * the index, and the last page of the listing to end the trail rather than link onward.
+     *
+     * @param page the page to start from, which must be the page numbered {@code firstPageNumber} in the index.
+     * @param firstPageNumber the index position of {@code page}.
+     * @param pagesToFollow how many pages to examine before stopping, counting {@code page} itself.
+     * @param index the page index the first page of the listing reported.
+     */
+    private void followNextPageTrail(
+            ListTableResponse page, int firstPageNumber, int pagesToFollow, List<PageIndexEntry> index)
+            throws Exception {
 
-            if (currentPage.getErrors() != null) {
-                log.warn("Current page contained errors: {} ", currentPage.getErrors());
-                log.info("Proceeding with the test");
+        for (int i = 0; i < pagesToFollow; i++) {
+            final int pageNumber = firstPageNumber + i;
+            log.info("Page {}: following the trail", pageNumber);
+
+            if (page.getErrors() != null) {
+                log.warn("Page {} contained errors, continuing anyway: {}", pageNumber, page.getErrors());
             }
 
-            //all pages with index < pageIndex.size() - 1 should have a non null valid next url.
-            assertThat(currentPage.getPagination().getNextPageUrl()).isNotNull();
-            if (i == (pageIndex.size() - 1)) {
-                assertThat(currentPage.getPagination()).isNull();
-            } else {
-                assertThat(currentPage.getPagination().getNextPageUrl()).isEqualTo(pageIndex.get(i + 1).getUrl());
+            if (pageNumber == index.size() - 1) {
+                assertThat(page.getPagination())
+                        .as("pagination of page %d, the last page of the listing".formatted(pageNumber))
+                        .isNull();
+                return;
             }
-            log.info("Follow-up: Page {}: End", i);
+
+            assertThat(page.getPagination()).as("pagination of page %d".formatted(pageNumber)).isNotNull();
+            assertThat(page.getPagination().getNextPageUrl())
+                    .as("next page URL of page %d".formatted(pageNumber))
+                    .isEqualTo(index.get(pageNumber + 1).getUrl());
+
+            if (i < pagesToFollow - 1) {
+                page = getTableListingPage(page.getPagination().getNextPageUrl().toString());
+            }
         }
     }
 
