@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.util.*;
 
 import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.fail;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Slf4j
@@ -122,7 +123,7 @@ public abstract class BaseE2eTest {
     protected static String requiredEnv(String name) {
         String val = System.getenv(name);
         if (val == null) {
-            Assertions.fail("Environment variable `" + name + "` is required");
+            return fail("Environment variable `" + name + "` is required");
         }
         return val;
     }

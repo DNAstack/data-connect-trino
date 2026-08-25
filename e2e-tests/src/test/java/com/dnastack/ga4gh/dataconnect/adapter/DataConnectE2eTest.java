@@ -3,6 +3,7 @@ package com.dnastack.ga4gh.dataconnect.adapter;
 import com.dnastack.ga4gh.dataconnect.adapter.test.model.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
 import io.restassured.filter.log.LogDetail;
@@ -12,7 +13,6 @@ import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpStatus;
-import org.assertj.core.api.Assertions;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -35,18 +35,11 @@ import java.util.stream.Collectors;
 
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.Method.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.Assumptions.assumeThat;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Slf4j
 class DataConnectE2eTest extends BaseE2eTest {
@@ -145,7 +138,7 @@ class DataConnectE2eTest extends BaseE2eTest {
      * <p>
      * It is the run's own rather than one the environment provides because a catalog some connector is pointed at
      * gets indexed, and an indexed table competes with the library entry
-     * {@link #getTableInfo_should_returnCustomSchema_from_indexingService()} registers for the same table — two
+     * {@link #getTableInfo_should_returnTheLibrarySchema_when_theLibraryDescribesTheTable()} registers for the same table — two
      * entries under one preferred name, which the library reports as an error. Nobody registers a connection for a
      * catalog created seconds ago under a name no configuration mentions.
      */
@@ -448,11 +441,11 @@ class DataConnectE2eTest extends BaseE2eTest {
         ListTableResponse listTableResponse = GLOBAL_METHOD_SECURITY_ENABLED ? getListTableResponse("/tables") :
                 dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
 
-        assertThat(listTableResponse.getIndex(), not(nullValue()));
+        assertThat(listTableResponse.getIndex()).isNotNull();
 
         for (int i = 0; i < listTableResponse.getIndex().size(); ++i) {
-            assertThat(listTableResponse.getIndex().get(i).getUrl(), not(nullValue()));
-            assertThat(listTableResponse.getIndex().get(i).getPage(), is(i));
+            assertThat(listTableResponse.getIndex().get(i).getUrl()).isNotNull();
+            assertThat(listTableResponse.getIndex().get(i).getPage()).isEqualTo(i);
         }
         return listTableResponse;
     }
@@ -476,19 +469,19 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     @EnabledIfEnvironmentVariable(named = "E2E_INDEXING_SERVICE_ENABLED", matches = "true", disabledReason = "This test requires data-connect-trino to be hooked up to indexing-service")
     @Test
-    void getTableInfo_should_returnCustomSchema_from_indexingService() throws IOException {
+    void getTableInfo_should_returnTheLibrarySchema_when_theLibraryDescribesTheTable() throws IOException {
         final String indexingServiceBearerToken = getToken(List.of("ins:library:write"), List.of(INDEXING_SERVICE_RESOURCE_URI + "library/") );
 
         final String paginationTableName = tables().pagination().qualifiedName();
 
         log.info("Verifying table info for [{}]", paginationTableName);
         TableInfo tableInfo = dataConnectApiGetRequest("/table/" + paginationTableName + "/info", 200, TableInfo.class);
-        assertThat("Table name is incorrect", tableInfo.getName(), equalTo(paginationTableName));
-        assertThat("Table data model is null", tableInfo.getDataModel(), not(nullValue()));
-        assertThat("ID in the table data model is null", tableInfo.getDataModel().getId(), not(nullValue()));
-        assertThat("Schema data model is null", tableInfo.getDataModel().getSchema(), not(nullValue()));
-        assertThat("Data model properties is null", tableInfo.getDataModel().getProperties(), not(nullValue()));
-        assertThat("Data model properties is empty", tableInfo.getDataModel().getProperties().entrySet(), not(empty()));
+        assertThat(tableInfo.getName()).isEqualTo(paginationTableName);
+        assertThat(tableInfo.getDataModel()).isNotNull();
+        assertThat(tableInfo.getDataModel().getId()).isNotNull();
+        assertThat(tableInfo.getDataModel().getSchema()).isNotNull();
+        assertThat(tableInfo.getDataModel().getProperties()).isNotNull();
+        assertThat(tableInfo.getDataModel().getProperties().entrySet()).isNotEmpty();
 
         log.info("Adding the table to the library table with a custom JSON schema, and scheduling its deletion");
         final String libraryItemId = given()
@@ -530,13 +523,9 @@ class DataConnectE2eTest extends BaseE2eTest {
 
         log.info("Verifying that the custom schema is fetched for [{}]", paginationTableName);
         tableInfo = dataConnectApiGetRequest("/table/" + paginationTableName + "/info", 200, TableInfo.class);
-        assertThat("ID in the table data model is not null", tableInfo.getDataModel().getId(), nullValue());
-        assertThat("The table data model properties is not null", tableInfo.getDataModel().getProperties(), nullValue());
-        assertThat(
-            "The table data model properties is not null",
-            tableInfo.getDataModel().getAdditionalProperties().get("$comment"),
-            equalTo("This is the custom schema from library")
-        );
+        assertThat(tableInfo.getDataModel().getId()).isNull();
+        assertThat(tableInfo.getDataModel().getProperties()).isNull();
+        assertThat(tableInfo.getDataModel().getAdditionalProperties().get("$comment")).isEqualTo("This is the custom schema from library");
     }
 
     public static Collection<Object[]> getTestParams() {
@@ -558,13 +547,13 @@ class DataConnectE2eTest extends BaseE2eTest {
         }).collect(Collectors.toList());
     }
 
-    static boolean runTest() {
+    static boolean noExpectedDataModelsAreConfigured() {
         return getTestParams().isEmpty();
     }
 
     @ParameterizedTest(name = "Testing table with name [{0}]")
     @MethodSource("getTestParams")
-    @DisabledIf(value = "runTest", disabledReason = "No test data found when looking for environment variables of pattern E2E_%s_EXPECTED_DATA_MODEL")
+    @DisabledIf(value = "noExpectedDataModelsAreConfigured", disabledReason = "No test data found when looking for environment variables of pattern E2E_%s_EXPECTED_DATA_MODEL")
     void getTableInfoAndData_should_returnExpectedDataModel(String tableName, String expectedJsonDataModel) throws Exception {
         DataModel expectedDataModel = objectMapper.readValue(expectedJsonDataModel, DataModel.class);
         fetchAndVerifyTableInfo(tableName, expectedDataModel);
@@ -573,30 +562,30 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     private void fetchAndVerifyTableInfo(String tableName, DataModel expectedDataModel) throws IOException {
         TableInfo tableInfo = dataConnectApiGetRequest("/table/" + tableName + "/info", 200, TableInfo.class);
-        assertThat(tableInfo, not(nullValue()));
-        Assertions.assertThat(tableInfo.getDataModel()).usingRecursiveComparison().isEqualTo(expectedDataModel);
+        assertThat(tableInfo).isNotNull();
+        assertThat(tableInfo.getDataModel()).usingRecursiveComparison().isEqualTo(expectedDataModel);
     }
 
     private void fetchAndVerifyTableData(String tableName, DataModel expectedDataModel) throws IOException {
         Table tableData = dataConnectApiGetRequest("/table/" + tableName + "/data", 200, Table.class);
-        assertThat(tableData, not(nullValue()));
+        assertThat(tableData).isNotNull();
         dataConnectApiGetAllPages(tableData);
-        Assertions.assertThat(tableData.getDataModel()).usingRecursiveComparison().isEqualTo(expectedDataModel);
+        assertThat(tableData.getDataModel()).usingRecursiveComparison().isEqualTo(expectedDataModel);
     }
 
     @Test
-    void jsonFieldIsDeclaredAsObject() throws IOException {
+    void getTableInfo_should_describeAJsonColumnAsAnObject() throws IOException {
         String jsonTableName = tables().json().qualifiedName();
         Table tableInfo = dataConnectApiGetRequest(String.format("/table/%s/info", jsonTableName), 200, Table.class);
-        assertThat(tableInfo, not(nullValue()));
-        assertThat(tableInfo.getName(), equalTo(jsonTableName));
-        assertThat(tableInfo.getDataModel().getProperties().get("data").getType(), equalTo("object"));
+        assertThat(tableInfo).isNotNull();
+        assertThat(tableInfo.getName()).isEqualTo(jsonTableName);
+        assertThat(tableInfo.getDataModel().getProperties().get("data").getType()).isEqualTo("object");
     }
 
     @Test
-    void jsonFieldIsRepresentedAsObject() throws IOException {
+    void getTableData_should_returnAJsonColumnAsAnObject() throws IOException {
         Table tableData = dataConnectApiGetRequest("/table/" + tables().json().qualifiedName() + "/data", 200, Table.class);
-        assertThat(tableData, not(nullValue()));
+        assertThat(tableData).isNotNull();
         dataConnectApiGetAllPages(tableData);
 
         for (Map<String, Object> data : tableData.getData()) {
@@ -605,26 +594,26 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    void datesAndTimesHaveCorrectTypes() throws IOException {
+    void getTableInfo_should_describeDateAndTimeColumnsAsFormattedStrings() throws IOException {
         String qualifiedTableName = tables().dateTime().qualifiedName();
         TableInfo tableInfo = dataConnectApiGetRequest("/table/" + qualifiedTableName + "/info", 200, TableInfo.class);
-        assertThat(tableInfo, not(nullValue()));
-        assertThat(tableInfo.getName(), equalTo(qualifiedTableName));
-        assertThat(tableInfo.getDataModel(), not(nullValue()));
-        assertThat(tableInfo.getDataModel().getId(), not(nullValue()));
-        assertThat(tableInfo.getDataModel().getSchema(), not(nullValue()));
-        assertThat(tableInfo.getDataModel().getProperties(), not(nullValue()));
-        assertThat(tableInfo.getDataModel().getProperties().entrySet(), not(empty()));
+        assertThat(tableInfo).isNotNull();
+        assertThat(tableInfo.getName()).isEqualTo(qualifiedTableName);
+        assertThat(tableInfo.getDataModel()).isNotNull();
+        assertThat(tableInfo.getDataModel().getId()).isNotNull();
+        assertThat(tableInfo.getDataModel().getSchema()).isNotNull();
+        assertThat(tableInfo.getDataModel().getProperties()).isNotNull();
+        assertThat(tableInfo.getDataModel().getProperties().entrySet()).isNotEmpty();
 
         EXPECTED_FORMATS.forEach((key, value) -> {
-            assertThat(tableInfo.getDataModel().getProperties(), hasKey(key));
-            assertThat(tableInfo.getDataModel().getProperties().get(key).getFormat(), is(value));
-            assertThat(tableInfo.getDataModel().getProperties().get(key).getType(), is("string"));
+            assertThat(tableInfo.getDataModel().getProperties()).containsKey(key);
+            assertThat(tableInfo.getDataModel().getProperties().get(key).getFormat()).isEqualTo(value);
+            assertThat(tableInfo.getDataModel().getProperties().get(key).getType()).isEqualTo("string");
         });
     }
 
     @Test
-    void ga4ghTypeAsInlineGivesBackTypeAsInline() throws IOException {
+    void searchQuery_should_returnAnInlineColumnSchema_when_ga4ghTypeIsGivenOne() throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
 
         ColumnSchema columnSchema = ColumnSchema.builder()
@@ -641,15 +630,15 @@ class DataConnectE2eTest extends BaseE2eTest {
             throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
         }
 
-        assertThat(result.getDataModel(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties().keySet(), contains("bogusfield"));
-        assertThat(result.getDataModel().getProperties().get("bogusfield").getFormat(), is("foo"));
-        assertThat(result.getDataModel().getProperties().get("bogusfield").getType(), is("string"));
+        assertThat(result.getDataModel()).isNotNull();
+        assertThat(result.getDataModel().getProperties()).isNotNull();
+        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bogusfield");
+        assertThat(result.getDataModel().getProperties().get("bogusfield").getFormat()).isEqualTo("foo");
+        assertThat(result.getDataModel().getProperties().get("bogusfield").getType()).isEqualTo("string");
     }
 
     @Test
-    void ga4ghTypeWithoutAliasWorksWithColumnNameAsFirstArgument() throws IOException {
+    void searchQuery_should_returnTheRefUnderTheColumnName_when_ga4ghTypeHasNoAlias() throws IOException {
         DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') FROM %s",
             tables().pagination().qualifiedName()));
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
@@ -658,14 +647,14 @@ class DataConnectE2eTest extends BaseE2eTest {
             throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
         }
 
-        assertThat(result.getDataModel(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties().keySet(), contains("bogusfield"));
-        assertThat(result.getDataModel().getProperties().get("bogusfield").getRef(), is("http://path/to/whatever.com"));
+        assertThat(result.getDataModel()).isNotNull();
+        assertThat(result.getDataModel().getProperties()).isNotNull();
+        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bogusfield");
+        assertThat(result.getDataModel().getProperties().get("bogusfield").getRef()).isEqualTo("http://path/to/whatever.com");
     }
 
     @Test
-    void ga4ghTypeWithRefAndAliasWithAsGivesBackRef() throws IOException {
+    void searchQuery_should_returnTheRefUnderTheAlias_when_ga4ghTypeIsAliasedWithAs() throws IOException {
         DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') as bf FROM %s",
             tables().pagination().qualifiedName()));
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
@@ -674,14 +663,14 @@ class DataConnectE2eTest extends BaseE2eTest {
             throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
         }
 
-        assertThat(result.getDataModel(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties().keySet(), contains("bf"));
-        assertThat(result.getDataModel().getProperties().get("bf").getRef(), is("http://path/to/whatever.com"));
+        assertThat(result.getDataModel()).isNotNull();
+        assertThat(result.getDataModel().getProperties()).isNotNull();
+        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bf");
+        assertThat(result.getDataModel().getProperties().get("bf").getRef()).isEqualTo("http://path/to/whatever.com");
     }
 
     @Test
-    void ga4ghTypeWithRefAndAliasWithoutAsGivesBackRef() throws IOException {
+    void searchQuery_should_returnTheRefUnderTheAlias_when_ga4ghTypeIsAliasedWithoutAs() throws IOException {
         DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') bf FROM %s",
             tables().pagination().qualifiedName()));
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
@@ -690,14 +679,14 @@ class DataConnectE2eTest extends BaseE2eTest {
             throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
         }
 
-        assertThat(result.getDataModel(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties().keySet(), contains("bf"));
-        assertThat(result.getDataModel().getProperties().get("bf").getRef(), is("http://path/to/whatever.com"));
+        assertThat(result.getDataModel()).isNotNull();
+        assertThat(result.getDataModel().getProperties()).isNotNull();
+        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bf");
+        assertThat(result.getDataModel().getProperties().get("bf").getRef()).isEqualTo("http://path/to/whatever.com");
     }
 
     @Test
-    void ga4ghTypeWithJsonRefAndAliasGivesBackJsonRef() throws IOException {
+    void searchQuery_should_returnTheRefUnderTheAlias_when_ga4ghTypeIsGivenAJsonRef() throws IOException {
         DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '{\"$ref\":\"http://path/to/whatever.com\"}') as bf FROM %s",
             tables().pagination().qualifiedName()));
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
@@ -706,10 +695,10 @@ class DataConnectE2eTest extends BaseE2eTest {
             throw new RuntimeException("Expected results for query " + query.getQuery() + ", but none were found.");
         }
 
-        assertThat(result.getDataModel(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties().keySet(), contains("bf"));
-        assertThat(result.getDataModel().getProperties().get("bf").getRef(), is("http://path/to/whatever.com"));
+        assertThat(result.getDataModel()).isNotNull();
+        assertThat(result.getDataModel().getProperties()).isNotNull();
+        assertThat(result.getDataModel().getProperties().keySet()).containsExactly("bf");
+        assertThat(result.getDataModel().getProperties().get("bf").getRef()).isEqualTo("http://path/to/whatever.com");
     }
 
     private void assertDatesAndTimesHaveCorrectValuesForZone(String zone, Map<String, String> expectedValues) throws IOException {
@@ -726,20 +715,26 @@ class DataConnectE2eTest extends BaseE2eTest {
             throw new RuntimeException("Found more than one test table entry for " + zone + " time zone, but only one was expected.");
         }
 
-        assertThat(result.getDataModel(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties(), not(nullValue()));
+        assertThat(result.getDataModel()).isNotNull();
+        assertThat(result.getDataModel().getProperties()).isNotNull();
 
         final Map<String, ColumnSchema> properties = result.getDataModel().getProperties();
         final Map<String, Object> row = result.getData().getFirst();
         EXPECTED_FORMATS.forEach((columnName, expectedColumnFormat) -> {
-            assertThat("Expected column with format " + expectedColumnFormat + " for column " + columnName + " (" + zone + " time zone)", properties.get(columnName).getFormat(), is(expectedColumnFormat));
-            assertThat("Expected column with type string for column " + columnName + " (" + zone + " time zone)", properties.get(columnName).getType(), is("string"));
-            assertThat("date/time/datetime column " + columnName + " had an unexpected value for zone " + zone, row.get(columnName), is(expectedValues.get(columnName)));
+            assertThat(properties.get(columnName).getFormat())
+                    .as("format of column %s in the %s row".formatted(columnName, zone))
+                    .isEqualTo(expectedColumnFormat);
+            assertThat(properties.get(columnName).getType())
+                    .as("type of column %s in the %s row".formatted(columnName, zone))
+                    .isEqualTo("string");
+            assertThat(row.get(columnName))
+                    .as("value of column %s in the %s row".formatted(columnName, zone))
+                    .isEqualTo(expectedValues.get(columnName));
         });
     }
 
     @Test
-    void datesAndTimesHaveCorrectValuesForDatesAndTimesInsertedWithZone() throws IOException {
+    void searchQuery_should_returnDateAndTimeValuesInTheZoneTheyWereInsertedIn() throws IOException {
         for (Map.Entry<String, Map<String, String>> e : EXPECTED_VALUES.entrySet()) {
             log.info("Checking date and time was inserted correctly for zone {}", e.getKey());
             assertDatesAndTimesHaveCorrectValuesForZone(e.getKey(), e.getValue());
@@ -747,7 +742,7 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    void nextPageTrailIsConsistentWithIndex() throws Exception {
+    void getTables_should_returnAPageIndexMatchingTheNextPageTrail() throws Exception {
         ListTableResponse currentPage = getFirstPageOfTableListing();
 
         if (currentPage.getErrors() != null) {
@@ -757,11 +752,11 @@ class DataConnectE2eTest extends BaseE2eTest {
 
         List<PageIndexEntry> pageIndex = currentPage.getIndex();
         if (pageIndex.size() == 1) {
-            assertThat(currentPage.getPagination(), is(nullValue()));
+            assertThat(currentPage.getPagination()).isNull();
             return;
         }
 
-        assertThat(currentPage.getPagination(), not(nullValue()));
+        assertThat(currentPage.getPagination()).isNotNull();
 
         //assert that the nth page has next url equal to the n+1st index.
         for (int i = 1; i <  pageIndex.size() - 1; ++i) {
@@ -781,11 +776,11 @@ class DataConnectE2eTest extends BaseE2eTest {
             }
 
             //all pages with index < pageIndex.size() - 1 should have a non null valid next url.
-            assertThat(currentPage.getPagination().getNextPageUrl(), not(nullValue()));
+            assertThat(currentPage.getPagination().getNextPageUrl()).isNotNull();
             if (i == (pageIndex.size() - 1)) {
-                assertThat(currentPage.getPagination(), is(nullValue()));
+                assertThat(currentPage.getPagination()).isNull();
             } else {
-                assertThat(currentPage.getPagination().getNextPageUrl(), is(pageIndex.get(i + 1).getUrl()));
+                assertThat(currentPage.getPagination().getNextPageUrl()).isEqualTo(pageIndex.get(i + 1).getUrl());
             }
             log.info("Follow-up: Page {}: End", i);
         }
@@ -804,11 +799,8 @@ class DataConnectE2eTest extends BaseE2eTest {
         log.info("Sending a DELETE request to the next page URL, then asserting that the right error response is returned when retrying the GET request to the next page URL");
         sendDeleteRequest(nextPageUrl);
         result = dataConnectApiGetRequest(nextPageUrl, 400, Table.class);
-        assertThat("Following next page URL of a cancelled query should return errors", result.getErrors(), hasSize(1));
-        assertThat(
-            "Following next page URL of a cancelled query should mention that it was cancelled: " + result,
-            result.getErrors().getFirst().getDetails().toLowerCase(),
-            containsString("canceled")); // Trino uses the american spelling
+        assertThat(result.getErrors()).as("errors from the cancelled query's next page").hasSize(1);
+        assertThat(result.getErrors().getFirst().getDetails().toLowerCase()).as("error detail from the cancelled query's next page").contains("canceled"); // Trino uses the american spelling
     }
 
     private Table executeSearchQueryOnVariedTypes() throws Exception {
@@ -841,7 +833,7 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    void searchQueryOnVariedTypesReturnsCorrectData() throws Exception {
+    void searchQuery_should_returnTheExpectedRows_when_theResultHasAColumnOfEveryType() throws Exception {
         Table result = executeSearchQueryOnVariedTypes();
         List<Map<String, Object>> expectedData;
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("variedTypesData.json")) {
@@ -849,11 +841,11 @@ class DataConnectE2eTest extends BaseE2eTest {
             expectedData = objectMapper.readValue(is, new TypeReference<>(){});
         }
         List<Map<String, Object>> actualData = result.getData();
-        Assertions.assertThat(actualData).usingRecursiveComparison().isEqualTo(expectedData);
+        assertThat(actualData).usingRecursiveComparison().isEqualTo(expectedData);
     }
 
     @Test
-    void searchQueryOnVariedTypesReturnsCorrectDataModel() throws Exception {
+    void searchQuery_should_returnTheExpectedDataModel_when_theResultHasAColumnOfEveryType() throws Exception {
 
         Table result = executeSearchQueryOnVariedTypes();
         DataModel expectedDataModel;
@@ -863,28 +855,28 @@ class DataConnectE2eTest extends BaseE2eTest {
         }
 
         DataModel actualDataModel = result.getDataModel();
-        Assertions.assertThat(actualDataModel).usingRecursiveComparison().isEqualTo(expectedDataModel);
+        assertThat(actualDataModel).usingRecursiveComparison().isEqualTo(expectedDataModel);
     }
 
     @Test
-    void malformedSqlQueryShouldReturn400AndMessageAndTraceId() throws Exception {
+    void searchQuery_should_return400WithMessageAndTraceId_when_theSqlIsMalformed() throws Exception {
         DataConnectRequest query = new DataConnectRequest("SELECT * FROM FROM E2ETEST LIMIT STRAWBERRY");
         Table data = dataConnectUntilBadRequest(query);
         runBasicAssertionOnTableErrorList(data.getErrors());
-        assertThat(data.getErrors().getFirst().getStatus(), equalTo(400));
+        assertThat(data.getErrors().getFirst().getStatus()).isEqualTo(400);
     }
 
     @Test
-    void sqlQueryWithBadColumnShouldReturn400AndMessageAndTraceId() throws Exception {
+    void searchQuery_should_return400WithMessageAndTraceId_when_aSelectedColumnDoesNotExist() throws Exception {
         DataConnectRequest query = new DataConnectRequest(
                 "SELECT e2etest_olywolypolywoly FROM " + tables().pagination().qualifiedName() + " LIMIT 10");
         Table data = dataConnectUntilBadRequest(query);
         runBasicAssertionOnTableErrorList(data.getErrors());
-        assertThat(data.getErrors().getFirst().getStatus(), equalTo(400));
+        assertThat(data.getErrors().getFirst().getStatus()).isEqualTo(400);
     }
 
     @Test
-    void sqlQueryShouldFindSomething() throws Exception {
+    void searchQuery_should_returnRowsAndADataModel() throws Exception {
 
         DataConnectRequest query = new DataConnectRequest(
                 "SELECT * FROM " + tables().pagination().qualifiedName() + " LIMIT 10");
@@ -899,62 +891,62 @@ class DataConnectE2eTest extends BaseE2eTest {
             }
         }
 
-        assertThat(result, not(nullValue()));
-        assertThat(result.getDataModel(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties(), not(nullValue()));
-        assertThat(result.getDataModel().getProperties().entrySet(), hasSize(greaterThan(0)));
+        assertThat(result).isNotNull();
+        assertThat(result.getDataModel()).isNotNull();
+        assertThat(result.getDataModel().getProperties()).isNotNull();
+        assertThat(result.getDataModel().getProperties()).isNotEmpty();
     }
 
     @Test
-    void getTableInfoWithUnknownCatalogGives404AndMessageAndTraceId() throws Exception {
+    void getTableInfo_should_return404WithMessageAndTraceId_when_theCatalogDoesNotExist() throws Exception {
         final String trinoTableWithBadCatalog = "e2etest_olywlypolywoly.public." + tables().pagination().unqualifiedName();
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadCatalog + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
-        assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
+        assertThat(info.getErrors().getFirst().getStatus()).isEqualTo(404);
     }
 
     @Test
-    void getTableInfoWithUnknownSchemaGives404AndMessageAndTraceId() throws Exception {
+    void getTableInfo_should_return404WithMessageAndTraceId_when_theSchemaDoesNotExist() throws Exception {
         final String trinoTableWithBadSchema =
                 TEST_CATALOG + ".e2etest_olywolypolywoly." + tables().pagination().unqualifiedName();
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadSchema + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
-        assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
+        assertThat(info.getErrors().getFirst().getStatus()).isEqualTo(404);
     }
 
     @Test
-    void getTableInfoWithUnknownTableGives404AndMessageAndTraceId() throws Exception {
+    void getTableInfo_should_return404WithMessageAndTraceId_when_theTableDoesNotExist() throws Exception {
         final String trinoTableWithBadTable = TEST_CATALOG + "." + TEST_SCHEMA + "." + "e2etest_olywolypolywoly";
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadTable + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
-        assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
+        assertThat(info.getErrors().getFirst().getStatus()).isEqualTo(404);
     }
 
     @Test
-    void getTableInfoWithBadlyQualifiedTableGives404AndMessageAndTraceId() throws Exception {
+    void getTableInfo_should_return404WithMessageAndTraceId_when_theTableNameIsNotQualified() throws Exception {
         final String trinoTableWithBadTable = "e2etest_olywolypolywoly";
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadTable + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
-        assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
+        assertThat(info.getErrors().getFirst().getStatus()).isEqualTo(404);
     }
 
     @Test
     void getTableData_should_returnDataAndDataModel() throws Exception {
         Table tableData = dataConnectApiGetRequest("/table/" + tables().pagination().qualifiedName() + "/data", 200, Table.class);
-        assertThat(tableData, not(nullValue()));
+        assertThat(tableData).isNotNull();
         dataConnectApiGetAllPages(tableData);
-        assertThat(tableData.getData(), not(nullValue()));
-        assertThat(tableData.getData(), not(empty()));
-        assertThat(tableData.getDataModel(), not(nullValue()));
-        assertThat(tableData.getDataModel().getSchema(), not(nullValue()));
-        assertThat(tableData.getDataModel().getProperties(), not(nullValue()));
-        assertThat(tableData.getDataModel().getProperties().entrySet(), not(empty()));
+        assertThat(tableData.getData()).isNotNull();
+        assertThat(tableData.getData()).isNotEmpty();
+        assertThat(tableData.getDataModel()).isNotNull();
+        assertThat(tableData.getDataModel().getSchema()).isNotNull();
+        assertThat(tableData.getDataModel().getProperties()).isNotNull();
+        assertThat(tableData.getDataModel().getProperties().entrySet()).isNotEmpty();
     }
 
     @Test
-    void getTables_should_require_searchInfo_scope() {
-        assumeTrue(GLOBAL_METHOD_SECURITY_ENABLED);
-        assumeTrue(SCOPE_CHECKING_ENABLED);
+    void getTables_should_return403_when_theTokenLacksTheInfoScope() {
+        assumeThat(GLOBAL_METHOD_SECURITY_ENABLED).as("E2E_GLOBAL_METHOD_SECURITY_ENABLED").isTrue();
+        assumeThat(SCOPE_CHECKING_ENABLED).as("E2E_SCOPE_CHECKING_ENABLED").isTrue();
 
         givenAuthenticatedRequest("junk_scope")
             .when()
@@ -966,9 +958,9 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    void getTableData_should_require_searchData_scope() {
-        assumeTrue(GLOBAL_METHOD_SECURITY_ENABLED);
-        assumeTrue(SCOPE_CHECKING_ENABLED);
+    void getTableData_should_return403_when_theTokenLacksTheDataScope() {
+        assumeThat(GLOBAL_METHOD_SECURITY_ENABLED).as("E2E_GLOBAL_METHOD_SECURITY_ENABLED").isTrue();
+        assumeThat(SCOPE_CHECKING_ENABLED).as("E2E_SCOPE_CHECKING_ENABLED").isTrue();
 
         givenAuthenticatedRequest("junk_scope")
             .when()
@@ -980,9 +972,9 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    void searchQuery_should_requireDataAndQueryScopes() {
-        assumeTrue(GLOBAL_METHOD_SECURITY_ENABLED);
-        assumeTrue(SCOPE_CHECKING_ENABLED);
+    void searchQuery_should_return403_when_theTokenLacksTheDataAndQueryScopes() {
+        assumeThat(GLOBAL_METHOD_SECURITY_ENABLED).as("E2E_GLOBAL_METHOD_SECURITY_ENABLED").isTrue();
+        assumeThat(SCOPE_CHECKING_ENABLED).as("E2E_SCOPE_CHECKING_ENABLED").isTrue();
 
         DataConnectRequest testDataConnectRequest = new DataConnectRequest(
                 "SELECT * FROM %s LIMIT 10".formatted(tables().json().qualifiedName()));
@@ -1009,9 +1001,9 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    void search_showSchemasFromCatalog_should_returnSchemas() throws IOException {
+    void searchShowSchemas_should_returnAtLeastOneSchema() throws IOException {
         assumeThat(SHOW_SCHEMA_FOR_CATALOG_NAME)
-                .as("SHOW SCHEMAS FROM {catalog} test is not configured. Skipping.")
+                .as("E2E_SHOW_SCHEMA_FOR_CATALOG_NAME")
                 .isNotNull();
 
         DataConnectRequest query = new DataConnectRequest("SHOW SCHEMAS FROM " + SHOW_SCHEMA_FOR_CATALOG_NAME);
@@ -1031,34 +1023,29 @@ class DataConnectE2eTest extends BaseE2eTest {
         Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
 
-        assertThat("Expected results for query " + query.getQuery() + ", but none were found.",
-                result.getData(), not(nullValue()));
+        assertThat(result.getData()).as("rows returned by %s".formatted(query.getQuery())).isNotNull();
 
-        assertThat("No data model found in query result from " + query.getQuery(),
-                result.getDataModel(), not(nullValue()));
-        assertThat("No properties in data model found in query result from " + query.getQuery(),
-                result.getDataModel().getProperties(), not(nullValue()));
+        assertThat(result.getDataModel()).as("data model returned by %s".formatted(query.getQuery())).isNotNull();
+        assertThat(result.getDataModel().getProperties()).as("data model properties returned by %s".formatted(query.getQuery())).isNotNull();
 
-        assertThat("No properties in data model found in query result from " + query.getQuery(),
-                result.getDataModel().getProperties(), hasKey(expectedColumnName));
-        assertThat("No rows in query result from " + query.getQuery(),
-                result.getData(), not(empty()));
+        assertThat(result.getDataModel().getProperties()).as("data model properties returned by %s".formatted(query.getQuery())).containsKey(expectedColumnName);
+        assertThat(result.getData()).as("rows returned by %s".formatted(query.getQuery())).isNotEmpty();
     }
 
     @Test
-    void search_showTablesFromCatalogSchema_should_returnTables() throws IOException {
+    void searchShowTables_should_returnAtLeastOneTable() throws IOException {
         assumeThat(SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME)
-                .as("SHOW TABLES FROM {catalog.schema} test is not configured. Skipping.")
+                .as("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME")
                 .isNotNull();
         DataConnectRequest query = new DataConnectRequest("SHOW TABLES FROM " + SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME);
         assertQueryReturnsRows(query, "Table");
     }
 
     static void runBasicAssertionOnTableErrorList(List<TableError> errors) {
-        assertThat(errors, not(nullValue()));
-        assertThat(errors.size(), equalTo(1));
-        assertThat(errors.getFirst().getTitle(), not(nullValue()));
-        assertThat(errors.getFirst().getDetails(), not(nullValue()));
+        assertThat(errors).isNotNull();
+        assertThat(errors.size()).isEqualTo(1);
+        assertThat(errors.getFirst().getTitle()).isNotNull();
+        assertThat(errors.getFirst().getDetails()).isNotNull();
     }
 
     /**
@@ -1069,7 +1056,7 @@ class DataConnectE2eTest extends BaseE2eTest {
      */
     static void dataConnectQuery(String sql) throws IOException {
         Table result = dataConnectQueryNoErrorCheck(sql);
-        assertThat("Query failed: " + sql, result.getErrors(), empty());
+        assertThat(result.getErrors()).as("errors from %s".formatted(sql)).isEmpty();
     }
 
     static Table dataConnectQueryNoErrorCheck(String sql) throws IOException {
@@ -1208,8 +1195,7 @@ class DataConnectE2eTest extends BaseE2eTest {
                     log.info("Try running again with E2E_LOG_TOKENS=true to see what's wrong");
                 }
 
-                assertThat("Unexpected auth challenge. You may need to set E2E_GLOBAL_METHOD_SECURITY_ENABLED=true.",
-                        wwwAuthenticate.get().getScheme(), is("GA4GH-Search"));
+                assertThat(wwwAuthenticate.get().getScheme()).as("auth challenge scheme, which is unexpected unless E2E_GLOBAL_METHOD_SECURITY_ENABLED is true").isEqualTo("GA4GH-Search");
 
                 DataConnectAuthChallengeBody challengeBody = response.as(DataConnectAuthChallengeBody.class);
                 DataConnectAuthRequest dataConnectAuthRequest = challengeBody.getAuthorizationRequest();
@@ -1219,8 +1205,10 @@ class DataConnectE2eTest extends BaseE2eTest {
 
                 String existingCredential = extraCredentials.put(dataConnectAuthRequest.getKey(), token);
 
-                assertThat("Got re-challenged for the same credential " + dataConnectAuthRequest + ". Is the token bad or expired?",
-                    existingCredential, nullValue());
+                assertThat(existingCredential)
+                    .as("credential already supplied for %s, so a second challenge for it means the token was rejected"
+                            .formatted(dataConnectAuthRequest))
+                    .isNull();
 
                 //noinspection UnnecessaryContinue
                 continue;
@@ -1234,14 +1222,10 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     private static void assertAuthChallengeIsValid(HttpAuthChallenge wwwAuthenticate, DataConnectAuthRequest dataConnectAuthRequest) {
-        assertThat("Auth challenge body must contain an authorization-request but it was " + dataConnectAuthRequest,
-                dataConnectAuthRequest, not(nullValue()));
-        assertThat("Key must be present in auth request",
-            dataConnectAuthRequest.getKey(), not(nullValue()));
-        assertThat("Key must match realm in auth challenge header",
-            wwwAuthenticate.getParams().get("realm"), is(dataConnectAuthRequest.getKey()));
-        assertThat("Resource must be described in auth request",
-            dataConnectAuthRequest.getResourceDescription(), not(nullValue()));
+        assertThat(dataConnectAuthRequest).as("authorization-request in the auth challenge body").isNotNull();
+        assertThat(dataConnectAuthRequest.getKey()).isNotNull();
+        assertThat(wwwAuthenticate.getParams().get("realm")).as("realm in the WWW-Authenticate header").isEqualTo(dataConnectAuthRequest.getKey());
+        assertThat(dataConnectAuthRequest.getResourceDescription()).isNotNull();
     }
 
     private static String supplyCredential(DataConnectAuthRequest dataConnectAuthRequest) throws IOException {
@@ -1306,47 +1290,41 @@ class DataConnectE2eTest extends BaseE2eTest {
         return req;
     }
 
+    /**
+     * Asserts that the JSON value stored under the given id came back as the type and value it was inserted as.
+     *
+     * @param id the value of the row's {@code id} column, which says what was inserted into its {@code data} column.
+     * @param data the row's {@code data} column, as the Data Connect API returned it.
+     */
     private static void checkJsonData(String id, Object data) {
         JsonNode node = objectMapper.valueToTree(data);
         switch (id) {
-            case "number":
-                assertTrue(node.isNumber());
-                assertThat(node.numberValue(), equalTo(1.0));
-                break;
-            case "string":
-                assertTrue(node.isTextual());
-                assertThat(node.textValue(), equalTo("Hello"));
-                break;
-            case "boolean":
-                assertTrue(node.isBoolean());
-                assertTrue(node.booleanValue());
-                break;
-            case "null":
-                assertTrue(node.isNull());
-                break;
-            case "json_object":
-                assertTrue(node.isObject());
-                assertThat(node.get("age").numberValue(), equalTo(25));
-                assertThat(node.get("name").textValue(), equalTo("Foo"));
-                break;
-            case "array_of_various_types":
-                assertTrue(node.isArray());
-                assertThat(node.size(), equalTo(6));
-                assertTrue(node.get(0).isTextual());
-                assertTrue(node.get(1).isBoolean());
-                assertTrue(node.get(2).isNumber());
-                assertTrue(node.get(3).isObject());
-                assertTrue(node.get(4).isNull());
-                assertTrue(node.get(5).isArray());
-                break;
-            case "array_of_json_objects":
-                assertTrue(node.isArray());
-                assertThat(node.size(), equalTo(2));
-                assertTrue(node.get(0).isObject());
-                assertTrue(node.get(1).isObject());
-                break;
-            default:
-                break;
+            case "number" -> {
+                assertThat(node.getNodeType()).isEqualTo(JsonNodeType.NUMBER);
+                assertThat(node.numberValue()).isEqualTo(1.0);
+            }
+            case "string" -> {
+                assertThat(node.getNodeType()).isEqualTo(JsonNodeType.STRING);
+                assertThat(node.textValue()).isEqualTo("Hello");
+            }
+            case "boolean" -> {
+                assertThat(node.getNodeType()).isEqualTo(JsonNodeType.BOOLEAN);
+                assertThat(node.booleanValue()).isTrue();
+            }
+            case "null" -> assertThat(node.getNodeType()).isEqualTo(JsonNodeType.NULL);
+            case "json_object" -> {
+                assertThat(node.getNodeType()).isEqualTo(JsonNodeType.OBJECT);
+                assertThat(node.get("age").numberValue()).isEqualTo(25);
+                assertThat(node.get("name").textValue()).isEqualTo("Foo");
+            }
+            case "array_of_various_types" -> assertThat(node)
+                    .extracting(JsonNode::getNodeType)
+                    .containsExactly(JsonNodeType.STRING, JsonNodeType.BOOLEAN, JsonNodeType.NUMBER,
+                            JsonNodeType.OBJECT, JsonNodeType.NULL, JsonNodeType.ARRAY);
+            case "array_of_json_objects" -> assertThat(node)
+                    .extracting(JsonNode::getNodeType)
+                    .containsExactly(JsonNodeType.OBJECT, JsonNodeType.OBJECT);
+            default -> { }
         }
     }
 
