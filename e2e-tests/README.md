@@ -40,3 +40,18 @@ collection-service and indexing-service to be up, and it sets only the variables
 
 Everything else — base URIs, wallet client and the publisher-data resource — comes from the defaults in
 the test code. Overriding them in the run configuration is how they drift.
+
+# The catalog the tests work in
+
+Each run creates a catalog of its own, `dnastack_e2etest_data_connect_trino_<epoch millis>`, and drops it
+when it finishes. Trino drops a catalog's schemas and tables along with it, so a test that makes a table
+needs no cleanup of its own.
+
+Two things follow from the catalog being the run's own. It has to be created, which is why the suite asks
+for `data-connect:manage` on publisher-data and why the chart grants it. And nobody registers a connector
+for a catalog named after the moment it was created, so no indexer sees these tables — which matters
+because an indexed table would compete with the library entry
+`getTableInfo_should_returnCustomSchema_from_indexingService` registers for a table of its own.
+
+A run that is killed leaves its catalog behind. The timestamp in the name is what lets the next run
+recognise one that no run can still be using and drop it.

@@ -103,6 +103,18 @@ spec:
           - type: service
             id: data-connect-trino-e2e-test
         actions:
+          - data-connect:info
+          - data-connect:data
+          - data-connect:query
+          - data-connect:manage
+        resources:
+          # Each run works in a catalog it creates and names after the moment it started, so the tables it needs
+          # to reach cannot be listed here one by one.
+          - uri: "{{- include "dnastack.publisherData.resourceUrl" . }}/data-connect/table/"
+      - principals:
+          - type: service
+            id: data-connect-trino-e2e-test
+        actions:
           - ins:library:read
           - ins:library:write
         resources:
