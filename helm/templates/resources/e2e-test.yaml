@@ -66,6 +66,8 @@ spec:
           - name: "data-connect:info"
           - name: "data-connect:data"
           - name: "data-connect:query"
+          # The suite creates and drops a catalog of its own for each run.
+          - name: "data-connect:manage"
       # Grant: indexing-service
       - audience: '{{- include "dnastack.indexingService.resourceUrl" . }}'
         grantTypes:

@@ -11,7 +11,6 @@ import io.restassured.http.Method;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.HttpStatus;
 import org.assertj.core.api.Assertions;
 import org.jspecify.annotations.Nullable;
@@ -28,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -90,9 +90,6 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     private static final int MAX_REAUTH_ATTEMPTS = 10;
 
-    private static final String INMEMORY_TESTCATALOG = optionalEnv("E2E_INMEMORY_TESTCATALOG", "memory");
-    private static final String INMEMORY_TESTSCHEMA = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default");
-
     /**
      * [Optional] Name of a catalog that's expected to contain ar least one schema. eg: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME="publisher"
      */
@@ -122,12 +119,47 @@ class DataConnectE2eTest extends BaseE2eTest {
      */
     private static final Map<String, String> extraCredentials = new HashMap<>();
 
+    /** What the suite asks for on data-connect-trino itself, to call its API. */
     private static final List<String> dataConnectScopes = List.of("data-connect:query", "data-connect:data", "data-connect:info");
 
     /**
-     * Distinguishes the tables created by this test run from those of any other run sharing the same test catalog.
+     * What the suite asks for on publisher-data, the resource Trino's access control asks collection-service about.
+     * Creating and dropping this run's catalog needs authority over the data, which is why this list has
+     * {@code data-connect:manage} and {@link #dataConnectScopes} does not.
      */
-    private static final String TEST_RUN_ID = RandomStringUtils.insecure().nextAlphanumeric(16);
+    private static final List<String> publisherDataScopes =
+            List.of("data-connect:query", "data-connect:data", "data-connect:info", "data-connect:manage");
+
+    /**
+     * When this test run started. It names the run's catalog, so that a later run can tell how long ago a leftover
+     * catalog was created and clean it up.
+     */
+    private static final long TEST_RUN_ID = System.currentTimeMillis();
+
+    /** Borne by every catalog this suite creates, in every environment, so that strays are recognisable. */
+    private static final String TEST_CATALOG_PREFIX = "dnastack_e2etest_data_connect_trino_";
+
+    /**
+     * A catalog of this run's own, created in {@link #createTestCatalog()} and dropped in
+     * {@link #dropTestCatalog()}.
+     * <p>
+     * It is the run's own rather than one the environment provides because a catalog some connector is pointed at
+     * gets indexed, and an indexed table competes with the library entry
+     * {@link #getTableInfo_should_returnCustomSchema_from_indexingService()} registers for the same table — two
+     * entries under one preferred name, which the library reports as an error. Nobody registers a connection for a
+     * catalog created seconds ago under a name no configuration mentions.
+     */
+    private static final String TEST_CATALOG = TEST_CATALOG_PREFIX + TEST_RUN_ID;
+
+    private static final String TEST_SCHEMA = "e2e";
+
+    /**
+     * How old a leftover catalog has to be before a later run treats it as abandoned rather than as belonging to a
+     * run still in progress. Runs take minutes, so hours is a wide margin.
+     */
+    private static final Duration ABANDONED_CATALOG_AGE = Duration.ofHours(2);
+
+    private static final Pattern TEST_CATALOG_PATTERN = Pattern.compile(Pattern.quote(TEST_CATALOG_PREFIX) + "(\\d+)");
 
     /**
      * The column list of a table whose rows are wide enough that a few hundred of them span several response pages.
@@ -138,14 +170,80 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     @BeforeAll
     static void createTestTables() {
+        dropAbandonedTestCatalogs();
+        createTestCatalog();
+
         log.info("Setting up test tables");
         testTables = TestTables.create();
         log.info("Done setting up test tables");
     }
 
+    /**
+     * Drops the run's catalog, and with it every schema and table the run created. Trino drops a catalog's contents
+     * along with it, so the tests do not have to keep track of what they made.
+     */
     @AfterAll
-    static void dropTestTables() {
-        TestTable.dropAll();
+    static void dropTestCatalog() {
+        log.info("Dropping catalog {}", TEST_CATALOG);
+        try {
+            dataConnectQuery("DROP CATALOG " + TEST_CATALOG);
+        } catch (Exception e) {
+            log.error("Failed to drop catalog {}. A later run will clean it up once it is {} old.",
+                    TEST_CATALOG, ABANDONED_CATALOG_AGE, e);
+        }
+    }
+
+    private static void createTestCatalog() {
+        log.info("Creating catalog {}", TEST_CATALOG);
+        try {
+            dataConnectQuery(
+                    "CREATE CATALOG %s USING memory WITH (\"memory.max-data-per-node\" = '10MB')".formatted(TEST_CATALOG));
+            dataConnectQuery("CREATE SCHEMA %s.%s".formatted(TEST_CATALOG, TEST_SCHEMA));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to create catalog " + TEST_CATALOG, e);
+        }
+    }
+
+    /**
+     * Drops the catalogs of earlier runs that ended before they could drop their own. A run that is killed leaves its
+     * catalog resident in Trino, where in a long-lived environment it would accumulate.
+     */
+    private static void dropAbandonedTestCatalogs() {
+        final long abandonedBefore = TEST_RUN_ID - ABANDONED_CATALOG_AGE.toMillis();
+
+        List<String> abandoned;
+        try {
+            abandoned = dataConnectQueryNoErrorCheck("SHOW CATALOGS").getData().stream()
+                    .map(row -> String.valueOf(row.get("Catalog")))
+                    .filter(catalog -> isAbandonedTestCatalog(catalog, abandonedBefore))
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Could not list catalogs, so any abandoned ones are left in place.", e);
+            return;
+        }
+
+        for (String catalog : abandoned) {
+            log.info("Dropping abandoned test catalog {}", catalog);
+            try {
+                dataConnectQuery("DROP CATALOG " + catalog);
+            } catch (Exception e) {
+                log.warn("Failed to drop abandoned test catalog {}. Continuing.", catalog, e);
+            }
+        }
+    }
+
+    /** Reports whether the given catalog was created by this suite, before the given moment. */
+    private static boolean isAbandonedTestCatalog(String catalog, long createdBefore) {
+        Matcher matcher = TEST_CATALOG_PATTERN.matcher(catalog);
+        if (!matcher.matches()) {
+            return false;
+        }
+        try {
+            return Long.parseLong(matcher.group(1)) < createdBefore;
+        } catch (NumberFormatException e) {
+            log.warn("Catalog {} is named like one of ours but does not end in a timestamp. Leaving it alone.", catalog);
+            return false;
+        }
     }
 
     @BeforeEach
@@ -166,57 +264,38 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     /**
-     * A table that exists in the in-memory test catalog for the duration of one test run.
+     * A table in this run's own catalog.
      * <p>
-     * The only way to get one is {@link #create}, which creates the table and registers it to be dropped by
-     * {@link #dropAll()}. Every table made this way is therefore cleaned up, and no other test run creates a table
-     * by the same name.
+     * The only way to get one is {@link #create}, and every table so created is dropped along with the catalog in
+     * {@link #dropTestCatalog()}. Cleanup therefore needs no bookkeeping: a table that exists at all is in the
+     * catalog that goes away.
      */
     static final class TestTable {
-
-        private static final List<TestTable> createdTables = new ArrayList<>();
 
         private final String unqualifiedName;
         private final String qualifiedName;
 
         private TestTable(String unqualifiedName) {
             this.unqualifiedName = unqualifiedName;
-            this.qualifiedName = INMEMORY_TESTCATALOG + "." + INMEMORY_TESTSCHEMA + "." + unqualifiedName;
+            this.qualifiedName = TEST_CATALOG + "." + TEST_SCHEMA + "." + unqualifiedName;
         }
 
         /**
-         * Creates a table in the in-memory test catalog and registers it to be dropped when the test run ends.
+         * Creates a table in this run's catalog.
          *
-         * @param namePrefix says what the table is for. The test run ID is appended to it, and the whole name is
-         *                   lowercased to match the way Trino folds unquoted identifiers.
+         * @param name says what the table is for. It is lowercased to match the way Trino folds unquoted
+         *             identifiers, and needs nothing to make it unique because the catalog is unique already.
          * @param columnDefinitions the column list of the CREATE TABLE statement, for example
          *                          {@code "id integer, bogusfield varchar"}.
          * @throws IllegalStateException if the table cannot be created.
          */
-        static TestTable create(String namePrefix, String columnDefinitions) {
-            TestTable table = new TestTable((namePrefix + "_" + TEST_RUN_ID).toLowerCase(Locale.ROOT));
-            createdTables.add(table);
+        static TestTable create(String name, String columnDefinitions) {
+            TestTable table = new TestTable(name.toLowerCase(Locale.ROOT));
             table.execute("CREATE TABLE %s (%s)", columnDefinitions);
             return table;
         }
 
-        /**
-         * Drops every table created so far, most recently created first. Failures are logged rather than thrown,
-         * so that one undroppable table doesn't strand the others.
-         */
-        static void dropAll() {
-            log.info("Dropping {} test tables...", createdTables.size());
-            for (TestTable table : createdTables.reversed()) {
-                try {
-                    table.execute("DROP TABLE %s");
-                } catch (Exception e) {
-                    log.error("Failed to drop test table {}", table.qualifiedName, e);
-                }
-            }
-            createdTables.clear();
-        }
-
-        /** This table's name qualified by test catalog and schema, which is how Trino and Data Connect refer to it. */
+        /** This table's name qualified by catalog and schema, which is how Trino and Data Connect refer to it. */
         String qualifiedName() {
             return qualifiedName;
         }
@@ -254,7 +333,7 @@ class DataConnectE2eTest extends BaseE2eTest {
 
         static TestTables create() {
             log.info("Creating table for JSON support tests.");
-            TestTable json = TestTable.create("jsonTest", "id varchar(25), data json");
+            TestTable json = TestTable.create("json_test", "id varchar(25), data json");
             insertJsonRow(json, "string", "\"Hello\"");
             insertJsonRow(json, "boolean", "true");
             insertJsonRow(json, "number", "1.0");
@@ -264,7 +343,7 @@ class DataConnectE2eTest extends BaseE2eTest {
             insertJsonRow(json, "array_of_json_objects", "[{\"name\": \"Foo\", \"age\": 25}, {\"name\": \"Boo\", \"age\": 52}]");
 
             log.info("Creating table for date/time support tests.");
-            TestTable dateTime = TestTable.create("dateTimeTest", """
+            TestTable dateTime = TestTable.create("date_time_test", """
                     zone VARCHAR(255),
                     thedate DATE,
                     thetime TIME,
@@ -380,7 +459,7 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     private ListTableResponse getListTableResponse(String url) {
         String bearerToken = getToken(dataConnectScopes, List.of(dataConnectAdapterResource));
-        String searchAuthorizationToken = getToken(dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
+        String searchAuthorizationToken = getToken(publisherDataScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
 
         Map<String, Object> headers = new HashMap<>();
         headers.put("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
@@ -837,7 +916,7 @@ class DataConnectE2eTest extends BaseE2eTest {
     @Test
     void getTableInfoWithUnknownSchemaGives404AndMessageAndTraceId() throws Exception {
         final String trinoTableWithBadSchema =
-                INMEMORY_TESTCATALOG + ".e2etest_olywolypolywoly." + tables().pagination().unqualifiedName();
+                TEST_CATALOG + ".e2etest_olywolypolywoly." + tables().pagination().unqualifiedName();
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadSchema + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
         assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
@@ -845,7 +924,7 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     void getTableInfoWithUnknownTableGives404AndMessageAndTraceId() throws Exception {
-        final String trinoTableWithBadTable = INMEMORY_TESTCATALOG + "." + INMEMORY_TESTSCHEMA + "." + "e2etest_olywolypolywoly";
+        final String trinoTableWithBadTable = TEST_CATALOG + "." + TEST_SCHEMA + "." + "e2etest_olywolypolywoly";
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadTable + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
         assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
@@ -1218,7 +1297,7 @@ class DataConnectE2eTest extends BaseE2eTest {
             }
         }
 
-        String searchAuthorizationToken = getToken(dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
+        String searchAuthorizationToken = getToken(publisherDataScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
         req.header("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
 
         // add extra credentials
