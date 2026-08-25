@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.HttpStatus;
 import org.assertj.core.api.Assertions;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -47,7 +49,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Slf4j
-public class DataConnectE2eTest extends BaseE2eTest {
+class DataConnectE2eTest extends BaseE2eTest {
     // Expected values for the 'format' field of the JSON schema returned accompanying various fields of the
     // date-time test table.
     private static final Map<String, String> EXPECTED_FORMATS = Map.of(
@@ -61,37 +63,23 @@ public class DataConnectE2eTest extends BaseE2eTest {
     //"thetimewithtimezone", "time");   //Blocked by https://github.com/prestosql/presto/issues/4715
 
     //These expected values assume the remote server is UTC.
-    private static final Map<String, Map<String, String>> EXPECTED_VALUES = Map.of("LosAngeles",
-                                                                                   Map.of("thedate",
-                                                                                          "2020-05-27",
-                                                                                          "thetime",
-                                                                                          "12:22:27.000",
-                                                                                          "thetimestamp",
-                                                                                          "2020-05-27T12:22:27.000",
-                                                                                          "thetimestampwithtimezone",
-                                                                                          "2020-05-27T12:22:27.000-08:00",
-                                                                                          "thetimestampwithouttimezone",
-                                                                                          "2020-05-27T12:22:27.000",
-                                                                                          "thetimewithouttimezone",
-                                                                                          "12:22:27.000",
-                                                                                          "thetimewithtimezone",
-                                                                                          "12:22:27.000-08:00"),
-
-                                                                                   "UTC",
-                                                                                   Map.of("thedate",
-                                                                                          "2020-05-27",
-                                                                                          "thetime",
-                                                                                          "12:22:27.000",
-                                                                                          "thetimestamp",
-                                                                                          "2020-05-27T12:22:27.000",
-                                                                                          "thetimestampwithtimezone",
-                                                                                          "2020-05-27T12:22:27.000Z",
-                                                                                          "thetimestampwithouttimezone",
-                                                                                          "2020-05-27T12:22:27.000",
-                                                                                          "thetimewithouttimezone",
-                                                                                          "12:22:27.000",
-                                                                                          "thetimewithtimezone",
-                                                                                          "12:22:27.000Z"));
+    private static final Map<String, Map<String, String>> EXPECTED_VALUES = Map.of(
+            "LosAngeles", Map.of(
+                    "thedate", "2020-05-27",
+                    "thetime", "12:22:27.000",
+                    "thetimestamp", "2020-05-27T12:22:27.000",
+                    "thetimestampwithtimezone", "2020-05-27T12:22:27.000-08:00",
+                    "thetimestampwithouttimezone", "2020-05-27T12:22:27.000",
+                    "thetimewithouttimezone", "12:22:27.000",
+                    "thetimewithtimezone", "12:22:27.000-08:00"),
+            "UTC", Map.of(
+                    "thedate", "2020-05-27",
+                    "thetime", "12:22:27.000",
+                    "thetimestamp", "2020-05-27T12:22:27.000",
+                    "thetimestampwithtimezone", "2020-05-27T12:22:27.000Z",
+                    "thetimestampwithouttimezone", "2020-05-27T12:22:27.000",
+                    "thetimewithouttimezone", "12:22:27.000",
+                    "thetimewithtimezone", "12:22:27.000Z"));
 
 
     private static final String TEST_DATE = "2020-05-27";
@@ -100,41 +88,33 @@ public class DataConnectE2eTest extends BaseE2eTest {
     private static final String TEST_DATE_TIME_LOS_ANGELES = "2020-05-27 12:22:27.000-08:00";
     private static final String TEST_DATE_TIME_UTC = "2020-05-27 12:22:27.000+00:00";
 
-    interface ThrowingRunnable {
-        void run() throws Exception;
-    }
-    private static final List<ThrowingRunnable> afterAllCleanups = new ArrayList<>();
-
     private static final int MAX_REAUTH_ATTEMPTS = 10;
 
-    private static final String trinoAudience = optionalEnv("E2E_TRINO_AUDIENCE", "http://localhost:8091");
-    private static final String trinoScopes = optionalEnv("E2E_TRINO_SCOPES", "full_access");
-
-    private static final String inMemoryCatalog = optionalEnv("E2E_INMEMORY_TESTCATALOG", "memory");
-    private static final String inMemorySchema = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default");
+    private static final String INMEMORY_TESTCATALOG = optionalEnv("E2E_INMEMORY_TESTCATALOG", "memory");
+    private static final String INMEMORY_TESTSCHEMA = optionalEnv("E2E_INMEMORY_TESTSCHEMA", "default");
 
     /**
      * [Optional] Name of a catalog that's expected to contain ar least one schema. eg: E2E_SHOW_SCHEMA_FOR_CATALOG_NAME="publisher"
      */
-    private static final String showSchemaForCatalogName = optionalEnv("E2E_SHOW_SCHEMA_FOR_CATALOG_NAME", null);
+    private static final @Nullable String SHOW_SCHEMA_FOR_CATALOG_NAME = optionalEnv("E2E_SHOW_SCHEMA_FOR_CATALOG_NAME");
 
     /**
      * [Optional] Name of a catalog.schema that's expected to contain at least one table. eg: E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME="publisher.public"
      */
-    private static final String showTableForCatalogSchemaName = optionalEnv("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME", null);
+    private static final @Nullable String SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME = optionalEnv("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME");
 
     private static final String PUBLISHER_DATA_RESOURCE_URI = optionalEnv("E2E_PUBLISHER_DATA_RESOURCE_URI", "http://localhost:8095/");
     private static final String INDEXING_SERVICE_URI = optionalEnv("E2E_INS_BASE_URI", "http://localhost:8094");
     private static final String INDEXING_SERVICE_RESOURCE_URI = optionalEnv("E2E_INS_RESOURCE_URI", "http://localhost:8094/");
 
-    private static final boolean globalMethodSecurityEnabled = Boolean.parseBoolean(optionalEnv("E2E_GLOBAL_METHOD_SECURITY_ENABLED", "false"));
-    private static final boolean scopeCheckingEnabled = Boolean.parseBoolean(optionalEnv("E2E_SCOPE_CHECKING_ENABLED", "false"));
+    private static final boolean GLOBAL_METHOD_SECURITY_ENABLED = Boolean.parseBoolean(optionalEnv("E2E_GLOBAL_METHOD_SECURITY_ENABLED", "false"));
+    private static final boolean SCOPE_CHECKING_ENABLED = Boolean.parseBoolean(optionalEnv("E2E_SCOPE_CHECKING_ENABLED", "false"));
 
 
     /**
-     * Lazily initialized if Google credentials are needed by the test.
+     * Lazily initialized if Google credentials are needed by the test. Always access via {@link #getGoogleCredentials()}.
      */
-    private static GoogleCredentials googleCredentials;
+    private static @Nullable GoogleCredentials googleCredentials;
 
     /**
      * These are the extra credentials of the type that the Data Connect API challenges for. They will be added to the
@@ -144,187 +124,249 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     private static final List<String> dataConnectScopes = List.of("data-connect:query", "data-connect:data", "data-connect:info");
 
+    /**
+     * Distinguishes the tables created by this test run from those of any other run sharing the same test catalog.
+     */
+    private static final String TEST_RUN_ID = RandomStringUtils.insecure().nextAlphanumeric(16);
+
+    /**
+     * The column list of a table whose rows are wide enough that a few hundred of them span several response pages.
+     */
+    private static final String PAGINATION_TABLE_COLUMNS = "id integer, bogusfield varchar";
+
+    private static @Nullable TestTables testTables;
+
     @BeforeAll
-    public static void beforeClass() throws IOException {
+    static void createTestTables() {
         log.info("Setting up test tables");
-        setupTestTables();
+        testTables = TestTables.create();
         log.info("Done setting up test tables");
     }
 
-    private static String trinoDateTimeTestTable;
-    private static String trinoPaginationTestTableName;
-    private static String trinoJsonTestTable;
-    private static String unqualifiedPaginationTestTable; //just the table name (no catalog or schema)
-
-    private static void setupTestTables() throws IOException {
-        String randomFactor = RandomStringUtils.randomAlphanumeric(16);
-        List<String> queries = new LinkedList<>();
-
-        log.info("Creating table for JSON support tests.");
-        trinoJsonTestTable = qualifyTestTableName("jsonTest_" + randomFactor);
-        queries.add(createJsonTestTable());
-        dropAfterAllTests(trinoJsonTestTable);
-        queries.add(insertIntoJsonTable("string", "\"Hello\""));
-        queries.add(insertIntoJsonTable("boolean", "true"));
-        queries.add(insertIntoJsonTable("number", "1.0"));
-        queries.add(insertIntoJsonTable("json_object", "{\"name\": \"Foo\", \"age\": 25}"));
-        queries.add(insertIntoJsonTable(null, null));
-        queries.add(insertIntoJsonTable(
-                "array_of_various_types",
-                "[\"Hello\", true, 1.0, {\"name\": \"Foo\"}, null, [1,2]]"));
-        queries.add(insertIntoJsonTable(
-                "array_of_json_objects",
-                "[{\"name\": \"Foo\", \"age\": 25}, {\"name\": \"Boo\", \"age\": 52}]"));
-
-        log.info("Creating table for date/time support tests.");
-        trinoDateTimeTestTable = qualifyTestTableName("dateTimeTest_" + randomFactor);
-        queries.add(createDateTimeTable());
-        dropAfterAllTests(trinoDateTimeTestTable);
-        queries.add(insertIntoDateTimeTable(
-                "LosAngeles",
-                TEST_DATE,
-                TEST_TIME_LOS_ANGELES,
-                TEST_DATE_TIME_LOS_ANGELES,
-                TEST_DATE_TIME_LOS_ANGELES,
-                TEST_DATE_TIME_LOS_ANGELES,
-                TEST_TIME_LOS_ANGELES,
-                TEST_TIME_LOS_ANGELES));
-        queries.add(insertIntoDateTimeTable(
-                "UTC",
-                TEST_DATE,
-                TEST_TIME_UTC,
-                TEST_DATE_TIME_UTC,
-                TEST_DATE_TIME_UTC,
-                TEST_DATE_TIME_UTC,
-                TEST_TIME_UTC,
-                TEST_TIME_UTC));
-
-        log.info("Creating table for pagination tests.");
-        unqualifiedPaginationTestTable = "pagination_" + randomFactor;
-        trinoPaginationTestTableName = qualifyTestTableName(unqualifiedPaginationTestTable).toLowerCase();
-        queries.add(createPaginationTable(trinoPaginationTestTableName));
-        dropAfterAllTests(trinoPaginationTestTableName);
-        queries.add(insertIntoPaginationTable(trinoPaginationTestTableName, 120));
-
-        for (String query : queries) {
-            try {
-                dataConnectQuery(query);
-            } catch (Exception e) {
-                throw new RuntimeException("During test table setup, failed to execute: " + query, e);
-            }
-        }
-
-        // Give the tables a moment to settle, we've seen some flakiness in the tests
-        // and suspect that the memory connector for trino may be eventually consistent
-        Table lastResult = null;
-        for (int attempt = 0; attempt < 3; attempt++) {
-            lastResult = dataConnectQueryNoErrorCheck("select * from " + trinoJsonTestTable);
-            if (lastResult.getErrors().isEmpty() && !lastResult.getData().isEmpty()) {
-                return;
-            }
-        }
-        throw new RuntimeException("Tables didn't settle: " + lastResult);
+    @AfterAll
+    static void dropTestTables() {
+        TestTable.dropAll();
     }
 
-    /** Enquques a cleanup operation for the given table */
-    private static void dropAfterAllTests(String tableName) {
-        afterAllCleanups.add(() -> {
-            log.info("Dropping {}...", tableName);
-            dataConnectQuery(dropTable(tableName));
-        });
-    }
-
-    private static String dropTable(String trinoDateTimeTestTable) {
-        return String.format("DROP TABLE %s", trinoDateTimeTestTable);
-    }
-
-    private static String createPaginationTable(String tableName) {
-        return String.format("CREATE TABLE %s(id integer, bogusfield varchar)", tableName);
+    @BeforeEach
+    final void beforeEachTest() {
+        extraCredentials.clear();
     }
 
     /**
-     * Creates an insert statement that fills the given table's {@code bogusfield} column with enough rows of data
-     * to exceed one Trino page of response data (about 600 rows per page).
+     * Returns the tables created for this test run.
+     *
+     * @throws IllegalStateException if the tables have not been created yet.
      */
-    private static String insertIntoPaginationTable(String tableName, int rows) {
-        ArrayList<String> testValues = new ArrayList<>();
-        for (int i = 0; i < rows; ++i) {
-            testValues.add(String.format("(REPLACE('testValue_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_%s', 'x', 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'))", i));
+    private static TestTables tables() {
+        if (testTables == null) {
+            throw new IllegalStateException("Test tables have not been created. Did createTestTables() run?");
         }
-        return String.format("INSERT INTO %s (bogusfield) VALUES %s", tableName, String.join(", ", testValues));
+        return testTables;
     }
 
-    private static String createDateTimeTable() {
-        return String.format("""
-                CREATE TABLE %s (
-                zone VARCHAR(255),
-                thedate DATE,
-                thetime TIME,
-                thetimestamp TIMESTAMP,
-                thetimestampwithtimezone TIMESTAMP WITH TIME ZONE,
-                thetimestampwithouttimezone TIMESTAMP WITHOUT TIME ZONE,
-                thetimewithouttimezone TIME WITHOUT TIME ZONE,
-                thetimewithtimezone TIME WITH TIME ZONE)
-                """, trinoDateTimeTestTable);
+    /**
+     * A table that exists in the in-memory test catalog for the duration of one test run.
+     * <p>
+     * The only way to get one is {@link #create}, which creates the table and registers it to be dropped by
+     * {@link #dropAll()}. Every table made this way is therefore cleaned up, and no other test run creates a table
+     * by the same name.
+     */
+    static final class TestTable {
+
+        private static final List<TestTable> createdTables = new ArrayList<>();
+
+        private final String unqualifiedName;
+        private final String qualifiedName;
+
+        private TestTable(String unqualifiedName) {
+            this.unqualifiedName = unqualifiedName;
+            this.qualifiedName = INMEMORY_TESTCATALOG + "." + INMEMORY_TESTSCHEMA + "." + unqualifiedName;
+        }
+
+        /**
+         * Creates a table in the in-memory test catalog and registers it to be dropped when the test run ends.
+         *
+         * @param namePrefix says what the table is for. The test run ID is appended to it, and the whole name is
+         *                   lowercased to match the way Trino folds unquoted identifiers.
+         * @param columnDefinitions the column list of the CREATE TABLE statement, for example
+         *                          {@code "id integer, bogusfield varchar"}.
+         * @throws IllegalStateException if the table cannot be created.
+         */
+        static TestTable create(String namePrefix, String columnDefinitions) {
+            TestTable table = new TestTable((namePrefix + "_" + TEST_RUN_ID).toLowerCase(Locale.ROOT));
+            createdTables.add(table);
+            table.execute("CREATE TABLE %s (%s)", columnDefinitions);
+            return table;
+        }
+
+        /**
+         * Drops every table created so far, most recently created first. Failures are logged rather than thrown,
+         * so that one undroppable table doesn't strand the others.
+         */
+        static void dropAll() {
+            log.info("Dropping {} test tables...", createdTables.size());
+            for (TestTable table : createdTables.reversed()) {
+                try {
+                    table.execute("DROP TABLE %s");
+                } catch (Exception e) {
+                    log.error("Failed to drop test table {}", table.qualifiedName, e);
+                }
+            }
+            createdTables.clear();
+        }
+
+        /** This table's name qualified by test catalog and schema, which is how Trino and Data Connect refer to it. */
+        String qualifiedName() {
+            return qualifiedName;
+        }
+
+        /** This table's name on its own, with no catalog or schema qualifier. */
+        String unqualifiedName() {
+            return unqualifiedName;
+        }
+
+        /**
+         * Runs one statement against this table through the Data Connect API.
+         *
+         * @param sqlFormat a {@link String#formatted} template. Its first {@code %s} is filled in with this table's
+         *                  qualified name, and any remaining format specifiers are filled from {@code args}.
+         * @throws IllegalStateException if the statement fails.
+         */
+        void execute(String sqlFormat, Object... args) {
+            Object[] formatArgs = new Object[args.length + 1];
+            formatArgs[0] = qualifiedName;
+            System.arraycopy(args, 0, formatArgs, 1, args.length);
+
+            String sql = sqlFormat.formatted(formatArgs);
+            try {
+                dataConnectQuery(sql);
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to execute: " + sql, e);
+            }
+        }
     }
 
-    private static String insertIntoDateTimeTable(String zone, String date, String time, String timestamp, String timestampWithTimeZone, String timestampWithoutTimeZone, String timeWithoutTimeZone, String timeWithTimeZone) {
-        return String.format(
-                "INSERT INTO %s(zone, thedate, thetime, thetimestamp, thetimestampwithtimezone, thetimestampwithouttimezone, thetimewithouttimezone, thetimewithtimezone)"
-                    + " VALUES(%s, date %s, time %s, timestamp %s, timestamp %s, timestamp %s, time %s, time %s)",
-                trinoDateTimeTestTable,
-                quoteSqlString(zone),
-                quoteSqlString(date),
-                quoteSqlString(time),
-                quoteSqlString(timestamp),
-                quoteSqlString(timestampWithTimeZone),
-                quoteSqlString(timestampWithoutTimeZone),
-                quoteSqlString(timeWithoutTimeZone),
-                quoteSqlString(timeWithTimeZone)
-        );
+    /**
+     * The tables this test run creates in the in-memory test catalog, populated with the rows the tests expect.
+     */
+    private record TestTables(TestTable json, TestTable dateTime, TestTable pagination) {
+
+        static TestTables create() {
+            log.info("Creating table for JSON support tests.");
+            TestTable json = TestTable.create("jsonTest", "id varchar(25), data json");
+            insertJsonRow(json, "string", "\"Hello\"");
+            insertJsonRow(json, "boolean", "true");
+            insertJsonRow(json, "number", "1.0");
+            insertJsonRow(json, "json_object", "{\"name\": \"Foo\", \"age\": 25}");
+            insertJsonRow(json, null, null);
+            insertJsonRow(json, "array_of_various_types", "[\"Hello\", true, 1.0, {\"name\": \"Foo\"}, null, [1,2]]");
+            insertJsonRow(json, "array_of_json_objects", "[{\"name\": \"Foo\", \"age\": 25}, {\"name\": \"Boo\", \"age\": 52}]");
+
+            log.info("Creating table for date/time support tests.");
+            TestTable dateTime = TestTable.create("dateTimeTest", """
+                    zone VARCHAR(255),
+                    thedate DATE,
+                    thetime TIME,
+                    thetimestamp TIMESTAMP,
+                    thetimestampwithtimezone TIMESTAMP WITH TIME ZONE,
+                    thetimestampwithouttimezone TIMESTAMP WITHOUT TIME ZONE,
+                    thetimewithouttimezone TIME WITHOUT TIME ZONE,
+                    thetimewithtimezone TIME WITH TIME ZONE""");
+            insertDateTimeRow(dateTime, "LosAngeles", TEST_TIME_LOS_ANGELES, TEST_DATE_TIME_LOS_ANGELES);
+            insertDateTimeRow(dateTime, "UTC", TEST_TIME_UTC, TEST_DATE_TIME_UTC);
+
+            log.info("Creating table for pagination tests.");
+            TestTable pagination = TestTable.create("pagination", PAGINATION_TABLE_COLUMNS);
+            insertPaginationRows(pagination, 120);
+
+            awaitRowsVisible(json);
+            return new TestTables(json, dateTime, pagination);
+        }
+
+        /**
+         * Queries the given table until it returns rows: we have seen tests run before their setup data was
+         * visible, and suspect the Trino memory connector of being eventually consistent.
+         *
+         * @throws IllegalStateException if the table still has no rows after several attempts.
+         */
+        private static void awaitRowsVisible(TestTable table) {
+            Table lastResult = null;
+            for (int attempt = 0; attempt < 3; attempt++) {
+                try {
+                    lastResult = dataConnectQueryNoErrorCheck("SELECT * FROM " + table.qualifiedName());
+                } catch (IOException e) {
+                    throw new UncheckedIOException("Failed to query " + table.qualifiedName(), e);
+                }
+                if (lastResult.getErrors().isEmpty() && !lastResult.getData().isEmpty()) {
+                    return;
+                }
+            }
+            throw new IllegalStateException("Tables didn't settle: " + lastResult);
+        }
     }
 
-    private static String createJsonTestTable() {
-        return String.format("CREATE TABLE %s (id varchar(25), data json)", trinoJsonTestTable);
-    }
-
-    private static String insertIntoJsonTable(String id, String jsonLiteral) {
-        return String.format("INSERT INTO %s (id, data) VALUES(%s, json_parse(%s))",
-                trinoJsonTestTable,
+    /**
+     * Inserts one row into a table shaped like the JSON test table.
+     *
+     * @param id the row's id, or null to insert a row with no id.
+     * @param jsonLiteral the JSON document to store, or null to insert a row with no document.
+     */
+    private static void insertJsonRow(TestTable table, @Nullable String id, @Nullable String jsonLiteral) {
+        table.execute(
+                "INSERT INTO %s (id, data) VALUES(%s, json_parse(%s))",
                 quoteSqlString(id),
                 quoteSqlString(jsonLiteral));
     }
 
-    private static String quoteSqlString(String s) {
+    /**
+     * Inserts one row into a table shaped like the date/time test table, recording the same moment in every one of
+     * its date, time and timestamp columns.
+     *
+     * @param zone names the row, and says which zone the given time and date/time are expressed in.
+     * @param time a time literal including a zone offset, for example {@code 12:22:27.000-08:00}.
+     * @param dateTime a date and time literal including a zone offset, for example
+     *                 {@code 2020-05-27 12:22:27.000-08:00}.
+     */
+    private static void insertDateTimeRow(TestTable table, String zone, String time, String dateTime) {
+        table.execute(
+                "INSERT INTO %s(zone, thedate, thetime, thetimestamp, thetimestampwithtimezone, thetimestampwithouttimezone, thetimewithouttimezone, thetimewithtimezone)"
+                    + " VALUES(%s, date %s, time %s, timestamp %s, timestamp %s, timestamp %s, time %s, time %s)",
+                quoteSqlString(zone),
+                quoteSqlString(TEST_DATE),
+                quoteSqlString(time),
+                quoteSqlString(dateTime),
+                quoteSqlString(dateTime),
+                quoteSqlString(dateTime),
+                quoteSqlString(time),
+                quoteSqlString(time));
+    }
+
+    /**
+     * Fills the given table's {@code bogusfield} column with the requested number of rows, each wide enough that
+     * about 600 of them fill one Trino page of response data.
+     */
+    private static void insertPaginationRows(TestTable table, int rows) {
+        List<String> values = new ArrayList<>(rows);
+        for (int i = 0; i < rows; ++i) {
+            values.add("(REPLACE('testValue_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_%s', 'x', 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'))".formatted(i));
+        }
+        table.execute("INSERT INTO %s (bogusfield) VALUES %s", String.join(", ", values));
+    }
+
+    /**
+     * Renders the given value as a SQL string literal, or as {@code null} if it is null.
+     */
+    private static String quoteSqlString(@Nullable String s) {
         if (s == null) {
             return "null";
         }
-        return "'" + s.replaceAll("'", "''") + "'";
+        return "'" + s.replace("'", "''") + "'";
     }
 
-    @AfterAll
-    public static void runAfterAllCleanups() {
-        log.info("Running {} afterAllCleanups...", afterAllCleanups.size());
-        for (int i = afterAllCleanups.size() - 1; i >= 0; i--) {
-            try {
-                afterAllCleanups.get(i).run();
-            } catch (Exception e) {
-                log.error("Error during cleanup", e);
-            }
-        }
-    }
-
-    @BeforeEach
-    public final void beforeEachTest() {
-        extraCredentials.clear();
-    }
-
-    static String qualifyTestTableName(String tableName) {
-        return inMemoryCatalog + "." + inMemorySchema + "." + tableName;
-    }
 
     private ListTableResponse getFirstPageOfTableListing() throws Exception {
-        ListTableResponse listTableResponse = globalMethodSecurityEnabled ? getListTableResponse("/tables") :
+        ListTableResponse listTableResponse = GLOBAL_METHOD_SECURITY_ENABLED ? getListTableResponse("/tables") :
                 dataConnectApiGetRequest("/tables", 200, ListTableResponse.class);
 
         assertThat(listTableResponse.getIndex(), not(nullValue()));
@@ -355,12 +397,14 @@ public class DataConnectE2eTest extends BaseE2eTest {
 
     @EnabledIfEnvironmentVariable(named = "E2E_INDEXING_SERVICE_ENABLED", matches = "true", disabledReason = "This test requires data-connect-trino to be hooked up to indexing-service")
     @Test
-    public void getTableInfo_should_returnCustomSchema_from_indexingService() throws IOException {
+    void getTableInfo_should_returnCustomSchema_from_indexingService() throws IOException {
         final String indexingServiceBearerToken = getToken(List.of("ins:library:write"), List.of(INDEXING_SERVICE_RESOURCE_URI + "library/") );
 
-        log.info("Verifying table info for [{}]", trinoPaginationTestTableName);
-        TableInfo tableInfo = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/info", 200, TableInfo.class);
-        assertThat("Table name is incorrect", tableInfo.getName(), equalTo(trinoPaginationTestTableName));
+        final String paginationTableName = tables().pagination().qualifiedName();
+
+        log.info("Verifying table info for [{}]", paginationTableName);
+        TableInfo tableInfo = dataConnectApiGetRequest("/table/" + paginationTableName + "/info", 200, TableInfo.class);
+        assertThat("Table name is incorrect", tableInfo.getName(), equalTo(paginationTableName));
         assertThat("Table data model is null", tableInfo.getDataModel(), not(nullValue()));
         assertThat("ID in the table data model is null", tableInfo.getDataModel().getId(), not(nullValue()));
         assertThat("Schema data model is null", tableInfo.getDataModel().getSchema(), not(nullValue()));
@@ -376,10 +420,10 @@ public class DataConnectE2eTest extends BaseE2eTest {
                     .type("table")
                     .dataSourceName("nonexistent_connection")
                     .dataSourceType("search:e2e:nonexistent-connection")
-                    .name(trinoPaginationTestTableName)
-                    .sourceKey(trinoPaginationTestTableName)
+                    .name(paginationTableName)
+                    .sourceKey(paginationTableName)
                     .description("Generated by DataConnectE2eTest")
-                    .preferredName(trinoPaginationTestTableName)
+                    .preferredName(paginationTableName)
                     .aliases(List.of())
                     .preferredColumnNames(Map.of())
                     .jsonSchema(objectMapper.writeValueAsString(Map.of("$comment", "This is the custom schema from library")))
@@ -392,8 +436,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
             .then()
             .log().ifValidationFails()
             .statusCode(200)
-            .body("name", equalTo(trinoPaginationTestTableName))
-            .body("preferredName", equalTo(trinoPaginationTestTableName.toLowerCase()))
+            .body("name", equalTo(paginationTableName))
+            .body("preferredName", equalTo(paginationTableName))
             .extract()
             .jsonPath()
             .getString("id");
@@ -405,8 +449,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
                 .statusCode(204)
         );
 
-        log.info("Verifying that the custom schema is fetched for [{}]", trinoPaginationTestTableName);
-        tableInfo = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/info", 200, TableInfo.class);
+        log.info("Verifying that the custom schema is fetched for [{}]", paginationTableName);
+        tableInfo = dataConnectApiGetRequest("/table/" + paginationTableName + "/info", 200, TableInfo.class);
         assertThat("ID in the table data model is not null", tableInfo.getDataModel().getId(), nullValue());
         assertThat("The table data model properties is not null", tableInfo.getDataModel().getProperties(), nullValue());
         assertThat(
@@ -436,13 +480,13 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     static boolean runTest() {
-        return getTestParams().size() <= 0;
+        return getTestParams().isEmpty();
     }
 
     @ParameterizedTest(name = "Testing table with name [{0}]")
     @MethodSource("getTestParams")
     @DisabledIf(value = "runTest", disabledReason = "No test data found when looking for environment variables of pattern E2E_%s_EXPECTED_DATA_MODEL")
-    public void getTableInfoAndData_should_returnExpectedDataModel(String tableName, String expectedJsonDataModel) throws Exception {
+    void getTableInfoAndData_should_returnExpectedDataModel(String tableName, String expectedJsonDataModel) throws Exception {
         DataModel expectedDataModel = objectMapper.readValue(expectedJsonDataModel, DataModel.class);
         fetchAndVerifyTableInfo(tableName, expectedDataModel);
         fetchAndVerifyTableData(tableName, expectedDataModel);
@@ -462,16 +506,17 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void jsonFieldIsDeclaredAsObject() throws IOException {
-        Table tableInfo = dataConnectApiGetRequest(String.format("/table/%s/info", trinoJsonTestTable), 200, Table.class);
+    void jsonFieldIsDeclaredAsObject() throws IOException {
+        String jsonTableName = tables().json().qualifiedName();
+        Table tableInfo = dataConnectApiGetRequest(String.format("/table/%s/info", jsonTableName), 200, Table.class);
         assertThat(tableInfo, not(nullValue()));
-        assertThat(tableInfo.getName(), equalTo(trinoJsonTestTable));
+        assertThat(tableInfo.getName(), equalTo(jsonTableName));
         assertThat(tableInfo.getDataModel().getProperties().get("data").getType(), equalTo("object"));
     }
 
     @Test
-    public void jsonFieldIsRepresentedAsObject() throws IOException {
-        Table tableData = dataConnectApiGetRequest("/table/" + trinoJsonTestTable + "/data", 200, Table.class);
+    void jsonFieldIsRepresentedAsObject() throws IOException {
+        Table tableData = dataConnectApiGetRequest("/table/" + tables().json().qualifiedName() + "/data", 200, Table.class);
         assertThat(tableData, not(nullValue()));
         dataConnectApiGetAllPages(tableData);
 
@@ -481,8 +526,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void datesAndTimesHaveCorrectTypes() throws IOException {
-        String qualifiedTableName = trinoDateTimeTestTable;
+    void datesAndTimesHaveCorrectTypes() throws IOException {
+        String qualifiedTableName = tables().dateTime().qualifiedName();
         TableInfo tableInfo = dataConnectApiGetRequest("/table/" + qualifiedTableName + "/info", 200, TableInfo.class);
         assertThat(tableInfo, not(nullValue()));
         assertThat(tableInfo.getName(), equalTo(qualifiedTableName));
@@ -500,7 +545,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void ga4ghTypeAsInlineGivesBackTypeAsInline() throws IOException {
+    void ga4ghTypeAsInlineGivesBackTypeAsInline() throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
 
         ColumnSchema columnSchema = ColumnSchema.builder()
@@ -509,7 +554,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
             .build();
 
         String json = objectMapper.writeValueAsString(columnSchema);
-        String q = String.format("SELECT ga4gh_type(bogusfield, '" + json + "') FROM %s", trinoPaginationTestTableName);
+        String q = "SELECT ga4gh_type(bogusfield, '%s') FROM %s".formatted(json, tables().pagination().qualifiedName());
         DataConnectRequest query = new DataConnectRequest(q);
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
@@ -525,9 +570,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void ga4ghTypeWithoutAliasWorksWithColumnNameAsFirstArgument() throws IOException {
+    void ga4ghTypeWithoutAliasWorksWithColumnNameAsFirstArgument() throws IOException {
         DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') FROM %s",
-            trinoPaginationTestTableName));
+            tables().pagination().qualifiedName()));
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
         if (result.getData() == null) {
@@ -541,9 +586,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void ga4ghTypeWithRefAndAliasWithAsGivesBackRef() throws IOException {
+    void ga4ghTypeWithRefAndAliasWithAsGivesBackRef() throws IOException {
         DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') as bf FROM %s",
-            trinoPaginationTestTableName));
+            tables().pagination().qualifiedName()));
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
         if (result.getData() == null) {
@@ -557,9 +602,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void ga4ghTypeWithRefAndAliasWithoutAsGivesBackRef() throws IOException {
+    void ga4ghTypeWithRefAndAliasWithoutAsGivesBackRef() throws IOException {
         DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') bf FROM %s",
-            trinoPaginationTestTableName));
+            tables().pagination().qualifiedName()));
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
         if (result.getData() == null) {
@@ -573,9 +618,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void ga4ghTypeWithJsonRefAndAliasGivesBackJsonRef() throws IOException {
+    void ga4ghTypeWithJsonRefAndAliasGivesBackJsonRef() throws IOException {
         DataConnectRequest query = new DataConnectRequest(String.format("SELECT ga4gh_type(bogusfield, '{\"$ref\":\"http://path/to/whatever.com\"}') as bf FROM %s",
-            trinoPaginationTestTableName));
+            tables().pagination().qualifiedName()));
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
         if (result.getData() == null) {
@@ -589,8 +634,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     private void assertDatesAndTimesHaveCorrectValuesForZone(String zone, Map<String, String> expectedValues) throws IOException {
-        DataConnectRequest query = new DataConnectRequest(String.format("SELECT * FROM " + trinoDateTimeTestTable + " WHERE zone='%s'", zone));
-        log.info("Running query {}", query);
+        DataConnectRequest query = new DataConnectRequest(
+                "SELECT * FROM %s WHERE zone='%s'".formatted(tables().dateTime().qualifiedName(), zone));
+        log.info("Reading back the {} row of the date/time table: {}", zone, query);
 
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
@@ -614,7 +660,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void datesAndTimesHaveCorrectValuesForDatesAndTimesInsertedWithZone() throws IOException {
+    void datesAndTimesHaveCorrectValuesForDatesAndTimesInsertedWithZone() throws IOException {
         for (Map.Entry<String, Map<String, String>> e : EXPECTED_VALUES.entrySet()) {
             log.info("Checking date and time was inserted correctly for zone {}", e.getKey());
             assertDatesAndTimesHaveCorrectValuesForZone(e.getKey(), e.getValue());
@@ -622,7 +668,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void nextPageTrailIsConsistentWithIndex() throws Exception {
+    void nextPageTrailIsConsistentWithIndex() throws Exception {
         ListTableResponse currentPage = getFirstPageOfTableListing();
 
         if (currentPage.getErrors() != null) {
@@ -641,7 +687,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         //assert that the nth page has next url equal to the n+1st index.
         for (int i = 1; i <  pageIndex.size() - 1; ++i) {
             log.info("Follow-up: Page {}: Start", i);
-            currentPage = globalMethodSecurityEnabled ? getListTableResponse(currentPage.getPagination().getNextPageUrl().toString()) :
+            currentPage = GLOBAL_METHOD_SECURITY_ENABLED ? getListTableResponse(currentPage.getPagination().getNextPageUrl().toString()) :
                     dataConnectApiGetRequest(
                             currentPage.getPagination().getNextPageUrl().toString(),
                             200,
@@ -667,13 +713,11 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void deleteNextPageUrl_should_terminateQuery() throws IOException {
-        String tableName = qualifyTestTableName("query_termination_test_table_" + System.currentTimeMillis());
-        dataConnectQuery(createPaginationTable(tableName));
-        dropAfterAllTests(tableName);
-        dataConnectQuery(insertIntoPaginationTable(tableName, 600));
+    void deleteNextPageUrl_should_terminateQuery() throws IOException {
+        TestTable table = TestTable.create("query_termination", PAGINATION_TABLE_COLUMNS);
+        insertPaginationRows(table, 600);
 
-        DataConnectRequest query = new DataConnectRequest(String.format("SELECT * FROM " + tableName));
+        DataConnectRequest query = new DataConnectRequest("SELECT * FROM " + table.qualifiedName());
         log.info("Running query {} and following the next page URL", query);
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         String nextPageUrl = result.getPagination().getNextPageUrl().toString();
@@ -705,7 +749,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
                        "] as datasetAlleleResponses";
 
         DataConnectRequest dataConnectRequest = new DataConnectRequest(query);
-        log.info("Running query {}", query);
+        log.info("Querying one row of every type Data Connect supports: {}", query);
         Table result = dataConnectApiRequest(Method.POST, "/search", dataConnectRequest, 200, Table.class);
         dataConnectApiGetAllPages(result);
 
@@ -718,19 +762,19 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void searchQueryOnVariedTypesReturnsCorrectData() throws Exception {
+    void searchQueryOnVariedTypesReturnsCorrectData() throws Exception {
         Table result = executeSearchQueryOnVariedTypes();
         List<Map<String, Object>> expectedData;
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("variedTypesData.json")) {
             ObjectMapper objectMapper = new ObjectMapper();
-            expectedData = objectMapper.readValue(is, new TypeReference<List<Map<String, Object>>>(){});
+            expectedData = objectMapper.readValue(is, new TypeReference<>(){});
         }
         List<Map<String, Object>> actualData = result.getData();
         Assertions.assertThat(actualData).usingRecursiveComparison().isEqualTo(expectedData);
     }
 
     @Test
-    public void searchQueryOnVariedTypesReturnsCorrectDataModel() throws Exception {
+    void searchQueryOnVariedTypesReturnsCorrectDataModel() throws Exception {
 
         Table result = executeSearchQueryOnVariedTypes();
         DataModel expectedDataModel;
@@ -744,26 +788,28 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void malformedSqlQueryShouldReturn400AndMessageAndTraceId() throws Exception {
+    void malformedSqlQueryShouldReturn400AndMessageAndTraceId() throws Exception {
         DataConnectRequest query = new DataConnectRequest("SELECT * FROM FROM E2ETEST LIMIT STRAWBERRY");
-        Table data = dataConnectUntilException(query, HttpStatus.SC_BAD_REQUEST);
+        Table data = dataConnectUntilBadRequest(query);
         runBasicAssertionOnTableErrorList(data.getErrors());
         assertThat(data.getErrors().getFirst().getStatus(), equalTo(400));
     }
 
     @Test
-    public void sqlQueryWithBadColumnShouldReturn400AndMessageAndTraceId() throws Exception {
-        DataConnectRequest query = new DataConnectRequest("SELECT e2etest_olywolypolywoly FROM " + trinoPaginationTestTableName + " LIMIT 10");
-        Table data = dataConnectUntilException(query, HttpStatus.SC_BAD_REQUEST);
+    void sqlQueryWithBadColumnShouldReturn400AndMessageAndTraceId() throws Exception {
+        DataConnectRequest query = new DataConnectRequest(
+                "SELECT e2etest_olywolypolywoly FROM " + tables().pagination().qualifiedName() + " LIMIT 10");
+        Table data = dataConnectUntilBadRequest(query);
         runBasicAssertionOnTableErrorList(data.getErrors());
         assertThat(data.getErrors().getFirst().getStatus(), equalTo(400));
     }
 
     @Test
-    public void sqlQueryShouldFindSomething() throws Exception {
+    void sqlQueryShouldFindSomething() throws Exception {
 
-        DataConnectRequest query = new DataConnectRequest("SELECT * FROM " + trinoPaginationTestTableName + " LIMIT 10");
-        log.info("Running query {}", query);
+        DataConnectRequest query = new DataConnectRequest(
+                "SELECT * FROM " + tables().pagination().qualifiedName() + " LIMIT 10");
+        log.info("Querying the pagination table for a handful of rows: {}", query);
 
 
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
@@ -781,31 +827,32 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void getTableInfoWithUnknownCatalogGives404AndMessageAndTraceId() throws Exception {
-        final String trinoTableWithBadCatalog = "e2etest_olywlypolywoly.public." + unqualifiedPaginationTestTable;
+    void getTableInfoWithUnknownCatalogGives404AndMessageAndTraceId() throws Exception {
+        final String trinoTableWithBadCatalog = "e2etest_olywlypolywoly.public." + tables().pagination().unqualifiedName();
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadCatalog + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
         assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
     }
 
     @Test
-    public void getTableInfoWithUnknownSchemaGives404AndMessageAndTraceId() throws Exception {
-        final String trinoTableWithBadSchema = inMemoryCatalog + ".e2etest_olywolypolywoly." + unqualifiedPaginationTestTable;
+    void getTableInfoWithUnknownSchemaGives404AndMessageAndTraceId() throws Exception {
+        final String trinoTableWithBadSchema =
+                INMEMORY_TESTCATALOG + ".e2etest_olywolypolywoly." + tables().pagination().unqualifiedName();
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadSchema + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
         assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
     }
 
     @Test
-    public void getTableInfoWithUnknownTableGives404AndMessageAndTraceId() throws Exception {
-        final String trinoTableWithBadTable = inMemoryCatalog + "." + inMemorySchema + "." + "e2etest_olywolypolywoly";
+    void getTableInfoWithUnknownTableGives404AndMessageAndTraceId() throws Exception {
+        final String trinoTableWithBadTable = INMEMORY_TESTCATALOG + "." + INMEMORY_TESTSCHEMA + "." + "e2etest_olywolypolywoly";
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadTable + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
         assertThat(info.getErrors().getFirst().getStatus(), equalTo(404));
     }
 
     @Test
-    public void getTableInfoWithBadlyQualifiedTableGives404AndMessageAndTraceId() throws Exception {
+    void getTableInfoWithBadlyQualifiedTableGives404AndMessageAndTraceId() throws Exception {
         final String trinoTableWithBadTable = "e2etest_olywolypolywoly";
         TableInfo info = dataConnectApiGetRequest("/table/" + trinoTableWithBadTable + "/info", 404, TableInfo.class);
         runBasicAssertionOnTableErrorList(info.getErrors());
@@ -813,8 +860,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void getTableData_should_returnDataAndDataModel() throws Exception {
-        Table tableData = dataConnectApiGetRequest("/table/" + trinoPaginationTestTableName + "/data", 200, Table.class);
+    void getTableData_should_returnDataAndDataModel() throws Exception {
+        Table tableData = dataConnectApiGetRequest("/table/" + tables().pagination().qualifiedName() + "/data", 200, Table.class);
         assertThat(tableData, not(nullValue()));
         dataConnectApiGetAllPages(tableData);
         assertThat(tableData.getData(), not(nullValue()));
@@ -826,9 +873,9 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void getTables_should_require_searchInfo_scope() {
-        assumeTrue(globalMethodSecurityEnabled);
-        assumeTrue(scopeCheckingEnabled);
+    void getTables_should_require_searchInfo_scope() {
+        assumeTrue(GLOBAL_METHOD_SECURITY_ENABLED);
+        assumeTrue(SCOPE_CHECKING_ENABLED);
 
         givenAuthenticatedRequest("junk_scope")
             .when()
@@ -840,13 +887,13 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void getTableData_should_require_searchData_scope() {
-        assumeTrue(globalMethodSecurityEnabled);
-        assumeTrue(scopeCheckingEnabled);
+    void getTableData_should_require_searchData_scope() {
+        assumeTrue(GLOBAL_METHOD_SECURITY_ENABLED);
+        assumeTrue(SCOPE_CHECKING_ENABLED);
 
         givenAuthenticatedRequest("junk_scope")
             .when()
-            .get("/table/{tableName}/data", trinoPaginationTestTableName)
+            .get("/table/{tableName}/data", tables().pagination().qualifiedName())
             .then()
             .log().ifValidationFails()
             .statusCode(403)
@@ -854,12 +901,12 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void searchQuery_should_requireDataAndQueryScopes() {
-        assumeTrue(globalMethodSecurityEnabled);
-        assumeTrue(scopeCheckingEnabled);
+    void searchQuery_should_requireDataAndQueryScopes() {
+        assumeTrue(GLOBAL_METHOD_SECURITY_ENABLED);
+        assumeTrue(SCOPE_CHECKING_ENABLED);
 
         DataConnectRequest testDataConnectRequest = new DataConnectRequest(
-                "SELECT * FROM %s LIMIT 10".formatted(trinoJsonTestTable));
+                "SELECT * FROM %s LIMIT 10".formatted(tables().json().qualifiedName()));
 
         givenAuthenticatedRequest("data-connect:data") // but not data-connect:query
                 .when()
@@ -883,12 +930,12 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void search_showSchemasFromCatalog_should_returnSchemas() throws IOException {
-        assumeThat(showTableForCatalogSchemaName)
+    void search_showSchemasFromCatalog_should_returnSchemas() throws IOException {
+        assumeThat(SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME)
                 .as("SHOW SCHEMAS FROM {catalog} test is not configured. Skipping.")
                 .isNotNull();
 
-        DataConnectRequest query = new DataConnectRequest("SHOW SCHEMAS FROM " + showSchemaForCatalogName);
+        DataConnectRequest query = new DataConnectRequest("SHOW SCHEMAS FROM " + SHOW_SCHEMA_FOR_CATALOG_NAME);
         assertQueryReturnsRows(query, "Schema");
     }
 
@@ -900,7 +947,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
      * @throws IOException if an HTTP call to the server errors out
      */
     private static void assertQueryReturnsRows(DataConnectRequest query, String expectedColumnName) throws IOException {
-        log.info("Running query {}", query);
+        log.info("Querying for rows with a {} column: {}", expectedColumnName, query);
 
         Table result = dataConnectApiRequest(POST, "/search", query, 200, Table.class);
         dataConnectApiGetAllPages(result);
@@ -920,11 +967,11 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    public void search_showTablesFromCatalogSchema_should_returnTables() throws IOException {
-        assumeThat(showTableForCatalogSchemaName)
+    void search_showTablesFromCatalogSchema_should_returnTables() throws IOException {
+        assumeThat(SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME)
                 .as("SHOW TABLES FROM {catalog.schema} test is not configured. Skipping.")
                 .isNotNull();
-        DataConnectRequest query = new DataConnectRequest("SHOW TABLES FROM " + showTableForCatalogSchemaName);
+        DataConnectRequest query = new DataConnectRequest("SHOW TABLES FROM " + SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME);
         assertQueryReturnsRows(query, "Table");
     }
 
@@ -936,15 +983,14 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     /**
-     * Sends the query and retrieves all pages, accumulating all data and errors into the returned Table object.
+     * Sends the given query and retrieves all of its pages.
      *
-     * @param sql
-     * @return
+     * @param sql the query to run.
+     * @throws AssertionError if any page of the response reported an error.
      */
-    static Table dataConnectQuery(String sql) throws IOException {
+    static void dataConnectQuery(String sql) throws IOException {
         Table result = dataConnectQueryNoErrorCheck(sql);
         assertThat("Query failed: " + sql, result.getErrors(), empty());
-        return result;
     }
 
     static Table dataConnectQueryNoErrorCheck(String sql) throws IOException {
@@ -963,7 +1009,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
             String nextPageUri = table.getPagination().getNextPageUrl().toString();
             Table nextResult = dataConnectApiGetRequest(nextPageUri, 200, Table.class);
             if (nextResult.getData() != null) {
-                log.info("Got " + nextResult.getData().size() + " results");
+                log.info("Got {} results", nextResult.getData().size());
             }
             table.append(nextResult);
         }
@@ -1012,7 +1058,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
      * @throws AssertionError if the HTTP response code does not match {@code expectedStatus} (except in the case of
      *                        well-formed Search API credentials challenges from the server, which are automatically retried).
      */
-    static <T> T dataConnectApiRequest(Method method, String path, Object body, int expectedStatus, Class<T> responseType) throws IOException {
+    static <T> T dataConnectApiRequest(Method method, String path, @Nullable Object body, int expectedStatus, Class<T> responseType) throws IOException {
         if (expectedStatus == 401) {
             fail("This method handles auth challenges and retries on 401. You can't use it when you want a 401 response.");
         }
@@ -1026,20 +1072,23 @@ public class DataConnectE2eTest extends BaseE2eTest {
     }
 
     /**
-     * Executes a data connect query and follows nextUri links until a response returns the HTTP error code in expectedErrorStatus.
-     * If the expected status is never reached, an assertion error is thrown.
+     * Executes a data connect query and follows nextUri links until a response returns HTTP 400.
+     * If that status is never reached, an assertion error is thrown.
      *
      * @return The last page of the response (does not contain the accumulated rows from previous pages).
      * @throws AssertionError if the expected error is not encountered by the last page, or when a different error is encountered.
      */
-    private static Table dataConnectUntilException(Object query, int expectedErrorStatus) throws IOException {
+    private static Table dataConnectUntilBadRequest(Object query) throws IOException {
+        final int expectedErrorStatus = HttpStatus.SC_BAD_REQUEST;
+
         Response response = sendHttpRequest(Method.POST, "/search", query);
         if (response.getStatusCode() == HttpStatus.SC_OK) {
             Table table = response.then().log().ifValidationFails(LogDetail.ALL).extract().as(Table.class);
             while (table.getPagination() != null && table.getPagination().getNextPageUrl() != null) {
                 String nextPageUri = table.getPagination().getNextPageUrl().toString();
                 Response nextPageResponse = sendHttpRequest(Method.GET, nextPageUri, null);
-                log.info("Looking for status " + expectedErrorStatus + " by following nextPageUri trail, most recent request returned " + nextPageResponse.getStatusCode());
+                log.info("Looking for status {} by following nextPageUri trail, most recent request returned {}",
+                        expectedErrorStatus, nextPageResponse.getStatusCode());
                 if (nextPageResponse.getStatusCode() == expectedErrorStatus) {
                     return nextPageResponse.then().log().ifValidationFails(LogDetail.ALL).extract().as(Table.class);
                 } else if (nextPageResponse.getStatusCode() != HttpStatus.SC_OK) {
@@ -1054,12 +1103,12 @@ public class DataConnectE2eTest extends BaseE2eTest {
         throw new AssertionError("Expected to receive status " + expectedErrorStatus + " somewhere on the nextUri trail, but never found it.");
     }
 
-    private static Response sendHttpRequest(Method method, String path, Object body) throws IOException {
+    private static Response sendHttpRequest(Method method, String path, @Nullable Object body) throws IOException {
         Optional<HttpAuthChallenge> wwwAuthenticate;
         for (int attempt = 0; attempt < MAX_REAUTH_ATTEMPTS; attempt++) {
 
             // this request includes all the extra credentials we have been challenged for so far
-            String defaultScope = optionalEnv("E2E_WALLET_DEFAULT_SCOPE", null);
+            String defaultScope = optionalEnv("E2E_WALLET_DEFAULT_SCOPE");
             RequestSpecification requestSpec = defaultScope == null ? givenAuthenticatedRequest()
                 : givenAuthenticatedRequest(defaultScope);
             if (body != null) {
@@ -1123,7 +1172,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         // a real client wouldn't use the key to decide what to get; that would complect the client with catalog naming choices!
         // a real client should do a credential lookup using the type and resource-description!
         String tokenEnvName = "E2E_SEARCH_CREDENTIALS_" + dataConnectAuthRequest.getKey().toUpperCase();
-        String configuredToken = optionalEnv(tokenEnvName, null);
+        String configuredToken = optionalEnv(tokenEnvName);
         if (configuredToken != null) {
             log.info("Using {} to satisfy auth challenge", tokenEnvName);
             return configuredToken;
@@ -1161,7 +1210,7 @@ public class DataConnectE2eTest extends BaseE2eTest {
         RequestSpecification req = given();
 
         // Add auth if auth properties are configured
-        if (globalMethodSecurityEnabled && walletClientId != null && walletClientSecret != null && dataConnectAdapterResource != null) {
+        if (GLOBAL_METHOD_SECURITY_ENABLED) {
             String accessToken = getToken(List.of(scopes), List.of(dataConnectAdapterResource));
             req.auth().oauth2(accessToken);
             if (optionalEnv("E2E_LOG_TOKENS", "false").equalsIgnoreCase("true")) {
@@ -1169,10 +1218,8 @@ public class DataConnectE2eTest extends BaseE2eTest {
             }
         }
 
-        if (PUBLISHER_DATA_RESOURCE_URI != null) {
-            String searchAuthorizationToken = getToken(dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
-            req.header("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
-        }
+        String searchAuthorizationToken = getToken(dataConnectScopes, List.of(PUBLISHER_DATA_RESOURCE_URI));
+        req.header("GA4GH-Search-Authorization", String.format("userToken=%s", searchAuthorizationToken));
 
         // add extra credentials
         extraCredentials.forEach((k, v) -> req.header("GA4GH-Search-Authorization", k + "=" + v));
