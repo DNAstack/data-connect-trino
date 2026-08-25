@@ -6,16 +6,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.restassured.RestAssured;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.ObjectMapperConfig;
-import io.restassured.config.RestAssuredConfig;
 import io.restassured.filter.Filter;
 import io.restassured.filter.FilterContext;
-import io.restassured.mapper.ObjectMapperType;
+import io.restassured.filter.log.LogDetail;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.*;
 
 import java.net.URI;
@@ -42,7 +42,7 @@ public abstract class BaseE2eTest {
             try {
                 cleanupOperations.get(i).run();
             } catch (Exception e) {
-                log.warn("Cleanup operation " + i + "/" + n + " failed. Continuing with subsequent cleanups.", e);
+                log.warn("Cleanup operation {}/{} failed. Continuing with subsequent cleanups.", i, n, e);
             }
         }
         cleanupOperations = new LinkedList<>();
@@ -105,13 +105,20 @@ public abstract class BaseE2eTest {
                 return response;
             } catch (final Exception e) {
                 long elapsedTime = System.currentTimeMillis() - sendTime;
-                // logging e.toString() here rather than whole exception because the test runner will log the rethrown exception
-                log.info("<<< [{}] {} ({}ms)", traceId, e.toString(), elapsedTime);
+                // logging a summary here rather than the whole exception because the test runner will log the rethrown exception
+                String failureSummary = e.toString();
+                log.info("<<< [{}] {} ({}ms)", traceId, failureSummary, elapsedTime);
                 throw e;
             }
         }
     }
 
+    /**
+     * Returns the value of the environment variable with the given name.
+     *
+     * @param name The name of the environment variable to retrieve.
+     * @throws AssertionError if the environment variable is not set.
+     */
     protected static String requiredEnv(String name) {
         String val = System.getenv(name);
         if (val == null) {
@@ -120,12 +127,28 @@ public abstract class BaseE2eTest {
         return val;
     }
 
+    /**
+     * Returns the value of the environment variable with the given name, or the default value if it is not set.
+     *
+     * @param name The name of the environment variable to retrieve.
+     * @param defaultValue The value to return if the environment variable is not set. Null is not permitted.
+     *                     To default to null, use {@link #optionalEnv(String)} instead.
+     */
     protected static String optionalEnv(String name, String defaultValue) {
         String val = System.getenv(name);
         if (val == null) {
             return defaultValue;
         }
         return val;
+    }
+
+    /** Returns the value of the environment variable with the given name, or null if it is not set.
+     *
+     * @param name The name of the environment variable to retrieve.
+     */
+    @Nullable
+    protected static String optionalEnv(String name) {
+        return System.getenv(name);
     }
 
     static String getToken(List<String> scopes, List<String> resources) {
@@ -152,7 +175,7 @@ public abstract class BaseE2eTest {
             .when()
             .post()
             .then()
-            .log().ifValidationFails()
+            .log().ifValidationFails(LogDetail.ALL)
             .statusCode(200)
             .extract().jsonPath();
 

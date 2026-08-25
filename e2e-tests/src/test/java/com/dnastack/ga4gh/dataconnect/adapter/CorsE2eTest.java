@@ -11,7 +11,7 @@ import static java.util.Collections.emptyList;
 public class CorsE2eTest extends BaseE2eTest {
 
     private List<String> allowedCorsOrigins() {
-        String config = optionalEnv("E2E_CORS_URLS", null);
+        String config = optionalEnv("E2E_CORS_URLS");
         if (config == null) {
             return emptyList();
         }
