@@ -24,3 +24,19 @@ An example of such a configuration is provided below.
    </server>
 </servers>
 ```
+
+# Running against a local stack
+
+The `Data Connect Trino E2E Tests - Local` IntelliJ run configuration (in `e2e-tests/.run`) runs the whole
+suite against services on their usual local ports. It expects wallet, data-connect-trino, Trino,
+collection-service and indexing-service to be up, and it sets only the variables whose defaults in
+`BaseE2eTest` and `DataConnectE2eTest` do not already describe a local stack:
+
+| Variable | Why it is set |
+|---|---|
+| `E2E_GLOBAL_METHOD_SECURITY_ENABLED`, `E2E_SCOPE_CHECKING_ENABLED` | Default to `false`, which skips the authorization tests. |
+| `E2E_INDEXING_SERVICE_ENABLED` | Has no default; the indexing-service test is disabled without it. |
+| `E2E_SHOW_SCHEMA_FOR_CATALOG_NAME`, `E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME` | Have no defaults, because the catalog to query differs per environment. `data_lake` is the local equivalent of the chart's `publisher`. |
+
+Everything else — base URIs, wallet client and the publisher-data resource — comes from the defaults in
+the test code. Overriding them in the run configuration is how they drift.

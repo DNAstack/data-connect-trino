@@ -1,0 +1,22 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Data Connect Trino E2E Tests - Local" type="JUnit" factoryName="JUnit" folderName="local">
+    <module name="data-connect-trino-e2e-tests" />
+    <option name="PACKAGE_NAME" value="com.dnastack.ga4gh.dataconnect.adapter" />
+    <option name="MAIN_CLASS_NAME" value="" />
+    <option name="METHOD_NAME" value="" />
+    <option name="TEST_OBJECT" value="package" />
+    <option name="TEST_SEARCH_SCOPE">
+      <value defaultName="moduleWithDependencies" />
+    </option>
+    <envs>
+      <env name="E2E_GLOBAL_METHOD_SECURITY_ENABLED" value="true" />
+      <env name="E2E_INDEXING_SERVICE_ENABLED" value="true" />
+      <env name="E2E_SCOPE_CHECKING_ENABLED" value="true" />
+      <env name="E2E_SHOW_SCHEMA_FOR_CATALOG_NAME" value="data_lake" />
+      <env name="E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME" value="data_lake.public" />
+    </envs>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
