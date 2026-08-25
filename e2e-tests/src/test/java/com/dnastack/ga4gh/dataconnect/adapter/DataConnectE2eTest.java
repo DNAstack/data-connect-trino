@@ -931,7 +931,7 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     void search_showSchemasFromCatalog_should_returnSchemas() throws IOException {
-        assumeThat(SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME)
+        assumeThat(SHOW_SCHEMA_FOR_CATALOG_NAME)
                 .as("SHOW SCHEMAS FROM {catalog} test is not configured. Skipping.")
                 .isNotNull();
 
