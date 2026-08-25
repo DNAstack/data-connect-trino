@@ -536,7 +536,8 @@ class DataConnectE2eTest extends BaseE2eTest {
         tableInfo = dataConnectApiGetRequest("/table/" + paginationTableName + "/info", 200, TableInfo.class);
         assertThat(tableInfo.getDataModel().getId()).isNull();
         assertThat(tableInfo.getDataModel().getProperties()).isNull();
-        assertThat(tableInfo.getDataModel().getAdditionalProperties().get("$comment")).isEqualTo("This is the custom schema from library");
+        assertThat(tableInfo.getDataModel().getAdditionalProperties())
+                .containsEntry("$comment", "This is the custom schema from library");
     }
 
     public static Collection<Object[]> getTestParams() {
