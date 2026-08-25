@@ -108,8 +108,6 @@ spec:
           - data-connect:query
           - data-connect:manage
         resources:
-          # Each run works in a catalog it creates and names after the moment it started, so the tables it needs
-          # to reach cannot be listed here one by one.
           - uri: "{{- include "dnastack.publisherData.resourceUrl" . }}/data-connect/table/"
       - principals:
           - type: service
