@@ -239,7 +239,7 @@ class DataConnectE2eTest extends BaseE2eTest {
         try {
             return Long.parseLong(matcher.group(1)) < createdBefore;
         } catch (NumberFormatException e) {
-            log.warn("Catalog {} is named like one of ours but does not end in a timestamp. Leaving it alone.", catalog);
+            log.warn("Catalog {} is named like one of ours but does not end in a timestamp. Leaving it alone.", catalog, e);
             return false;
         }
     }
@@ -651,7 +651,7 @@ class DataConnectE2eTest extends BaseE2eTest {
      * The ways of naming a reference that ga4gh_type accepts, and the column each one puts the result under: the
      * alias where the expression has one, and the name of the column the expression read otherwise.
      */
-    static Collection<Object[]> ga4ghTypeReferenceNotations() {
+    private static Collection<Object[]> ga4ghTypeReferenceNotations() {
         return List.of(
             new Object[]{ "unaliased", "ga4gh_type(bogusfield, '$ref:%s')".formatted(GA4GH_TYPE_REF), "bogusfield" },
             new Object[]{ "aliased with as", "ga4gh_type(bogusfield, '$ref:%s') as bf".formatted(GA4GH_TYPE_REF), "bf" },
@@ -692,7 +692,8 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     private void assertDatesAndTimesHaveCorrectValuesForZone(String zone, Map<String, String> expectedValues) throws IOException {
         DataConnectRequest query = new DataConnectRequest(
-                "SELECT * FROM %s WHERE zone='%s'".formatted(tables().dateTime().qualifiedName(), zone));
+        DataConnectRequest query = new DataConnectRequest(
+                "SELECT * FROM %s WHERE zone=%s".formatted(tables().dateTime().qualifiedName(), quoteSqlString(zone)));
         log.info("Reading back the {} row of the date/time table: {}", zone, query);
 
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
@@ -1008,7 +1009,7 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    void searchShowSchemas_should_returnAtLeastOneSchema() throws IOException {
+    void searchQuery_should_returnAtLeastOneSchema_when_showSchemasIsUsed() throws IOException {
         assumeThat(SHOW_SCHEMA_FOR_CATALOG_NAME)
                 .as("E2E_SHOW_SCHEMA_FOR_CATALOG_NAME")
                 .isNotNull();
@@ -1040,7 +1041,7 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
-    void searchShowTables_should_returnAtLeastOneTable() throws IOException {
+    void searchQuery_should_returnAtLeastOneTable_when_showTablesIsUsed() throws IOException {
         assumeThat(SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME)
                 .as("E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME")
                 .isNotNull();
