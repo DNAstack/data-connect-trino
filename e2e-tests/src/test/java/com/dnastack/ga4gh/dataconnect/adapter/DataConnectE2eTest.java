@@ -692,7 +692,6 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     private void assertDatesAndTimesHaveCorrectValuesForZone(String zone, Map<String, String> expectedValues) throws IOException {
         DataConnectRequest query = new DataConnectRequest(
-        DataConnectRequest query = new DataConnectRequest(
                 "SELECT * FROM %s WHERE zone=%s".formatted(tables().dateTime().qualifiedName(), quoteSqlString(zone)));
         log.info("Reading back the {} row of the date/time table: {}", zone, query);
 
