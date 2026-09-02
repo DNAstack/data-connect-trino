@@ -35,4 +35,17 @@ public interface TrinoClient {
      * @param nextPageUrl the next page URL returned by Trino in a previous call.
      */
     void killQuery(String nextPageUrl);
+
+    /**
+     * Asks Trino to cancel the query addressed by the given page, without interpreting its answer.
+     *
+     * @param page             the page token returned by Trino in a previous call to {@link #query(String, Map)} or
+     *                         {@link #next(String, Map)}. Trino issues each page with a slug of its own and accepts
+     *                         the cancellation only for a page it issued, so relaying a page a caller supplied is how
+     *                         that caller demonstrates it holds one.
+     * @param extraCredentials The extra X-Trino-Extra-Credentials to include in the request.
+     * @return the HTTP status Trino answered with. 2xx means the query was cancelled; 404 means Trino does not
+     * recognize the page.
+     */
+    int cancelQuery(String page, Map<String, String> extraCredentials);
 }

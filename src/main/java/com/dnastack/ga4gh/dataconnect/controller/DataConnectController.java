@@ -162,10 +162,15 @@ public class DataConnectController {
     @AuditActionUri("data-connect:delete-query")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
+    @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query'}, {'data-connect:query'})")
     @DeleteMapping(value = "/search/**")
-    public ResponseEntity<?> deleteSearchQuery(@RequestParam("queryJobId") String queryJobId) {
+    public ResponseEntity<?> deleteSearchQuery(@RequestParam("queryJobId") String queryJobId,
+                                               HttpServletRequest request,
+                                               @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
+        String page = request.getRequestURI()
+                             .split(request.getContextPath() + "/search/")[1];
         log.info("Terminating query with ID: {}", queryJobId);
-        trinoDataConnectAdapter.deleteQueryJob(queryJobId);
+        trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, parseCredentialsHeader(clientSuppliedCredentials));
         return ResponseEntity.noContent().build();
     }
 
