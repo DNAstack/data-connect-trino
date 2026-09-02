@@ -328,13 +328,6 @@ public class TrinoDataConnectAdapter {
             .toUri();
     }
 
-    private URI computeLinkToCatalog(String catalog, HttpServletRequest request) {
-        return UriComponentsBuilder.fromUriString(callbackBaseUrl(request))
-            .path("/tables/catalog/{catalog}")
-            .buildAndExpand(catalog)
-            .toUri();
-    }
-
     private PageIndexEntry getPageIndexEntryForCatalog(String catalog, String schema, int page, HttpServletRequest request) {
         URI uri = computeLinkToSchema(catalog, schema, request);
         return PageIndexEntry.builder()
@@ -350,16 +343,6 @@ public class TrinoDataConnectAdapter {
         return catalogSchemas.stream()
             .map(catalogSchema -> getPageIndexEntryForCatalog(catalogSchema.catalog(), catalogSchema.schema(), page[0]++, request))
             .toList();
-    }
-
-    private TablesList getTables(String currentCatalog, String nextCatalog, HttpServletRequest request, Map<String, String> extraCredentials) {
-        TrinoCatalog trinoCatalog = new TrinoCatalog(this, callbackBaseUrl(request), currentCatalog);
-        Pagination nextPage = null;
-        if (nextCatalog != null) {
-            nextPage = new Pagination(null, computeLinkToCatalog(nextCatalog, request), null);
-        }
-
-        return trinoCatalog.getTablesList(nextPage, request, extraCredentials);
     }
 
     public TablesList getTables(HttpServletRequest request, Map<String, String> extraCredentials) {
@@ -386,17 +369,6 @@ public class TrinoDataConnectAdapter {
         tablesList.setIndex(generatePageIndex(catalogSchemas, request));
 
         return tablesList;
-    }
-
-    public TablesList getTablesInCatalog(String catalog, HttpServletRequest request, Map<String, String> extraCredentials) {
-        Set<String> catalogs = getTrinoCatalogs(request, extraCredentials);
-        Iterator<String> catalogIt = catalogs.iterator();
-        while (catalogIt.hasNext()) {
-            if (catalogIt.next().equals(catalog)) {
-                return getTables(catalog, catalogIt.hasNext() ? catalogIt.next() : null, request, extraCredentials);
-            }
-        }
-        throw new TrinoNoSuchCatalogException("No such catalog " + catalog);
     }
 
     /**
