@@ -55,21 +55,6 @@ public class TrinoCatalogTest {
             quoteIdentifier(CATALOG_NAME), quoteString(SCHEMA_NAME), quoteIdentifier(CATALOG_NAME), quoteString(SCHEMA_NAME)
     );
 
-    private static final String EXPECTED_SQL_WITHOUT_SCHEMA = String.format(
-            """
-                    SELECT table_catalog, table_schema, table_name
-                     FROM %s.information_schema.tables
-                     WHERE table_schema != 'information_schema'
-                     AND table_type IN ('BASE TABLE','VIEW')
-                    UNION
-                    SELECT table_catalog, table_schema, table_name
-                     FROM %s.information_schema.views
-                     WHERE table_schema != 'information_schema'
-                    ORDER BY 1, 2, 3
-                    """,
-            quoteIdentifier(CATALOG_NAME), quoteIdentifier(CATALOG_NAME)
-    );
-
     @Mock
     private TrinoDataConnectAdapter dataConnectAdapter;
 
@@ -83,7 +68,6 @@ public class TrinoCatalogTest {
     private ArgumentCaptor<Map<String, String>> credentialsCaptor;
 
     private TrinoCatalog trinoCatalogWithSchema;
-    private TrinoCatalog trinoCatalogWithoutSchema;
     private Pagination nextPage;
     private Map<String, String> testCredentials;
 
@@ -93,7 +77,6 @@ public class TrinoCatalogTest {
         testCredentials = Collections.singletonMap("X-Custom-Auth", "secret-token");
 
         trinoCatalogWithSchema = new TrinoCatalog(dataConnectAdapter, CALLBACK_BASE_URL, CATALOG_NAME, SCHEMA_NAME);
-        trinoCatalogWithoutSchema = new TrinoCatalog(dataConnectAdapter, CALLBACK_BASE_URL, CATALOG_NAME);
 
         when(tableDataMock.getData()).thenReturn(Collections.emptyList());
     }
@@ -142,17 +125,17 @@ public class TrinoCatalogTest {
     }
 
     @Test
-    public void getTablesList_withoutSchema_shouldQueryAllSchemasAndPassCredentials() {
-        List<Map<String, Object>> dataList = Collections.singletonList(createTableDataRow("anotherSchema", TABLE_NAME_1));
+    public void getTablesList_withClientSuppliedCredentials_shouldPassThemToTheAdapter() {
+        List<Map<String, Object>> dataList = Collections.singletonList(createTableDataRow(SCHEMA_NAME, TABLE_NAME_1));
         when(tableDataMock.getData()).thenReturn(dataList);
         when(dataConnectAdapter.searchAll(
-                eq(EXPECTED_SQL_WITHOUT_SCHEMA),
+                eq(EXPECTED_SQL_WITH_SCHEMA),
                 eq(request),
                 eq(testCredentials),
                 isNull()))
                 .thenReturn(tableDataMock);
 
-        TablesList result = trinoCatalogWithoutSchema.getTablesList(nextPage, request, testCredentials);
+        TablesList result = trinoCatalogWithSchema.getTablesList(nextPage, request, testCredentials);
 
         assertNull(result.getErrors());
         assertThat(result.getTableInfos(), hasSize(1));
@@ -163,13 +146,13 @@ public class TrinoCatalogTest {
         assertThat(tables, hasSize(1));
 
         TableInfo tableInfo = tables.getFirst();
-        String expectedQualifiedName = CATALOG_NAME + ".anotherSchema." + TABLE_NAME_1;
+        String expectedQualifiedName = CATALOG_NAME + "." + SCHEMA_NAME + "." + TABLE_NAME_1;
         assertEquals(expectedQualifiedName, tableInfo.getName());
         String expectedRef = CALLBACK_BASE_URL + "/table/" + expectedQualifiedName + "/info";
         assertEquals(expectedRef, tableInfo.getDataModel().getRef());
 
         verify(dataConnectAdapter).searchAll(
-                eq(EXPECTED_SQL_WITHOUT_SCHEMA),
+                eq(EXPECTED_SQL_WITH_SCHEMA),
                 eq(request),
                 credentialsCaptor.capture(),
                 isNull());
