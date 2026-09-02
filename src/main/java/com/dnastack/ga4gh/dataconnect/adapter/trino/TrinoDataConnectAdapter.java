@@ -298,9 +298,18 @@ public class TrinoDataConnectAdapter {
      * constant, and so is guessable. Relaying makes Trino the judge of whether the caller holds a page of this
      * query, the same way {@link #getNextSearchPage} already does for reads.
      *
-     * @throws InvalidQueryJobException if there is no such query job, or Trino does not recognize the page
+     * @throws InvalidQueryJobException if the page belongs to another query, there is no such query job, or Trino
+     * does not recognize the page
      */
     public void deleteQueryJob(String page, String queryJobId, Map<String, String> extraCredentials) {
+        // A Trino statement path carries the query id it belongs to, so a page for a different query than the one
+        // named by queryJobId is a caller cancelling one query and marking another finished. Tested by substring
+        // rather than by picking the id out of the path, so it holds for every shape of statement path Trino issues.
+        if (!page.contains(queryJobId)) {
+            log.info("Page {} offered to cancel query job {} belongs to another query", page, queryJobId);
+            throw new InvalidQueryJobException(queryJobId);
+        }
+
         // Throws for a job this service has no record of, before anything is asked of Trino.
         getQueryJob(queryJobId);
 

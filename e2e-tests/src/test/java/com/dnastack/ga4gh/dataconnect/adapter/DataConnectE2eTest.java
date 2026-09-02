@@ -794,6 +794,29 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
+    void deleteNextPageUrl_should_rejectAPageTrinoDidNotIssue() throws IOException {
+        TestTable table = TestTable.create("query_termination_bad_page", PAGINATION_TABLE_COLUMNS);
+        insertPaginationRows(table, 600);
+
+        DataConnectRequest query = new DataConnectRequest("SELECT * FROM " + table.qualifiedName());
+        log.info("Running query {} so there is a live query to try to cancel", query);
+        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
+        String nextPageUrl = result.getPagination().getNextPageUrl().toString();
+
+        // Trino issues each page under a slug of its own, so a page with the slug altered is one it never issued,
+        // which is the best a caller who knows only the query job id can construct.
+        String slug = nextPageUrl.split("/")[nextPageUrl.split("/").length - 2];
+        String forgedPageUrl = nextPageUrl.replace(slug, slug.substring(0, slug.length() - 1) + "0");
+        assertThat(forgedPageUrl).as("forged page URL").isNotEqualTo(nextPageUrl);
+
+        log.info("Sending a DELETE request to a page Trino never issued, then asserting the query still runs");
+        sendDeleteRequest(forgedPageUrl, 404);
+
+        result = dataConnectApiGetRequest(nextPageUrl, 200, Table.class);
+        assertThat(result.getErrors()).as("errors from the still-running query's next page").isNullOrEmpty();
+    }
+
+    @Test
     void deleteNextPageUrl_should_terminateQuery() throws IOException {
         TestTable table = TestTable.create("query_termination", PAGINATION_TABLE_COLUMNS);
         insertPaginationRows(table, 600);
@@ -1107,10 +1130,14 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     public void sendDeleteRequest(String path) throws IOException {
+        sendDeleteRequest(path, 204);
+    }
+
+    public void sendDeleteRequest(String path, int expectedStatus) throws IOException {
         sendHttpRequest(DELETE, path, null)
             .then()
             .log().ifValidationFails(LogDetail.ALL)
-            .statusCode(204);
+            .statusCode(expectedStatus);
     }
 
     /**
