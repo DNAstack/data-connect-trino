@@ -90,7 +90,7 @@ public class TrinoCatalogTest {
     }
 
     @Test
-    public void getTablesList_withSchema_shouldQueryCorrectSchemaAndFormatResults() {
+    public void getTablesList_should_queryTheGivenSchemaAndReturnItsTables() {
         List<Map<String, Object>> dataList = Collections.singletonList(createTableDataRow(SCHEMA_NAME, TABLE_NAME_1));
         when(tableDataMock.getData()).thenReturn(dataList);
         when(dataConnectAdapter.searchAll(
@@ -125,7 +125,7 @@ public class TrinoCatalogTest {
     }
 
     @Test
-    public void getTablesList_withClientSuppliedCredentials_shouldPassThemToTheAdapter() {
+    public void getTablesList_should_passClientSuppliedCredentialsToTheAdapter() {
         List<Map<String, Object>> dataList = Collections.singletonList(createTableDataRow(SCHEMA_NAME, TABLE_NAME_1));
         when(tableDataMock.getData()).thenReturn(dataList);
         when(dataConnectAdapter.searchAll(
@@ -160,7 +160,7 @@ public class TrinoCatalogTest {
     }
 
     @Test
-    public void getTablesList_withMultipleTables_shouldReturnAll() {
+    public void getTablesList_should_returnEveryTable_when_theSchemaHasMoreThanOne() {
         List<Map<String, Object>> dataList = Arrays.asList(
                 createTableDataRow(SCHEMA_NAME, TABLE_NAME_1),
                 createTableDataRow(SCHEMA_NAME, TABLE_NAME_2)
@@ -191,7 +191,7 @@ public class TrinoCatalogTest {
     }
 
     @Test
-    public void getTablesList_whenAdapterReturnsEmptyDataList_shouldReturnEmptyList() {
+    public void getTablesList_should_returnAnEmptyTableList_when_theAdapterReturnsNoRows() {
         when(tableDataMock.getData()).thenReturn(Collections.emptyList());
         when(dataConnectAdapter.searchAll(eq(EXPECTED_SQL_WITH_SCHEMA), any(), anyMap(), isNull()))
                 .thenReturn(tableDataMock);
@@ -207,7 +207,7 @@ public class TrinoCatalogTest {
     }
 
     @Test
-    public void getTablesList_whenAdapterReturnsTableDataWithNullDataList_shouldReturnError() {
+    public void getTablesList_should_returnAnError_when_theAdapterReturnsTableDataWithANullDataList() {
         when(tableDataMock.getData()).thenReturn(null);
         when(dataConnectAdapter.searchAll(eq(EXPECTED_SQL_WITH_SCHEMA), any(), anyMap(), isNull()))
                 .thenReturn(tableDataMock);
@@ -227,7 +227,7 @@ public class TrinoCatalogTest {
     }
 
     @Test
-    public void getTablesList_whenAdapterReturnsNullTableData_shouldReturnError() {
+    public void getTablesList_should_returnAnError_when_theAdapterReturnsNullTableData() {
         when(dataConnectAdapter.searchAll(eq(EXPECTED_SQL_WITH_SCHEMA), any(), anyMap(), isNull()))
                 .thenReturn(null);
 
@@ -246,7 +246,7 @@ public class TrinoCatalogTest {
     }
 
     @Test
-    public void getTablesList_whenAdapterThrowsException_shouldReturnTablesListWithError() {
+    public void getTablesList_should_returnAnError_when_theAdapterThrows() {
         String exceptionMessage = "Connection refused";
         RuntimeException testException = new RuntimeException(exceptionMessage);
         when(dataConnectAdapter.searchAll(eq(EXPECTED_SQL_WITH_SCHEMA), eq(request), eq(Collections.emptyMap()), isNull()))

@@ -101,7 +101,7 @@ public class DataConnectControllerMvcTest {
     }
 
     @Test
-    public void getTables_should_returnInternalServerError_when_adapterThrowsException() throws Exception {
+    public void getTables_should_returnInternalServerError_when_theAdapterThrows() throws Exception {
         RuntimeException adapterException = new RuntimeException("Adapter failed");
         when(trinoDataConnectAdapter.getTables(any(), any()))
                 .thenThrow(adapterException);
@@ -131,7 +131,7 @@ public class DataConnectControllerMvcTest {
     }
 
     @Test
-    public void getTablesByCatalogAndSchema_should_returnNotFound_when_catalogNotFound() throws Exception {
+    public void getTablesByCatalogAndSchema_should_returnNotFound_when_theCatalogDoesNotExist() throws Exception {
         TrinoNoSuchCatalogException adapterException = new TrinoNoSuchCatalogException("Catalog not found: " + sampleCatalog);
         when(trinoDataConnectAdapter.getTablesByCatalogAndSchema(anyString(), anyString(), any(), any()))
                 .thenThrow(adapterException);
@@ -146,7 +146,7 @@ public class DataConnectControllerMvcTest {
     }
 
     @Test
-    public void getTablesByCatalogAndSchema_returnInternalServerError_when_adapterThrowsException() throws Exception {
+    public void getTablesByCatalogAndSchema_should_returnInternalServerError_when_theAdapterThrows() throws Exception {
         RuntimeException adapterException = new RuntimeException("Generic adapter failure");
         when(trinoDataConnectAdapter.getTablesByCatalogAndSchema(anyString(), anyString(), any(), any()))
                 .thenThrow(adapterException);
