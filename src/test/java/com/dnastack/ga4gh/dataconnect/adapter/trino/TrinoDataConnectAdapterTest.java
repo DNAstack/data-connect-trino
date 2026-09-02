@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
 import com.dnastack.ga4gh.dataconnect.ApplicationConfig;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoNoSuchCatalogException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUserUnauthorizedException;
 import com.dnastack.ga4gh.dataconnect.model.DataModel;
@@ -77,6 +78,12 @@ public class TrinoDataConnectAdapterTest {
 
         private Iterator<String> responsePageIterator;
 
+        /** The status cancelQuery reports; tests set it to make Trino accept or reject the page. */
+        int cancelQueryStatus = HttpStatus.NO_CONTENT.value();
+
+        /** The pages cancelQuery was asked to cancel, in call order. */
+        final List<String> cancelledPages = new ArrayList<>();
+
         void setResponsePages(List<String> responsePages) {
             responsePageIterator = responsePages.iterator();
         }
@@ -102,9 +109,18 @@ public class TrinoDataConnectAdapterTest {
         public void killQuery(String nextPageUrl) {
             log.info("Something called MockTrinoClient.killQuery({})", nextPageUrl);
         }
+
+        @Override
+        public int cancelQuery(String page, Map<String, String> extraCredentials) {
+            log.info("Something called MockTrinoClient.cancelQuery({})", page);
+            cancelledPages.add(page);
+            return cancelQueryStatus;
+        }
     }
 
     private ApplicationConfig mockApplicationConfig;
+
+    private QueryJobDao queryJobDao;
 
     @Before
     public void setUp() throws Exception {
@@ -118,7 +134,7 @@ public class TrinoDataConnectAdapterTest {
         when(tracer.currentTraceContext()).thenReturn(currentTraceContext);
 
         // mock QueryJobDao and JDBI
-        QueryJobDao queryJobDao = mock(QueryJobDao.class);
+        queryJobDao = mock(QueryJobDao.class);
         doAnswer(invocation -> {
             currentQueryJob = invocation.getArgument(0);
             return currentQueryJob;
@@ -168,6 +184,57 @@ public class TrinoDataConnectAdapterTest {
 
     private String getExpectedBaseUrl() {
         return "http://test.host:1234/testprefix";
+    }
+
+    /**
+     * A page as a caller relays it back: the path of a Trino statement URI, minus this service's
+     * "/search/" prefix. The trailing segment is the pagination token, and the one before it the slug
+     * Trino issued for that token.
+     */
+    private static final String RELAYED_PAGE =
+            "v1/statement/executing/20260902_203359_48519_fnmag/y5bb5cace5500a2cf109b1c50c648b009c40a142f/4";
+
+    @Test
+    public void deleteQueryJob_whenTrinoAcceptsThePage_shouldMarkTheJobFinished() {
+        currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
+        mockTrinoClient.cancelQueryStatus = HttpStatus.NO_CONTENT.value();
+
+        dataConnectAdapter.deleteQueryJob(RELAYED_PAGE, currentQueryJob.getId(), Map.of());
+
+        assertThat("the page the caller offered is the one relayed to Trino",
+                mockTrinoClient.cancelledPages, Matchers.contains(RELAYED_PAGE));
+        verify(queryJobDao).setQueryFinishedAndLastActivityTime(currentQueryJob.getId());
+    }
+
+    @Test
+    public void deleteQueryJob_whenTrinoRejectsThePage_shouldFailAndLeaveTheJobRunning() {
+        currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
+        // Trino issues each page under a slug of its own and 404s a page it did not issue, which is what a
+        // caller holding nothing but a guessed query job id can offer.
+        mockTrinoClient.cancelQueryStatus = HttpStatus.NOT_FOUND.value();
+
+        try {
+            dataConnectAdapter.deleteQueryJob(RELAYED_PAGE, currentQueryJob.getId(), Map.of());
+            fail("Expected a rejected page to fail the cancellation");
+        } catch (InvalidQueryJobException expected) {
+            assertThat(expected.getQueryJobId(), equalTo(currentQueryJob.getId()));
+        }
+
+        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any());
+    }
+
+    @Test
+    public void deleteQueryJob_whenTheQueryJobIsUnknown_shouldFailWithoutAskingTrino() {
+        currentQueryJob = null;
+
+        try {
+            dataConnectAdapter.deleteQueryJob(RELAYED_PAGE, "20260902_000000_00001_fnmag", Map.of());
+            fail("Expected an unknown query job to fail the cancellation");
+        } catch (InvalidQueryJobException expected) {
+            assertThat(expected.getQueryJobId(), equalTo("20260902_000000_00001_fnmag"));
+        }
+
+        assertThat(mockTrinoClient.cancelledPages, Matchers.empty());
     }
 
     @Test

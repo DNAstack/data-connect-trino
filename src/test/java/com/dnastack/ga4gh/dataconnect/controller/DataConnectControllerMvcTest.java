@@ -34,6 +34,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -157,6 +158,19 @@ public class DataConnectControllerMvcTest {
         resultActions.andExpect(status().isInternalServerError());
 
         verify(trinoDataConnectAdapter).getTablesByCatalogAndSchema(anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    public void deleteSearchQuery_should_relayThePageTheCallerOffered() throws Exception {
+        String page = "v1/statement/executing/20260902_203359_48519_fnmag/y5bb5cace5500a2cf109b1c50c648b009c40a142f/4";
+        String queryJobId = "20260902_203359_48519_fnmag";
+
+        ResultActions resultActions = mockMvc.perform(
+                delete("/search/" + page).param("queryJobId", queryJobId));
+
+        resultActions.andExpect(status().isNoContent());
+
+        verify(trinoDataConnectAdapter).deleteQueryJob(eq(page), eq(queryJobId), any());
     }
 
     @Test

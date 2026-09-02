@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -288,9 +289,31 @@ public class TrinoDataConnectAdapter {
         return tableData;
     }
 
-    public void deleteQueryJob(String queryJobId) {
-        QueryJob queryJob = getQueryJob(queryJobId);
-        client.killQuery(queryJob.getNextPageUrl());
+    /**
+     * Cancels the query job identified by {@code queryJobId}, whose query is still running behind {@code page}.
+     * <p>
+     * The page is relayed to Trino rather than the page recorded when the job was created, because Trino issues
+     * every page with a slug of its own and cancels only for a page it issued. A caller that cannot produce one has
+     * nothing but the job id, which is a Trino query id: a timestamp, a sequential counter and a per-coordinator
+     * constant, and so is guessable. Relaying makes Trino the judge of whether the caller holds a page of this
+     * query, the same way {@link #getNextSearchPage} already does for reads.
+     *
+     * @throws InvalidQueryJobException if there is no such query job, or Trino does not recognize the page
+     */
+    public void deleteQueryJob(String page, String queryJobId, Map<String, String> extraCredentials) {
+        // Throws for a job this service has no record of, before anything is asked of Trino.
+        getQueryJob(queryJobId);
+
+        int trinoStatus = client.cancelQuery(page, extraCredentials);
+        if (trinoStatus == HttpStatus.NOT_FOUND.value()) {
+            log.info("Trino does not recognize page {} offered to cancel query job {}", page, queryJobId);
+            throw new InvalidQueryJobException(queryJobId);
+        }
+        if (trinoStatus < 200 || trinoStatus > 299) {
+            throw new TrinoUnexpectedHttpResponseException(trinoStatus,
+                "Trino answered " + trinoStatus + " when asked to cancel a query.");
+        }
+
         jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJobId));
     }
 
