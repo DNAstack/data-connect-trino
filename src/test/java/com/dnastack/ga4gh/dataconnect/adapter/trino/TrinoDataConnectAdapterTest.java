@@ -224,6 +224,39 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
+    public void deleteQueryJob_whenThePageBelongsToAnotherQuery_shouldFailWithoutAskingTrino() {
+        currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
+        String pageOfAnotherQuery =
+                "v1/statement/executing/20260902_074525_06412_fnmag/yb4d5fc239db718acc29d20a1d38d6522143ae656/6";
+
+        try {
+            dataConnectAdapter.deleteQueryJob(pageOfAnotherQuery, currentQueryJob.getId(), Map.of());
+            fail("Expected a page belonging to another query to fail the cancellation");
+        } catch (InvalidQueryJobException expected) {
+            assertThat(expected.getQueryJobId(), equalTo(currentQueryJob.getId()));
+        }
+
+        assertThat("Trino is not asked to cancel a page that names another query",
+                mockTrinoClient.cancelledPages, Matchers.empty());
+        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any());
+    }
+
+    @Test
+    public void deleteQueryJob_whenNoPageIsNamed_shouldFailWithoutAskingTrino() {
+        currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
+
+        try {
+            dataConnectAdapter.deleteQueryJob("", currentQueryJob.getId(), Map.of());
+            fail("Expected a cancellation naming no page to fail");
+        } catch (InvalidQueryJobException expected) {
+            assertThat(expected.getQueryJobId(), equalTo(currentQueryJob.getId()));
+        }
+
+        assertThat(mockTrinoClient.cancelledPages, Matchers.empty());
+        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any());
+    }
+
+    @Test
     public void deleteQueryJob_whenTheQueryJobIsUnknown_shouldFailWithoutAskingTrino() {
         currentQueryJob = null;
 
