@@ -195,7 +195,7 @@ public class TrinoDataConnectAdapterTest {
             "v1/statement/executing/20260902_203359_48519_fnmag/y5bb5cace5500a2cf109b1c50c648b009c40a142f/4";
 
     @Test
-    public void deleteQueryJob_whenTrinoAcceptsThePage_shouldMarkTheJobFinished() {
+    public void deleteQueryJob_should_markTheJobFinished_when_trinoAcceptsThePage() {
         currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
         mockTrinoClient.cancelQueryStatus = HttpStatus.NO_CONTENT.value();
 
@@ -207,7 +207,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void deleteQueryJob_whenTrinoRejectsThePage_shouldFailAndLeaveTheJobRunning() {
+    public void deleteQueryJob_shouldNot_markTheJobFinished_when_trinoRejectsThePage() {
         currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
         // Trino issues each page under a slug of its own and 404s a page it did not issue, which is what a
         // caller holding nothing but a guessed query job id can offer.
@@ -224,7 +224,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void deleteQueryJob_whenThePageBelongsToAnotherQuery_shouldFailWithoutAskingTrino() {
+    public void deleteQueryJob_shouldNot_askTrinoToCancel_when_thePageNamesAnotherQuery() {
         currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
         String pageOfAnotherQuery =
                 "v1/statement/executing/20260902_074525_06412_fnmag/yb4d5fc239db718acc29d20a1d38d6522143ae656/6";
@@ -242,7 +242,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void deleteQueryJob_whenNoPageIsNamed_shouldFailWithoutAskingTrino() {
+    public void deleteQueryJob_shouldNot_askTrinoToCancel_when_noPageIsNamed() {
         currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
 
         try {
@@ -257,7 +257,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void deleteQueryJob_whenTheQueryJobIsUnknown_shouldFailWithoutAskingTrino() {
+    public void deleteQueryJob_shouldNot_askTrinoToCancel_when_theQueryJobIsUnknown() {
         currentQueryJob = null;
 
         try {
@@ -271,7 +271,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void biFunctionPatternTest() {
+    public void biFunctionPattern_should_matchOnlyAGa4ghTypeCall() {
         String jsonFunctionQuery = "select id, phenopacket from sample_phenopackets.ga4gh_tables.gecco_phenopackets " +
                 "where json_extract_scalar(pp.phenopacket, '$.subject.sex') = 'MALE' limit 3";
         assertFalse(TrinoDataConnectAdapter.biFunctionPattern.matcher(jsonFunctionQuery).find());
@@ -721,7 +721,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTables_givenNoCatalogs_returnsEmptyList() {
+    public void getTables_should_returnAnEmptyTableList_when_thereAreNoCatalogs() {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
@@ -741,7 +741,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTablesByCatalogAndSchema_happyPath_firstSchema() {
+    public void getTablesByCatalogAndSchema_should_linkToTheNextSchema_when_theCatalogHasMoreSchemas() {
         String targetCatalog = "catalog1";
         String targetSchema = "schemaA";
         String nextSchema = "schemaB";
@@ -799,7 +799,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTablesByCatalogAndSchema_happyPath_lastSchemaInCatalog_moreCatalogs() {
+    public void getTablesByCatalogAndSchema_should_linkToTheFirstSchemaOfTheNextCatalog_when_thisIsTheCatalogsLastSchema() {
         // Arrange
         String targetCatalog = "catalog1";
         String targetSchema = "schemaA"; // The only schema in catalog1
@@ -869,7 +869,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTablesByCatalogAndSchema_happyPath_lastSchema_lastCatalog() {
+    public void getTablesByCatalogAndSchema_shouldNot_returnPagination_when_thisIsTheLastSchemaOfTheLastCatalog() {
 
         String targetCatalog = "catalog1";
         String targetSchema = "schemaA"; // The only schema in the only catalog
@@ -922,7 +922,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test(expected = TrinoNoSuchCatalogException.class)
-    public void getTablesByCatalogAndSchema_CatalogNotFound() {
+    public void getTablesByCatalogAndSchema_should_throwTrinoNoSuchCatalogException_when_theCatalogDoesNotExist() {
 
         String targetCatalog = "nonexistent";
         when(mockApplicationConfig.getHiddenCatalogs()).thenReturn(Collections.emptySet());
@@ -945,7 +945,7 @@ public class TrinoDataConnectAdapterTest {
 
 
     @Test(expected = TrinoNoSuchCatalogException.class)
-    public void getTablesByCatalogAndSchema_schemaNotFound() {
+    public void getTablesByCatalogAndSchema_should_throwTrinoNoSuchCatalogException_when_theSchemaDoesNotExist() {
 
         String targetCatalog = "catalog1";
         String targetSchema = "nonexistentSchema";
@@ -977,7 +977,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test(expected = TrinoNoSuchCatalogException.class)
-    public void getTablesByCatalogAndSchema_InformationSchemaRequested() {
+    public void getTablesByCatalogAndSchema_should_throwTrinoNoSuchCatalogException_when_theSchemaIsInformationSchema() {
 
         String targetCatalog = "catalog1";
         String targetSchema = "information_schema";
@@ -1009,7 +1009,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTablesByCatalogAndSchema_singleCatalog_lastSchema() {
+    public void getTablesByCatalogAndSchema_shouldNot_returnPagination_when_theOnlyCatalogHasOneSchema() {
         String targetCatalog = "catalog1";
         String targetSchema  = "schemaA";          // only schema in the catalog
 
