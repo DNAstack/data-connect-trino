@@ -78,10 +78,7 @@ public class TrinoHttpClient implements TrinoClient {
     public TrinoDataPage next(String page, Map<String, String> extraCredentials) {
         Span span = tracer.nextSpan().name("trinoNext").start();
         try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
-            //TODO: better url construction
-            String url = page.startsWith("/") ? this.trinoServer + page : this.trinoServer + "/" + page;
-
-            try (Response response = get(url, extraCredentials)) {
+            try (Response response = get(pageUrl(page), extraCredentials)) {
                 return getQueryResults(response);
             } catch (IOException ie) {
                 throw new TrinoIOException("Unable to fetch more search or listing results (I/O error).", ie);
@@ -99,6 +96,26 @@ public class TrinoHttpClient implements TrinoClient {
         } catch (IOException ie) {
             throw new TrinoIOException("Unable to send DELETE request to kill old running query.", ie);
         }
+    }
+
+    @Override
+    public int cancelQuery(String page, Map<String, String> extraCredentials) {
+        Span span = tracer.nextSpan().name("trinoCancel").start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+            Request.Builder request = new Request.Builder().url(pageUrl(page)).method("DELETE", null);
+            try (Response response = execute(request, extraCredentials)) {
+                return response.code();
+            } catch (IOException ie) {
+                throw new TrinoIOException("Unable to send DELETE request to cancel a running query.", ie);
+            }
+        } finally {
+            span.end();
+        }
+    }
+
+    //TODO: better url construction
+    private String pageUrl(String page) {
+        return page.startsWith("/") ? this.trinoServer + page : this.trinoServer + "/" + page;
     }
 
     private DataConnectAuthRequest extractExtraCredentialsRequest(TrinoDataPage trinoPage) {
