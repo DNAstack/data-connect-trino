@@ -167,8 +167,11 @@ public class DataConnectController {
     public ResponseEntity<?> deleteSearchQuery(@RequestParam("queryJobId") String queryJobId,
                                                HttpServletRequest request,
                                                @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
-        String page = request.getRequestURI()
-                             .split(request.getContextPath() + "/search/")[1];
+        // A request that names no page at all leaves the parts empty, which the adapter rejects like any other
+        // page that does not belong to this query job.
+        String[] pathParts = request.getRequestURI()
+                                    .split(request.getContextPath() + "/search/", 2);
+        String page = pathParts.length > 1 ? pathParts[1] : "";
         log.info("Terminating query with ID: {}", queryJobId);
         trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, parseCredentialsHeader(clientSuppliedCredentials));
         return ResponseEntity.noContent().build();
