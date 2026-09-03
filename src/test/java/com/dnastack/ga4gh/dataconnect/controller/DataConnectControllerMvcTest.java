@@ -7,6 +7,7 @@ import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobExc
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoNoSuchCatalogException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUnexpectedHttpResponseException;
 import com.dnastack.ga4gh.dataconnect.model.*;
+import com.dnastack.ga4gh.dataconnect.tenancy.TenantMirrorResolver;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.zonky.test.db.AutoConfigureEmbeddedDatabase;
@@ -64,6 +65,10 @@ public class DataConnectControllerMvcTest {
     @MockBean
     private Jdbi jdbi; // Mock the JDBI instance if used
 
+    // The request boundary asks this whether the request's tenant can be served, and it reads the mocked Jdbi.
+    @MockBean
+    private TenantMirrorResolver tenantResolver;
+
 
     private TablesList sampleTablesList;
     private String sampleCatalog = "test_catalog";
@@ -75,6 +80,8 @@ public class DataConnectControllerMvcTest {
 
     @Before
     public void setUp() {
+        when(tenantResolver.isAccessible(any())).thenReturn(true);
+
         TableInfo tableInfo = new TableInfo(
                 sampleQualifiedTableName,
                 "Test table description",
@@ -172,6 +179,21 @@ public class DataConnectControllerMvcTest {
 
         resultActions.andExpect(status().isNoContent());
 
+        verify(trinoDataConnectAdapter).deleteQueryJob(eq(page), eq(queryJobId), any());
+    }
+
+    @Test
+    public void deleteSearchQuery_should_relayOnlyThePage_when_theRequestAddressesATenant() throws Exception {
+        String page = "v1/statement/executing/20260902_203359_48519_fnmag/y5bb5cace5500a2cf109b1c50c648b009c40a142f/4";
+        String queryJobId = "20260902_203359_48519_fnmag";
+        String tenantId = "8e5f2a1c-0d3b-4e6a-9c7f-1b2d3e4f5a6b";
+
+        ResultActions resultActions = mockMvc.perform(
+                delete("/tenants/" + tenantId + "/search/" + page).param("queryJobId", queryJobId));
+
+        resultActions.andExpect(status().isNoContent());
+
+        // The tenant is already bound to the request by this point; what Trino is offered is the page alone.
         verify(trinoDataConnectAdapter).deleteQueryJob(eq(page), eq(queryJobId), any());
     }
 
