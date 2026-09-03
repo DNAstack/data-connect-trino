@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect;
 
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient;
+import com.dnastack.tenancy.context.TenantContextAccessor;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
@@ -83,7 +84,8 @@ public class TrinoHttpClientTracePropagationTest {
         Span callersSpan = tracer.nextSpan().name("dataConnectRequest").start();
         String traceId = callersSpan.context().traceId();
         try (Tracer.SpanInScope inScope = tracer.withSpan(callersSpan)) {
-            new TrinoHttpClient(tracer, trinoHttpClient(), trino.url("/").toString(), new ServiceAccountAuthenticator())
+            new TrinoHttpClient(tracer, trinoHttpClient(), trino.url("/").toString(), new ServiceAccountAuthenticator(),
+                new TenantContextAccessor())
                 .query("SELECT 1", Map.of());
         } finally {
             callersSpan.end();
