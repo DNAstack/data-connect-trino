@@ -5,6 +5,7 @@ import com.dnastack.ga4gh.dataconnect.adapter.shared.AuthRequiredException;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.DataConnectAuthRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoIOException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUnexpectedHttpResponseException;
+import com.dnastack.tenancy.context.TenantContextAccessor;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -40,19 +41,28 @@ public class TrinoHttpClient implements TrinoClient {
 
     private static final String DEFAULT_TRINO_USER_NAME = "data-connect-trino";
 
+    /**
+     * The extra credential the Trino plugins read the request's tenant from. Part of a contract shared with
+     * trino-service, so its name is not ours alone to change.
+     */
+    private static final String TENANT_ID_CREDENTIAL = "tenantId";
+
     private final String trinoServer;
     private final String trinoSearchEndpoint;
     private final ServiceAccountAuthenticator authenticator;
     private final OkHttpClient httpClient;
     private final Tracer tracer;
+    private final TenantContextAccessor tenantContextAccessor;
     private final ObjectMapper objectMapper = new ObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    public TrinoHttpClient(Tracer tracer, OkHttpClient httpClient, String trinoServerUrl, ServiceAccountAuthenticator accountAuthenticator) {
+    public TrinoHttpClient(Tracer tracer, OkHttpClient httpClient, String trinoServerUrl,
+                           ServiceAccountAuthenticator accountAuthenticator, TenantContextAccessor tenantContextAccessor) {
         this.trinoServer = trinoServerUrl;
         this.trinoSearchEndpoint = trinoServerUrl + "/v1/statement";
         this.authenticator = accountAuthenticator;
         this.tracer = tracer;
+        this.tenantContextAccessor = tenantContextAccessor;
         this.httpClient = httpClient;
     }
 
@@ -240,7 +250,22 @@ public class TrinoHttpClient implements TrinoClient {
             request.addHeader("X-Trino-Extra-Credential", "traceparent=00-%s-%s-%s"
                 .formatted(traceContext.traceId(), traceContext.spanId(), traceFlags));
         }
-        extraCredentials.forEach((k, v) -> request.addHeader("X-Trino-Extra-Credential", k + "=" + v));
+        // The request's tenant, which Trino's plugins scope their work to. It travels as a credential of its own
+        // rather than being read off the userToken's tenant claim: an anonymous request carries no userToken at
+        // all, and yet its policy evaluation is still tenant-scoped.
+        request.addHeader("X-Trino-Extra-Credential",
+            TENANT_ID_CREDENTIAL + "=" + tenantContextAccessor.getTenantId().asString());
+
+        // Extra credentials reach us from the caller, so one the caller sent under the name above is dropped here:
+        // asserting a tenant is the request boundary's business, not the caller's.
+        extraCredentials.forEach((k, v) -> {
+            if (TENANT_ID_CREDENTIAL.equals(k)) {
+                log.warn("Ignoring caller-supplied {} extra credential; the request's own tenant is sent instead",
+                    TENANT_ID_CREDENTIAL);
+                return;
+            }
+            request.addHeader("X-Trino-Extra-Credential", k + "=" + v);
+        });
 
         if (!authenticator.requiresAuthentication()) {
             Request r = request.build();

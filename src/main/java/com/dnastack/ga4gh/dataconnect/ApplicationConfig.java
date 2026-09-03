@@ -4,6 +4,7 @@ import com.dnastack.auth.JwtTokenParser;
 import com.dnastack.auth.JwtTokenParserFactory;
 import com.dnastack.auth.PermissionChecker;
 import com.dnastack.auth.PermissionCheckerFactory;
+import com.dnastack.auth.model.TenancyEnforcement;
 import com.dnastack.auth.client.OidcHttpClient;
 import com.dnastack.auth.client.TokenActionsHttpClientFactory;
 import com.dnastack.auth.keyresolver.CachingIssuerPubKeyJwksResolver;
@@ -103,11 +104,6 @@ public class ApplicationConfig {
         return OkHttpClients.getBuilder("trino", observationRegistry).build();
     }
 
-    @Bean
-    public TrinoClient getTrinoClient(OkHttpClient httpClient, io.micrometer.tracing.Tracer tracer, ServiceAccountAuthenticator accountAuthenticator, MeterRegistry registry) {
-        return new TrinoTelemetryClient(
-            new TrinoHttpClient(tracer, httpClient, trinoDatasourceUrl, accountAuthenticator), registry);
-    }
 
     @Bean
     public ConnectionPool tokenValidatorConnectionPool() {
@@ -254,11 +250,12 @@ public class ApplicationConfig {
             List<IssuerInfo> allowedIssuers,
             @Value("${app.url}") String policyEvaluationRequester,
             @Value("${app.auth.token-issuers[0].issuer-uri}") String walletUrl,
+            @Value("${app.tenancy.enforcement}") TenancyEnforcement tenancyEnforcement,
             ObservationRegistry observationRegistry,
             ConnectionPool tokenValidatorConnectionPool
         ) {
             String policyEvaluationUrl = stripTrailingSlashes(walletUrl) + "/policies/evaluations";
-            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester, policyEvaluationUrl, observationRegistry, tokenValidatorConnectionPool);
+            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester, policyEvaluationUrl, observationRegistry, tokenValidatorConnectionPool, tenancyEnforcement);
         }
 
         private String stripTrailingSlashes(String url) {
