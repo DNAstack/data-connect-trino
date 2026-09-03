@@ -69,6 +69,14 @@ spec:
           - token
         scopes:
           - name: "collection_item:read"
+      # Grant: wallet tenant change-feed (used by the tenant-lifecycle poller)
+      - audience: '{{- include "dnastack.wallet.externalUrl" . }}'
+        grantTypes:
+          - client_credentials
+        responseTypes:
+          - token
+        scopes:
+          - name: "admin:tenants"
 
 ---
 # ==============================================================================
@@ -131,3 +139,11 @@ spec:
           - collection_item:read
         resources:
           - uri: "{{- include "dnastack.collectionService.resourceUrl" . }}/collection/"
+      # The tenant-lifecycle poller reads wallet's tenant change feed
+      - principals:
+          - type: service
+            id: data-connect-trino
+        actions:
+          - admin:tenants:read
+        resources:
+          - uri: "{{- include "dnastack.wallet.externalUrl" . }}/tenants"
