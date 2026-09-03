@@ -54,6 +54,21 @@ app:
   query-job-cleanup:
     cron-interval: "0 0 1 * * ?" # Every day at 1am
     deletion-timeout-in-days: 7
+  tenancy:
+    # LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT. Ships at the bottom of the ladder: a tenantless token is
+    # accepted and the mismatch is only logged, so tenancy can be turned on per environment without a rebuild.
+    enforcement: LOG_ONLY
+
+# The poller that mirrors wallet's tenant directory. Off until an environment turns it on.
+tenant-lifecycle:
+  enabled: false
+  wallet-uri: http://localhost:8081
+  oauth:
+    client-id: data-connect-trino
+    client-secret: dev-secret-never-use-in-prod
+    token-uri: http://localhost:8081/oauth/token
+    resource: http://localhost:8081/
+    scope: admin:tenants
 
 trino:
   datasource:

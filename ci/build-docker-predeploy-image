@@ -24,5 +24,12 @@ app_version=$(validate_arg "app version" ${3})
 # Pre-deploy jobs (mostly liquibase update).
 cp src/main/resources/db/changelog/db.changelog-master.yaml ci/predeploy/db.changelog-master.yaml
 
+# The tenant-lifecycle changelog ships inside the library jar.
+tenancy_version=$(./mvnw -q -B help:evaluate -Dexpression=spring-boot-tenancy.version -DforceStdout | tail -1)
+./mvnw -q -B dependency:unpack \
+  -Dartifact=com.dnastack:spring-boot-tenancy-lifecycle:${tenancy_version} \
+  -Dincludes='db/changelog/db.changelog-tenant-lifecycle-setup.yaml' \
+  -DoutputDirectory=ci/predeploy
+
 (cd ci/predeploy && docker build -t ${target_image_name} .)
 
