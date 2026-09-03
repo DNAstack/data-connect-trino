@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Data
 @AllArgsConstructor
@@ -15,6 +16,12 @@ import java.time.Instant;
 @Builder
 public class QueryJob {
     private String id;
+
+    /**
+     * The tenant this query job was created in. A plain UUID rather than a {@code TenantId} because it is an
+     * entity field bound straight to the column; the DAO takes the tenant to filter on as a {@code TenantId}.
+     */
+    private UUID tenantId;
 
     private String originalTraceId;
 

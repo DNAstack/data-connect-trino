@@ -1,5 +1,6 @@
 package com.dnastack.ga4gh.dataconnect;
 
+import com.dnastack.tenancy.context.TenantIdArgumentFactory;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -21,7 +22,8 @@ public class JdbiAutoConfiguration {
         Jdbi jdbi = Jdbi.create(dataSource)
                 .installPlugin(new SqlObjectPlugin())
                 .installPlugin(new Jackson2Plugin())
-                .installPlugin(new PostgresPlugin());
+                .installPlugin(new PostgresPlugin())
+                .registerArgument(new TenantIdArgumentFactory());
         ObjectMapper jdbiObjectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
