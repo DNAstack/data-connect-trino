@@ -173,7 +173,12 @@ public class DataConnectController {
                                     .split(request.getContextPath() + "/search/", 2);
         String page = pathParts.length > 1 ? pathParts[1] : "";
         log.info("Terminating query with ID: {}", queryJobId);
-        trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, parseCredentialsHeader(clientSuppliedCredentials));
+        try {
+            trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, parseCredentialsHeader(clientSuppliedCredentials));
+        } catch (Exception ex) {
+            // Carries the status the exception asks for, and the error body a GET of the same page would return.
+            throw new TableApiErrorException(ex, TableData::errorInstance);
+        }
         return ResponseEntity.noContent().build();
     }
 

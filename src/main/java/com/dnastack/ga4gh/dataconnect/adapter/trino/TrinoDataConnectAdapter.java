@@ -290,27 +290,23 @@ public class TrinoDataConnectAdapter {
     }
 
     /**
-     * Cancels the query job identified by {@code queryJobId}, whose query is still running behind {@code page}.
-     * <p>
-     * The page is relayed to Trino rather than the page recorded when the job was created, because Trino issues
-     * every page with a slug of its own and cancels only for a page it issued. A caller that cannot produce one has
-     * nothing but the job id, which is a Trino query id: a timestamp, a sequential counter and a per-coordinator
-     * constant, and so is guessable. Relaying makes Trino the judge of whether the caller holds a page of this
-     * query, the same way {@link #getNextSearchPage} already does for reads.
+     * Cancels the query whose next page is {@code page}. Performs both a backend cancellation in trino, and
+     * updates our bookkeeping to mark the query as finished.
      *
+     * @param page the next-page path of the query to cancel
+     * @param queryJobId the id of the query to cancel (must match the queryJobId embedded in {@code page})
+     * @param extraCredentials additional credentials required for Trino access
      * @throws InvalidQueryJobException if the page belongs to another query, there is no such query job, or Trino
      * does not recognize the page
      */
     public void deleteQueryJob(String page, String queryJobId, Map<String, String> extraCredentials) {
-        // A Trino statement path carries the query id it belongs to, so a page for a different query than the one
-        // named by queryJobId is a caller cancelling one query and marking another finished. Tested by substring
-        // rather than by picking the id out of the path, so it holds for every shape of statement path Trino issues.
+        // Sanity-check that the queryJobId matches the query we are terminating
         if (!page.contains(queryJobId)) {
             log.info("Page {} offered to cancel query job {} belongs to another query", page, queryJobId);
             throw new InvalidQueryJobException(queryJobId);
         }
 
-        // Throws for a job this service has no record of, before anything is asked of Trino.
+        // Throws an appropriate exception if queryJobId is unknown to us (prevents the call to trino)
         getQueryJob(queryJobId);
 
         int trinoStatus = client.cancelQuery(page, extraCredentials);
@@ -319,8 +315,9 @@ public class TrinoDataConnectAdapter {
             throw new InvalidQueryJobException(queryJobId);
         }
         if (trinoStatus < 200 || trinoStatus > 299) {
+            // The trino client already logged the page path, and the caller doesn't need it repeated back to them
             throw new TrinoUnexpectedHttpResponseException(trinoStatus,
-                "Trino answered " + trinoStatus + " when asked to cancel a query.");
+                "Trino answered " + trinoStatus + " when asked to cancel the query.");
         }
 
         jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJobId));
