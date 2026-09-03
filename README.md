@@ -100,6 +100,26 @@ SPRING_SECURITY_USER_NAME={some-user-name}
 SPRING_SECURITY_USER_PASSWORD={some-password}
 ```
 
+## Multi-Tenancy
+
+Every API path has a tenant-scoped form alongside it: `/tenants/{tenantId}/search`, `/tenants/{tenantId}/tables`,
+and so on. The un-prefixed paths remain, and act as the management tenant, so callers that predate tenancy are
+unaffected. `service-info` and the actuator endpoints are public and have no tenant.
+
+The tenant a request names is resolved at the request boundary against `tenant_mirror`, a local copy of wallet's
+tenant directory kept current by the tenant-lifecycle poller; an unknown or disabled tenant gets a 404 before any
+handler runs. Query jobs are scoped to the tenant they were created in, links this service generates keep the
+prefix the caller used, and the tenant travels to Trino as a `tenantId` extra credential.
+
+Two switches, both shipped off, move an environment along:
+
+```bash
+# LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT
+APP_TENANCY_ENFORCEMENT=LOG_ONLY
+# The poller that mirrors wallet's tenant directory. Tenant-scoped paths 404 until this has run.
+TENANTLIFECYCLE_ENABLED=false
+```
+
 ## Postgres Configuration
 The data connect adapter uses a PostgreSQL database to save queries, so that it can reparse them during pagination to re-evaluate functions
 that need to be processed prior to submitting queries to trino.

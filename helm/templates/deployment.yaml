@@ -135,6 +135,14 @@ spec:
                --username=$(SPRING_DATASOURCE_USERNAME) \
                --password=$(SPRING_DATASOURCE_PASSWORD) \
                --logLevel debug \
+               update && \
+              liquibase \
+               --driver=org.postgresql.Driver \
+               --changeLogFile=/db.changelog-tenant-lifecycle-setup.yaml \
+               --url={{ include "dataConnectTrino.jdbcUri" . }} \
+               --username=$(SPRING_DATASOURCE_USERNAME) \
+               --password=$(SPRING_DATASOURCE_PASSWORD) \
+               --logLevel debug \
                update
           env:
             - name: SPRING_DATASOURCE_USERNAME
@@ -229,6 +237,28 @@ spec:
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/jwks'
             - name: APP_AUTH_TOKENISSUERS_0_AUDIENCES_0
               value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
+            # Multi-tenancy. Both behaviours ship off, and an environment moves up the enforcement ladder
+            # (LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT) by setting global.tenancy, without a rebuild.
+            - name: APP_TENANCY_ENFORCEMENT
+              value: "{{ ((.Values.global).tenancy).enforcement | default "LOG_ONLY" }}"
+            - name: TENANTLIFECYCLE_ENABLED
+              value: "{{ ((.Values.global).tenancy).lifecycleEnabled | default false }}"
+            - name: TENANTLIFECYCLE_WALLETURI
+              value: '{{- include "dnastack.wallet.internalUrl" . }}'
+            - name: TENANTLIFECYCLE_OAUTH_TOKENURI
+              value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
+            - name: TENANTLIFECYCLE_OAUTH_RESOURCE
+              value: '{{- include "dnastack.wallet.externalUrl" . }}'
+            - name: TENANTLIFECYCLE_OAUTH_CLIENTID
+              valueFrom:
+                secretKeyRef:
+                  name: 'data-connect-trino-client-credentials'
+                  key: clientId
+            - name: TENANTLIFECYCLE_OAUTH_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: 'data-connect-trino-client-credentials'
+                  key: clientSecret
             - name: APP_SERVICE_INFO_ID
               value: "com.dnastack.data-connect"
             - name: APP_SERVICE_INFO_NAME
