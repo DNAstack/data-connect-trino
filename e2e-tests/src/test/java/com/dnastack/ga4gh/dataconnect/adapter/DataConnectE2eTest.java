@@ -194,8 +194,10 @@ class DataConnectE2eTest extends BaseE2eTest {
     private static void createTestCatalog() {
         log.info("Creating catalog {}", TEST_CATALOG);
         try {
+            // Every table below lives in this budget, and insertPaginationRows costs about 13.5KB a row: the
+            // pagination and query cancellation fixtures alone are ~9.5MB of it.
             dataConnectQuery(
-                    "CREATE CATALOG %s USING memory WITH (\"memory.max-data-per-node\" = '10MB')".formatted(TEST_CATALOG));
+                    "CREATE CATALOG %s USING memory WITH (\"memory.max-data-per-node\" = '32MB')".formatted(TEST_CATALOG));
             dataConnectQuery("CREATE SCHEMA %s.%s".formatted(TEST_CATALOG, TEST_SCHEMA));
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create catalog " + TEST_CATALOG, e);
@@ -327,7 +329,7 @@ class DataConnectE2eTest extends BaseE2eTest {
     /**
      * The tables this test run creates in the in-memory test catalog, populated with the rows the tests expect.
      */
-    private record TestTables(TestTable json, TestTable dateTime, TestTable pagination) {
+    private record TestTables(TestTable json, TestTable dateTime, TestTable pagination, TestTable queryTermination) {
 
         static TestTables create() {
             log.info("Creating table for JSON support tests.");
@@ -357,8 +359,12 @@ class DataConnectE2eTest extends BaseE2eTest {
             TestTable pagination = TestTable.create("pagination", PAGINATION_TABLE_COLUMNS);
             insertPaginationRows(pagination, 120);
 
+            log.info("Creating table for query cancellation tests.");
+            TestTable queryTermination = TestTable.create("query_termination", PAGINATION_TABLE_COLUMNS);
+            insertPaginationRows(queryTermination, 600);
+
             awaitRowsVisible(json);
-            return new TestTables(json, dateTime, pagination);
+            return new TestTables(json, dateTime, pagination, queryTermination);
         }
 
         /**
@@ -795,18 +801,20 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     void deleteNextPageUrl_should_rejectAPageTrinoDidNotIssue() throws IOException {
-        TestTable table = TestTable.create("query_termination_bad_page", PAGINATION_TABLE_COLUMNS);
-        insertPaginationRows(table, 600);
-
-        DataConnectRequest query = new DataConnectRequest("SELECT * FROM " + table.qualifiedName());
+        DataConnectRequest query =
+                new DataConnectRequest("SELECT * FROM " + tables().queryTermination().qualifiedName());
         log.info("Running query {} so there is a live query to try to cancel", query);
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         String nextPageUrl = result.getPagination().getNextPageUrl().toString();
 
         // Trino issues each page under a slug of its own, so a page with the slug altered is one it never issued,
-        // which is the best a caller who knows only the query job id can construct.
-        String slug = nextPageUrl.split("/")[nextPageUrl.split("/").length - 2];
-        String forgedPageUrl = nextPageUrl.replace(slug, slug.substring(0, slug.length() - 1) + "0");
+        // which is the best a caller who knows only the query job id can construct. The query id stays as it is,
+        // both in the path and in the queryJobId parameter, so the request gets as far as Trino.
+        String[] pathSegments = nextPageUrl.split("/");
+        String slug = pathSegments[pathSegments.length - 2];
+        char lastCharOfSlug = slug.charAt(slug.length() - 1);
+        String forgedSlug = slug.substring(0, slug.length() - 1) + (lastCharOfSlug == '0' ? '1' : '0');
+        String forgedPageUrl = nextPageUrl.replace(slug, forgedSlug);
         assertThat(forgedPageUrl).as("forged page URL").isNotEqualTo(nextPageUrl);
 
         log.info("Sending a DELETE request to a page Trino never issued, then asserting the query still runs");
@@ -818,10 +826,8 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     @Test
     void deleteNextPageUrl_should_terminateQuery() throws IOException {
-        TestTable table = TestTable.create("query_termination", PAGINATION_TABLE_COLUMNS);
-        insertPaginationRows(table, 600);
-
-        DataConnectRequest query = new DataConnectRequest("SELECT * FROM " + table.qualifiedName());
+        DataConnectRequest query =
+                new DataConnectRequest("SELECT * FROM " + tables().queryTermination().qualifiedName());
         log.info("Running query {} and following the next page URL", query);
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         String nextPageUrl = result.getPagination().getNextPageUrl().toString();
