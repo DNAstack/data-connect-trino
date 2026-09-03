@@ -3,7 +3,9 @@ package com.dnastack.ga4gh.dataconnect.controller;
 import com.dnastack.ga4gh.dataconnect.DataConnectTrinoApplication;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.DataConnectRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoNoSuchCatalogException;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUnexpectedHttpResponseException;
 import com.dnastack.ga4gh.dataconnect.model.*;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -171,6 +173,38 @@ public class DataConnectControllerMvcTest {
         resultActions.andExpect(status().isNoContent());
 
         verify(trinoDataConnectAdapter).deleteQueryJob(eq(page), eq(queryJobId), any());
+    }
+
+    @Test
+    public void deleteSearchQuery_should_returnNotFound_when_theAdapterRejectsThePage() throws Exception {
+        String page = "v1/statement/executing/20260902_203359_48519_fnmag/y5bb5cace5500a2cf109b1c50c648b009c40a142f/4";
+        String queryJobId = "20260902_203359_48519_fnmag";
+        doThrow(new InvalidQueryJobException(queryJobId))
+                .when(trinoDataConnectAdapter).deleteQueryJob(anyString(), anyString(), any());
+
+        ResultActions resultActions = mockMvc.perform(
+                delete("/search/" + page).param("queryJobId", queryJobId));
+
+        resultActions
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errors", hasSize(1)))
+                .andExpect(jsonPath("$.errors[0].status", equalTo(404)));
+    }
+
+    @Test
+    public void deleteSearchQuery_should_returnBadGateway_when_trinoAnswersUnexpectedly() throws Exception {
+        String page = "v1/statement/executing/20260902_203359_48519_fnmag/y5bb5cace5500a2cf109b1c50c648b009c40a142f/4";
+        String queryJobId = "20260902_203359_48519_fnmag";
+        doThrow(new TrinoUnexpectedHttpResponseException(503, "Trino answered 503 when asked to cancel a query."))
+                .when(trinoDataConnectAdapter).deleteQueryJob(anyString(), anyString(), any());
+
+        ResultActions resultActions = mockMvc.perform(
+                delete("/search/" + page).param("queryJobId", queryJobId));
+
+        resultActions
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.errors", hasSize(1)))
+                .andExpect(jsonPath("$.errors[0].status", equalTo(502)));
     }
 
     @Test
