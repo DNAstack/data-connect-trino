@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.trino;
 
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
+import com.dnastack.tenancy.context.TenantContextAccessor;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +18,7 @@ public class QueryCleanupManager {
 
     private final Jdbi jdbi;
     private final TrinoClient client;
+    private final TenantContextAccessor tenantContextAccessor;
 
     @Value("${app.query-cleanup.timeout-in-seconds}")
     private int queryCleanupTimeoutInSeconds;
@@ -24,9 +26,10 @@ public class QueryCleanupManager {
     @Value("${app.query-job-cleanup.deletion-timeout-in-days}")
     private int queryJobCleanupDeletionTimeoutInDays;
 
-    public QueryCleanupManager(Jdbi jdbi, TrinoClient client) {
+    public QueryCleanupManager(Jdbi jdbi, TrinoClient client, TenantContextAccessor tenantContextAccessor) {
         this.jdbi = jdbi;
         this.client = client;
+        this.tenantContextAccessor = tenantContextAccessor;
     }
 
     @Scheduled(cron = "${app.query-cleanup.cron-interval}")
@@ -37,14 +40,15 @@ public class QueryCleanupManager {
         });
         if (!queryJobList.isEmpty()) {
             log.info("Terminating {} old queries", queryJobList.size());
-            queryJobList.forEach(queryJob -> {
+            // The sweep spans every tenant, but each row is acted on within its own: the update filters on the
+            // tenant, and killQuery relays the tenant of whoever the work is being done for.
+            queryJobList.forEach(queryJob -> tenantContextAccessor.runAs(queryJob.getTenantId(), () -> {
                 final String queryJobId = queryJob.getId();
                 log.info("Terminating query with ID: {}", queryJobId);
                 client.killQuery(queryJob.getNextPageUrl());
-                jdbi.useExtension(QueryJobDao.class, dao -> {
-                    dao.setFinishedAt(Instant.now(), queryJobId);
-                });
-            });
+                jdbi.useExtension(QueryJobDao.class,
+                    dao -> dao.setFinishedAt(tenantContextAccessor.getTenantId(), Instant.now(), queryJobId));
+            }));
         }
     }
 

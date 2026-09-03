@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.controller;
 
 import com.dnastack.audit.aspect.AuditActionUri;
 import com.dnastack.ga4gh.dataconnect.ServiceInfo;
+import com.dnastack.tenancy.context.Public;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,6 +24,7 @@ public class ServiceInfoController {
         this.serviceInfo = serviceInfo;
     }
 
+    @Public
     @AuditActionUri("data-connect:service-info")
     @GetMapping(value = "/service-info", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getServiceInfo() {

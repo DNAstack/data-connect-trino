@@ -7,6 +7,8 @@ import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.*;
 import com.dnastack.ga4gh.dataconnect.model.*;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
+import com.dnastack.tenancy.context.TenantContextAccessor;
+import com.dnastack.tenancy.context.TenantId;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -74,6 +76,9 @@ public class TrinoDataConnectAdapter {
         "([a-zA-Z0-9_][a-zA-Z0-9_-]*)"   // table (can start with digit, may contain hyphens)
     );
 
+    /** The leading {@code /tenants/{tenantId}} of a tenant-addressed request path. */
+    private static final Pattern TENANT_PATH_PREFIX = Pattern.compile("^/tenants/[^/]+");
+
     private final Map<String, Set<String>> trinoSchemaCache;
     private final Map<String, Set<String>> trinoCatalogCache;
 
@@ -89,12 +94,15 @@ public class TrinoDataConnectAdapter {
 
     private final Tracer tracer;
 
+    private final TenantContextAccessor tenantContextAccessor;
+
     public TrinoDataConnectAdapter(
         TrinoClient client,
         Jdbi jdbi,
         ApplicationConfig applicationConfig,
         List<DataModelSupplier> dataModelSuppliers,
         Tracer tracer,
+        TenantContextAccessor tenantContextAccessor,
         // We use CachingConcurrentHashMap to cache the schema and catalog names to increase performance
         // When paginating through the tables
         @Value("${app.caching.expire-after:PT5M}") Duration expireAfter,
@@ -106,6 +114,7 @@ public class TrinoDataConnectAdapter {
         this.applicationConfig = applicationConfig;
         this.dataModelSuppliers = dataModelSuppliers;
         this.tracer = tracer;
+        this.tenantContextAccessor = tenantContextAccessor;
         this.objectMapper = new ObjectMapper()
             .configure(JsonParser.Feature.ALLOW_COMMENTS, true)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -281,9 +290,10 @@ public class TrinoDataConnectAdapter {
         populateTableSchemaIfAvailable(queryJob, tableData);
 
         Instant currentTime = Instant.now();
-        jdbi.useExtension(QueryJobDao.class, dao -> dao.setLastActivityAt(currentTime, queryJobId));
+        TenantId tenantId = tenantContextAccessor.getTenantId();
+        jdbi.useExtension(QueryJobDao.class, dao -> dao.setLastActivityAt(tenantId, currentTime, queryJobId));
         if (tableData.getPagination().getNextPageUrl() == null) {
-            jdbi.useExtension(QueryJobDao.class, dao -> dao.setFinishedAt(currentTime, queryJobId));
+            jdbi.useExtension(QueryJobDao.class, dao -> dao.setFinishedAt(tenantId, currentTime, queryJobId));
         }
 
         return tableData;
@@ -320,7 +330,8 @@ public class TrinoDataConnectAdapter {
                 "Trino answered " + trinoStatus + " when asked to cancel the query.");
         }
 
-        jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJobId));
+        jdbi.useExtension(QueryJobDao.class,
+            dao -> dao.setQueryFinishedAndLastActivityTime(tenantContextAccessor.getTenantId(), queryJobId));
     }
 
     private QueryJob createQueryJob(String queryId, String query, DataModel dataModel, String nextPageUrl) {
@@ -338,6 +349,7 @@ public class TrinoDataConnectAdapter {
         QueryJob queryJob = QueryJob.builder()
             .query(query)
             .id(queryId)
+            .tenantId(tenantContextAccessor.getTenantId().getValue())
             .originalTraceId(tracer.currentTraceContext().context().traceId())
             .startedAt(currentTime)
             .lastActivityAt(currentTime)
@@ -637,7 +649,8 @@ public class TrinoDataConnectAdapter {
     }
 
     private void handleErrorResponse(TrinoDataPage trinoPage, QueryJob queryJob) {
-        jdbi.useExtension(QueryJobDao.class, dao -> dao.setQueryFinishedAndLastActivityTime(queryJob.getId()));
+        jdbi.useExtension(QueryJobDao.class,
+            dao -> dao.setQueryFinishedAndLastActivityTime(tenantContextAccessor.getTenantId(), queryJob.getId()));
 
         TrinoError trinoError = trinoPage.error();
         log.info("Returning Trino exception for query {}: {} {}",
@@ -714,9 +727,16 @@ public class TrinoDataConnectAdapter {
 
     /**
      * Returns the absolute base URL that the original caller (who may be behind an HTTP proxy) should use to reach
-     * the root resource of this server. The returned URL string will be of the form {@code https://example.com:1234/forwarded/prefix}.
+     * the resources of this server that answer under the same prefix as the current request. The returned URL string
+     * will be of the form {@code https://example.com:1234/forwarded/prefix/tenants/{tenantId}}.
      * It will always have a protocol and host. It will have a port if the port is not the default for the protocol.
-     * It may or may not have a path (depending on X-Forwarded-Prefix) and it will never end with a slash.
+     * It may or may not have a path (depending on X-Forwarded-Prefix and on whether the caller addressed a tenant),
+     * and it will never end with a slash.
+     * <p>
+     * Every link this service hands back is built on this, so a caller that addressed a tenant is sent back to that
+     * tenant's paths and one that used the legacy paths keeps getting legacy ones. It is taken from the request
+     * rather than from the tenant context because the two differ for a legacy request, which resolves to the
+     * management tenant while addressing no tenant in its URLs.
      *
      * @param request Http Servlet Request
      * @return Base URL
@@ -757,10 +777,20 @@ public class TrinoDataConnectAdapter {
         if (forwardedPrefix != null) {
             urlBuilder.path(stripTrailingSlashes(forwardedPrefix));
         }
+        tenantPathPrefix(request).ifPresent(urlBuilder::path);
 
         String result = urlBuilder.build().toUriString();
         log.debug("Final callback URL: " + result);
         return result;
+    }
+
+    /**
+     * The {@code /tenants/{tenantId}} segment pair the request was addressed to, if it was addressed to one.
+     * The tenant it names has already been resolved by the request boundary, which rejects an unknown one.
+     */
+    private static Optional<String> tenantPathPrefix(HttpServletRequest request) {
+        Matcher matcher = TENANT_PATH_PREFIX.matcher(request.getRequestURI().substring(request.getContextPath().length()));
+        return matcher.find() ? Optional.of(matcher.group()) : Optional.empty();
     }
 
     private static String stripTrailingSlashes(String str) {
@@ -975,21 +1005,18 @@ public class TrinoDataConnectAdapter {
         return schemasSet;
     }
 
+    /**
+     * Catalog and schema listings differ per tenant, and an anonymous caller supplies no token to tell one
+     * tenant's listing from another's, so the tenant is part of every key.
+     */
     private String getCacheKey(Map<String, String> extraCredentials) {
         String userToken = extraCredentials.get("userToken");
-        if (userToken == null) {
-            return "anonymous";
-        }
-        return userToken;
+        return tenantContextAccessor.getTenantId().asString() + "_" + (userToken == null ? "anonymous" : userToken);
     }
 
 
     private String getCacheKey(String catalog, Map<String, String> extraCredentials) {
-        String userToken = extraCredentials.get("userToken");
-        if (userToken == null) {
-            return "anonymous_" + catalog;
-        }
-        return catalog + "_" + userToken;
+        return catalog + "_" + getCacheKey(extraCredentials);
     }
 
     private void attachCommentsToDataModel(
@@ -1052,8 +1079,12 @@ public class TrinoDataConnectAdapter {
         log.debug("No table schema from queryJob");
     }
 
+    /**
+     * The query job with the given id <em>in the request's tenant</em>. A job of another tenant is as good as
+     * absent here, so a query job id learned elsewhere reveals nothing across the tenant boundary.
+     */
     private QueryJob getQueryJob(String id) {
-        return jdbi.withExtension(QueryJobDao.class, dao -> dao.get(id))
+        return jdbi.withExtension(QueryJobDao.class, dao -> dao.get(tenantContextAccessor.getTenantId(), id))
             .orElseThrow(() -> new InvalidQueryJobException(id));
     }
 

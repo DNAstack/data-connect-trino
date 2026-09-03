@@ -10,6 +10,8 @@ import com.dnastack.ga4gh.dataconnect.model.TableData;
 import com.dnastack.ga4gh.dataconnect.model.TablesList;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
+import com.dnastack.tenancy.context.TenantContextAccessor;
+import com.dnastack.tenancy.context.TenantId;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +35,8 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -122,6 +126,8 @@ public class TrinoDataConnectAdapterTest {
 
     private QueryJobDao queryJobDao;
 
+    private final TenantContextAccessor tenantContextAccessor = new TenantContextAccessor();
+
     @Before
     public void setUp() throws Exception {
         // Minimal Tracer stub: only currentTraceContext().context().traceId() is exercised
@@ -139,7 +145,7 @@ public class TrinoDataConnectAdapterTest {
             currentQueryJob = invocation.getArgument(0);
             return currentQueryJob;
         }).when(queryJobDao).create(any(QueryJob.class));
-        when(queryJobDao.get(any())).thenAnswer(invocation -> Optional.ofNullable(currentQueryJob));
+        when(queryJobDao.get(any(), any())).thenAnswer(invocation -> Optional.ofNullable(currentQueryJob));
 
         Jdbi jdbi = mock(Jdbi.class);
         doAnswer(invocation -> {
@@ -164,7 +170,8 @@ public class TrinoDataConnectAdapterTest {
         when(mockApplicationConfig.getHiddenCatalogs()).thenReturn(Collections.emptySet()); // Default: no hidden catalogs
 
         dataConnectAdapter = new TrinoDataConnectAdapter(
-                mockTrinoClient, jdbi, mockApplicationConfig, List.of(dataModelSupplier), tracer, Duration.ofMinutes(5),100
+                mockTrinoClient, jdbi, mockApplicationConfig, List.of(dataModelSupplier), tracer,
+                tenantContextAccessor, Duration.ofMinutes(5), 100
         );
     }
 
@@ -203,7 +210,7 @@ public class TrinoDataConnectAdapterTest {
 
         assertThat("the page the caller offered is the one relayed to Trino",
                 mockTrinoClient.cancelledPages, Matchers.contains(RELAYED_PAGE));
-        verify(queryJobDao).setQueryFinishedAndLastActivityTime(currentQueryJob.getId());
+        verify(queryJobDao).setQueryFinishedAndLastActivityTime(TenantId.MANAGEMENT, currentQueryJob.getId());
     }
 
     @Test
@@ -220,7 +227,7 @@ public class TrinoDataConnectAdapterTest {
             assertThat(expected.getQueryJobId(), equalTo(currentQueryJob.getId()));
         }
 
-        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any());
+        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any(), any());
     }
 
     @Test
@@ -238,7 +245,7 @@ public class TrinoDataConnectAdapterTest {
 
         assertThat("Trino is not asked to cancel a page that names another query",
                 mockTrinoClient.cancelledPages, Matchers.empty());
-        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any());
+        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any(), any());
     }
 
     @Test
@@ -253,7 +260,7 @@ public class TrinoDataConnectAdapterTest {
         }
 
         assertThat(mockTrinoClient.cancelledPages, Matchers.empty());
-        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any());
+        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any(), any());
     }
 
     @Test
@@ -1074,4 +1081,120 @@ public class TrinoDataConnectAdapterTest {
         assertThat(result, equalTo("SELECT * FROM \"bigquery_catalog\".\"some_dataset\".\"03_test_table\" WHERE id = 1"));
     }
 
+    @Test
+    public void search_should_stampTheQueryJobWithTheRequestTenant() {
+        UUID tenantId = UUID.randomUUID();
+        mockTrinoClient.setResponsePages(List.of(
+                //language=json
+                """
+                        {
+                            "id": "fake-req-1",
+                            "nextUri": "http://example.com/fake-req-2"
+                        }
+                        """
+        ));
+
+        tenantContextAccessor.runAs(tenantId, () ->
+                dataConnectAdapter.search("SELECT 1", new MockHttpServletRequest(), Map.of(), null));
+
+        assertThat(currentQueryJob.getTenantId(), equalTo(tenantId));
+    }
+
+    @Test
+    public void getTablesByCatalogAndSchema_shouldNot_serveOneTenantsCatalogListingToAnother() {
+        // The catalogs Trino answers with depend on who is asking, and an anonymous caller supplies no token to
+        // tell one tenant from another. Each tenant here sees a catalog the other cannot: if the listing were
+        // cached under one key for both, the second tenant would be told its own catalog does not exist.
+        mockTrinoClient.setResponsePages(List.of(
+                catalogsPage("catalog_a"), schemasPage("schema_a"), tablesPage("catalog_a", "schema_a", "table_a"),
+                catalogsPage("catalog_b"), schemasPage("schema_b"), tablesPage("catalog_b", "schema_b", "table_b")));
+
+        TablesList tablesOfA = tenantContextAccessor.runAs(UUID.randomUUID(), () ->
+                dataConnectAdapter.getTablesByCatalogAndSchema("catalog_a", "schema_a", new MockHttpServletRequest(), Map.of()));
+        TablesList tablesOfB = tenantContextAccessor.runAs(UUID.randomUUID(), () ->
+                dataConnectAdapter.getTablesByCatalogAndSchema("catalog_b", "schema_b", new MockHttpServletRequest(), Map.of()));
+
+        assertThat(tablesOfA.getTableInfos().getFirst().getName(), equalTo("catalog_a.schema_a.table_a"));
+        assertThat(tablesOfB.getTableInfos().getFirst().getName(), equalTo("catalog_b.schema_b.table_b"));
+    }
+
+    @Test
+    public void search_should_addressTheTenantInTheNextPageUrl_when_theRequestDid() {
+        UUID tenantId = UUID.randomUUID();
+        MockHttpServletRequest request = createRequestWithForwardedHeaders();
+        request.setRequestURI("/tenants/" + tenantId + "/search");
+        mockTrinoClient.setResponsePages(List.of(
+                //language=json
+                """
+                        {
+                            "id": "fake-req-1",
+                            "nextUri": "http://trino.example.com/v1/statement/executing/fake-req-1/slug/1"
+                        }
+                        """
+        ));
+
+        TableData tableData = tenantContextAccessor.runAs(tenantId, () ->
+                dataConnectAdapter.search("SELECT 1", request, Map.of(), null));
+
+        assertThat(tableData.getPagination().getNextPageUrl().toString(),
+                equalTo(getExpectedBaseUrl() + "/tenants/" + tenantId
+                        + "/search/v1/statement/executing/fake-req-1/slug/1?queryJobId=fake-req-1"));
+    }
+
+    @Test
+    public void search_shouldNot_addressATenantInTheNextPageUrl_when_theRequestDidNot() {
+        MockHttpServletRequest request = createRequestWithForwardedHeaders();
+        request.setRequestURI("/search");
+        mockTrinoClient.setResponsePages(List.of(
+                //language=json
+                """
+                        {
+                            "id": "fake-req-1",
+                            "nextUri": "http://trino.example.com/v1/statement/executing/fake-req-1/slug/1"
+                        }
+                        """
+        ));
+
+        TableData tableData = dataConnectAdapter.search("SELECT 1", request, Map.of(), null);
+
+        assertThat(tableData.getPagination().getNextPageUrl().toString(),
+                equalTo(getExpectedBaseUrl() + "/search/v1/statement/executing/fake-req-1/slug/1?queryJobId=fake-req-1"));
+    }
+
+    private static String catalogsPage(String... catalogs) {
+        return """
+                {
+                    "id": "catalog-req",
+                    "columns": [ { "name": "catalog_name", "typeSignature": { "rawType": "varchar" } } ],
+                    "data": [ %s ],
+                    "stats": { "state": "FINISHED" }
+                }
+                """.formatted(Stream.of(catalogs).map("[\"%s\"]"::formatted).collect(Collectors.joining(", ")));
+    }
+
+    private static String schemasPage(String... schemas) {
+        return """
+                {
+                    "id": "schema-req",
+                    "columns": [ { "name": "schema_name", "typeSignature": { "rawType": "varchar" } } ],
+                    "data": [ %s ],
+                    "stats": { "state": "FINISHED" }
+                }
+                """.formatted(Stream.of(schemas).map("[\"%s\"]"::formatted).collect(Collectors.joining(", ")));
+    }
+
+    private static String tablesPage(String catalog, String schema, String table) {
+        return """
+                {
+                    "id": "tables-req",
+                    "columns": [
+                        { "name": "table_catalog", "typeSignature": { "rawType": "varchar" } },
+                        { "name": "table_schema", "typeSignature": { "rawType": "varchar" } },
+                        { "name": "table_name", "typeSignature": { "rawType": "varchar" } }
+                    ],
+                    "data": [ ["%s", "%s", "%s"] ],
+                    "stats": { "state": "FINISHED" }
+                }
+                """.formatted(catalog, schema, table);
+    }
 }
