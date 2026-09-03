@@ -72,3 +72,43 @@ databaseChangeLog:
                     - column:
                           name: original_trace_id
                           type: varchar
+- changeSet:
+      id: add-tenants
+      author: jfuerth
+      changes:
+          # The default is the management (instance) tenant, where all pre-tenancy query jobs belong.
+          - addColumn:
+                tableName: query_job
+                columns:
+                    - column:
+                          name: tenant_id
+                          type: UUID
+                          defaultValueComputed: "'00000000-0000-0000-0000-000000000000'::uuid"
+                          constraints:
+                              nullable: false
+          # Local mirror of wallet's tenant directory, kept fresh by the tenant-lifecycle feed.
+          - createTable:
+                tableName: tenant_mirror
+                columns:
+                    - column:
+                          name: id
+                          type: UUID
+                          constraints:
+                              primaryKey: true
+                              primaryKeyName: tenant_mirror_pk
+                    - column:
+                          name: name
+                          type: VARCHAR
+                          constraints:
+                              nullable: false
+                    - column:
+                          name: status
+                          type: VARCHAR(20)
+                          constraints:
+                              nullable: false
+                    - column:
+                          name: updated_at
+                          type: TIMESTAMP WITH TIME ZONE
+                          defaultValueComputed: now()
+                          constraints:
+                              nullable: false
