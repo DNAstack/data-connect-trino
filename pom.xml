@@ -44,6 +44,9 @@
     <feign.version>13.6</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <lombok.version>1.18.42</lombok.version>
+    <!-- The first token-validator with the tenant-aware permission checks the tenancy library's rules require. -->
+    <dnastack.token-validator.version>5.0.0</dnastack.token-validator.version>
+    <spring-boot-tenancy.version>1.0.0-14-g0e67121</spring-boot-tenancy.version>
 
     <!-- Testing - Java 23 support. These overrides can be removed when we upgrade spring-boot-starter-parent to a version that supports Java 23. -->
     <mockito.version>5.20.0</mockito.version>
@@ -240,6 +243,24 @@
     <dependency>
       <groupId>com.dnastack</groupId>
       <artifactId>dnastack-token-validator</artifactId>
+    </dependency>
+
+    <!-- Multi-tenancy -->
+    <dependency>
+      <groupId>com.dnastack</groupId>
+      <artifactId>spring-boot-tenancy-context</artifactId>
+      <version>${spring-boot-tenancy.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dnastack</groupId>
+      <artifactId>spring-boot-tenancy-lifecycle</artifactId>
+      <version>${spring-boot-tenancy.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dnastack</groupId>
+      <artifactId>spring-boot-tenancy-test</artifactId>
+      <version>${spring-boot-tenancy.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <!-- Audit Event Logger -->
