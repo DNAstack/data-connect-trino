@@ -25,6 +25,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -92,8 +93,11 @@ public class DataConnectController {
 
         try {
             log.debug("Request: /search query= {}", dataConnectRequest.getSqlQuery());
+            // Read once for the whole request: the header does not change between attempts, and reading it
+            // verifies any relayed userToken it carries.
+            final Map<String, String> extraCredentials = clientSuppliedCredentialsReader.parse(clientSuppliedCredentials);
             final TableData tableData = trinoDataConnectAdapter
-                .search(dataConnectRequest.getSqlQuery(), request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials), null);
+                .search(dataConnectRequest.getSqlQuery(), request, extraCredentials, null);
 
             // Motivation for the following code is to resolve auth errors in Trino on the POST request rather than during subsequent GET requests.
             // If the Trino query job is not executed within the given limit (~16 seconds) it falls back to return current response.
@@ -107,7 +111,7 @@ public class DataConnectController {
                             relayedPagePath(previousPage.getPagination().getNextPageUrl().getPath(), request.getContextPath()),
                             previousPage.getQueryJob().getId(),
                             request,
-                            clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
+                            extraCredentials);
 
                         previousPage = nextSearchPage;
                         return nextSearchPage;
