@@ -10,6 +10,7 @@ import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorExcep
 import com.dnastack.ga4gh.dataconnect.model.TableData;
 import com.dnastack.ga4gh.dataconnect.model.TableInfo;
 import com.dnastack.ga4gh.dataconnect.model.TablesList;
+import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentials;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -27,10 +28,13 @@ import java.util.List;
 public class TablesController {
 
     private final TrinoDataConnectAdapter trinoDataConnectAdapter;
+    private final ClientSuppliedCredentials clientSuppliedCredentialsReader;
 
     @Autowired
-    public TablesController(TrinoDataConnectAdapter trinoDataConnectAdapter) {
+    public TablesController(TrinoDataConnectAdapter trinoDataConnectAdapter,
+                            ClientSuppliedCredentials clientSuppliedCredentialsReader) {
         this.trinoDataConnectAdapter = trinoDataConnectAdapter;
+        this.clientSuppliedCredentialsReader = clientSuppliedCredentialsReader;
     }
 
     @AuditActionUri("data-connect:info")
@@ -43,7 +47,7 @@ public class TablesController {
 
         try {
             tablesList = trinoDataConnectAdapter
-                .getTables(request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                .getTables(request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TablesList::errorInstance);
         }
@@ -66,7 +70,7 @@ public class TablesController {
 
         try {
             tablesList = trinoDataConnectAdapter
-                    .getTablesByCatalogAndSchema(catalogName, schemaName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                    .getTablesByCatalogAndSchema(catalogName, schemaName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
             log.error("Error getting tables for catalog {} and schema {}", catalogName, schemaName, ex);
             throw new TableApiErrorException(ex, TablesList::errorInstance);
@@ -88,7 +92,7 @@ public class TablesController {
         try {
             log.debug("Getting info for table {}", tableName);
             tableInfo = trinoDataConnectAdapter
-                .getTableInfo(tableName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                .getTableInfo(tableName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableInfo::errorInstance);
         }
@@ -109,7 +113,7 @@ public class TablesController {
 
         try {
             tableData = trinoDataConnectAdapter
-                .getTableData(tableName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                .getTableData(tableName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableData::errorInstance);
         }
