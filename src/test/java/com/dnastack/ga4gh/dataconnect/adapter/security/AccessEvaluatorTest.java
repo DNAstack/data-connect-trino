@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 public class AccessEvaluatorTest {
 
     private static final String APP_URL = "https://data-connect.example.com";
+    private static final String CALLERS_TOKEN = "the.callers.token";
     private static final Set<String> ACTIONS = Set.of("data-connect:query");
     private static final Set<String> SCOPES = Set.of("data-connect:query");
 
@@ -47,13 +48,13 @@ public class AccessEvaluatorTest {
     }
 
     /** A caller authenticated by a bearer token, as the filter chain leaves the context. */
-    private static void authenticateWithBearerToken(String tokenValue) {
-        Jwt jwt = Jwt.withTokenValue(tokenValue)
+    private static void authenticateWithBearerToken() {
+        Jwt jwt = Jwt.withTokenValue(CALLERS_TOKEN)
             .header("alg", "RS256")
             .claim("sub", "a-caller")
             .build();
         SecurityContextHolder.getContext()
-            .setAuthentication(new TestingAuthenticationToken(jwt, tokenValue, "SCOPE_data-connect:query"));
+            .setAuthentication(new TestingAuthenticationToken(jwt, CALLERS_TOKEN, "SCOPE_data-connect:query"));
     }
 
     @After
@@ -71,7 +72,7 @@ public class AccessEvaluatorTest {
     @Test
     public void canAccessTenantResource_should_holdTheTokenToTheTenantTheRequestAddresses() {
         UUID requestTenant = UUID.randomUUID();
-        authenticateWithBearerToken("the.callers.token");
+        authenticateWithBearerToken();
         AccessEvaluator accessEvaluator = accessEvaluator();
 
         tenantContextAccessor.runAs(requestTenant,
@@ -85,7 +86,7 @@ public class AccessEvaluatorTest {
     @Test
     public void canAccessTenantResource_should_holdTheTokenToTheManagementTenant_when_theRequestNamedNoTenant() {
         // A legacy un-prefixed path resolves to the management tenant, which is where its data has always lived.
-        authenticateWithBearerToken("the.callers.token");
+        authenticateWithBearerToken();
 
         accessEvaluator().canAccessTenantResource("/search", ACTIONS, SCOPES);
 
@@ -99,7 +100,7 @@ public class AccessEvaluatorTest {
         // One template-group policy covers every tenant because isolation comes from the tenant match, not the
         // resource URI. Were the tenant in the URI, every tenant would need its own policy statement.
         UUID requestTenant = UUID.randomUUID();
-        authenticateWithBearerToken("the.callers.token");
+        authenticateWithBearerToken();
         AccessEvaluator accessEvaluator = accessEvaluator();
 
         tenantContextAccessor.runAs(requestTenant,
@@ -115,19 +116,19 @@ public class AccessEvaluatorTest {
 
     @Test
     public void canAccessTenantResource_should_passTheCallersOwnToken() {
-        authenticateWithBearerToken("the.callers.token");
+        authenticateWithBearerToken();
         AccessEvaluator accessEvaluator = accessEvaluator();
 
         accessEvaluator.canAccessTenantResource("/search", ACTIONS, SCOPES);
 
         ArgumentCaptor<String> token = ArgumentCaptor.forClass(String.class);
         verify(permissionChecker).hasPermissions(token.capture(), any(), anySet(), anyString(), anySet());
-        assertThat(token.getValue()).as("the token the policy is evaluated for").isEqualTo("the.callers.token");
+        assertThat(token.getValue()).as("the token the policy is evaluated for").isEqualTo(CALLERS_TOKEN);
     }
 
     @Test
     public void canAccessTenantResource_should_grantAccess_when_theTokenHoldsThePermissions() {
-        authenticateWithBearerToken("the.callers.token");
+        authenticateWithBearerToken();
         when(permissionChecker.hasPermissions(anyString(), any(), anySet(), anyString(), anySet()))
             .thenReturn(true);
 
@@ -138,7 +139,7 @@ public class AccessEvaluatorTest {
 
     @Test
     public void canAccessTenantResource_should_denyAccess_when_theTokenDoesNotHoldThePermissions() {
-        authenticateWithBearerToken("the.callers.token");
+        authenticateWithBearerToken();
         when(permissionChecker.hasPermissions(anyString(), any(), anySet(), anyString(), anySet()))
             .thenReturn(false);
 

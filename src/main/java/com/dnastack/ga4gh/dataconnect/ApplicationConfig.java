@@ -4,26 +4,22 @@ import com.dnastack.auth.JwtTokenParser;
 import com.dnastack.auth.JwtTokenParserFactory;
 import com.dnastack.auth.PermissionChecker;
 import com.dnastack.auth.PermissionCheckerFactory;
-import com.dnastack.auth.model.TenancyEnforcement;
-import com.dnastack.ga4gh.dataconnect.adapter.security.UserTokenTenancyValidator;
 import com.dnastack.auth.client.OidcHttpClient;
 import com.dnastack.auth.client.TokenActionsHttpClientFactory;
 import com.dnastack.auth.keyresolver.CachingIssuerPubKeyJwksResolver;
 import com.dnastack.auth.keyresolver.IssuerPubKeyStaticResolver;
 import com.dnastack.auth.model.IssuerInfo;
+import com.dnastack.auth.model.TenancyEnforcement;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig.OauthClientConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.DelegatingJwtDecoder;
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
-import com.dnastack.ga4gh.dataconnect.adapter.telemetry.TrinoTelemetryClient;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient;
+import com.dnastack.ga4gh.dataconnect.adapter.security.UserTokenTenancyValidator;
 import com.dnastack.oauth.okhttp.OkHttpClients;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.JwtException;
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +57,6 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @Configuration
 public class ApplicationConfig {
 
-    private final String trinoDatasourceUrl;
 
     @Getter
     private final Set<String> hiddenCatalogs;
@@ -77,13 +72,11 @@ public class ApplicationConfig {
     public ApplicationConfig(
         Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter,
         @Value("${cors.urls}") String corsUrls,
-        @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs,
-        @Value("${trino.datasource.url}") String trinoDatasourceUrl
+        @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs
     ) {
         this.jwtScopesConverter = jwtScopesConverter;
         this.corsUrls = corsUrls;
         this.hiddenCatalogs = hiddenCatalogs;
-        this.trinoDatasourceUrl = trinoDatasourceUrl;
     }
 
     @Bean
@@ -105,7 +98,6 @@ public class ApplicationConfig {
     public OkHttpClient httpClient(ObservationRegistry observationRegistry) {
         return OkHttpClients.getBuilder("trino", observationRegistry).build();
     }
-
 
     @Bean
     public ConnectionPool tokenValidatorConnectionPool() {
