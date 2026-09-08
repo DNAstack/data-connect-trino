@@ -17,7 +17,7 @@ import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
 import jakarta.servlet.http.HttpServletRequest;
-import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentials;
+import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentialsReader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -46,7 +46,7 @@ public class DataConnectController {
     private static final Pattern RELAYED_PAGE = Pattern.compile("^(?:/tenants/[^/]+)?/search/(.+)$");
 
     private final TrinoDataConnectAdapter trinoDataConnectAdapter;
-    private final ClientSuppliedCredentials clientSuppliedCredentialsReader;
+    private final ClientSuppliedCredentialsReader clientSuppliedCredentialsReader;
 
     private static final RetryConfig retryConfig = RetryConfig.<TableData>custom()
         .intervalFunction(IntervalFunction.of(1)) // trino throttles us for up to 10 seconds per page request when no further results are ready
@@ -61,7 +61,7 @@ public class DataConnectController {
 
     @Autowired
     public DataConnectController(TrinoDataConnectAdapter trinoDataConnectAdapter,
-                                 ClientSuppliedCredentials clientSuppliedCredentialsReader) {
+                                 ClientSuppliedCredentialsReader clientSuppliedCredentialsReader) {
         this.trinoDataConnectAdapter = trinoDataConnectAdapter;
         this.clientSuppliedCredentialsReader = clientSuppliedCredentialsReader;
     }
@@ -209,6 +209,4 @@ public class DataConnectController {
         Matcher matcher = RELAYED_PAGE.matcher(path.substring(contextPath.length()));
         return matcher.matches() ? matcher.group(1) : "";
     }
-
-    // TODO make this method into a Spring MVC parameter provider
 }

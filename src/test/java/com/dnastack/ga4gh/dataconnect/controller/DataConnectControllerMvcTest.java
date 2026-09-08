@@ -1,7 +1,7 @@
 package com.dnastack.ga4gh.dataconnect.controller;
 
 import com.dnastack.ga4gh.dataconnect.DataConnectTrinoApplication;
-import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentials;
+import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentialsReader;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.DataConnectRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobException;
@@ -62,7 +62,7 @@ public class DataConnectControllerMvcTest {
     private ObjectMapper objectMapper;
 
     @SpyBean
-    private ClientSuppliedCredentials clientSuppliedCredentialsReader;
+    private ClientSuppliedCredentialsReader clientSuppliedCredentialsReader;
 
     @MockBean
     private TrinoDataConnectAdapter trinoDataConnectAdapter;
