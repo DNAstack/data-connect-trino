@@ -36,6 +36,16 @@ public class AuthConfig {
         List<String> audiences = new ArrayList<>();
 
         /**
+         * The audiences a relayed {@code userToken} may be issued for. A caller sends that token in the
+         * {@code GA4GH-Search-Authorization} header for the Trino plugins to evaluate data policy with, so it is
+         * addressed to a downstream service rather than to this one and carries different audiences from the
+         * bearer token. Deliberately separate from {@link #audiences}: were the two lists to overlap, a caller
+         * could present its bearer token as a {@code userToken}, or the reverse. Empty means this service does
+         * not hold a relayed token to the request's tenant.
+         */
+        List<String> userTokenAudiences = new ArrayList<>();
+
+        /**
          * URI to fetch the JSON Web Key set from. This key set should provide the public keys to verify the supplied
          * bearer token
          */
