@@ -17,6 +17,7 @@ import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
 import jakarta.servlet.http.HttpServletRequest;
+import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentials;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +25,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @RestController
 @Slf4j
@@ -46,6 +45,7 @@ public class DataConnectController {
     private static final Pattern RELAYED_PAGE = Pattern.compile("^(?:/tenants/[^/]+)?/search/(.+)$");
 
     private final TrinoDataConnectAdapter trinoDataConnectAdapter;
+    private final ClientSuppliedCredentials clientSuppliedCredentialsReader;
 
     private static final RetryConfig retryConfig = RetryConfig.<TableData>custom()
         .intervalFunction(IntervalFunction.of(1)) // trino throttles us for up to 10 seconds per page request when no further results are ready
@@ -59,8 +59,10 @@ public class DataConnectController {
     private static final RetryRegistry retryRegistry = RetryRegistry.of(retryConfig);
 
     @Autowired
-    public DataConnectController(TrinoDataConnectAdapter trinoDataConnectAdapter) {
+    public DataConnectController(TrinoDataConnectAdapter trinoDataConnectAdapter,
+                                 ClientSuppliedCredentials clientSuppliedCredentialsReader) {
         this.trinoDataConnectAdapter = trinoDataConnectAdapter;
+        this.clientSuppliedCredentialsReader = clientSuppliedCredentialsReader;
     }
 
     /**
@@ -91,7 +93,7 @@ public class DataConnectController {
         try {
             log.debug("Request: /search query= {}", dataConnectRequest.getSqlQuery());
             final TableData tableData = trinoDataConnectAdapter
-                .search(dataConnectRequest.getSqlQuery(), request, parseCredentialsHeader(clientSuppliedCredentials), null);
+                .search(dataConnectRequest.getSqlQuery(), request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials), null);
 
             // Motivation for the following code is to resolve auth errors in Trino on the POST request rather than during subsequent GET requests.
             // If the Trino query job is not executed within the given limit (~16 seconds) it falls back to return current response.
@@ -105,7 +107,7 @@ public class DataConnectController {
                             relayedPagePath(previousPage.getPagination().getNextPageUrl().getPath(), request.getContextPath()),
                             previousPage.getQueryJob().getId(),
                             request,
-                            parseCredentialsHeader(clientSuppliedCredentials));
+                            clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
 
                         previousPage = nextSearchPage;
                         return nextSearchPage;
@@ -134,7 +136,7 @@ public class DataConnectController {
 
         try {
             tableData = trinoDataConnectAdapter
-                .getNextSearchPage(page, queryJobId, request, parseCredentialsHeader(clientSuppliedCredentials));
+                .getNextSearchPage(page, queryJobId, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
             throw new TableApiErrorException(ex, TableData::errorInstance);
         }
@@ -183,7 +185,7 @@ public class DataConnectController {
         String page = relayedPagePath(request.getRequestURI(), request.getContextPath());
         log.info("Terminating query with ID: {}", queryJobId);
         try {
-            trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, parseCredentialsHeader(clientSuppliedCredentials));
+            trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
             // Carries the status the exception asks for, and the error body a GET of the same page would return.
             throw new TableApiErrorException(ex, TableData::errorInstance);
@@ -205,10 +207,4 @@ public class DataConnectController {
     }
 
     // TODO make this method into a Spring MVC parameter provider
-    public static Map<String, String> parseCredentialsHeader(List<String> clientSuppliedCredentials) {
-        return clientSuppliedCredentials.stream()
-            .map(val -> val.split("=", 2))
-            .collect(Collectors.toMap(kv -> kv[0], kv -> kv[1]));
-    }
-
 }

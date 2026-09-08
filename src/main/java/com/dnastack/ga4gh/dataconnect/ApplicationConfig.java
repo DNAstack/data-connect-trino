@@ -5,6 +5,7 @@ import com.dnastack.auth.JwtTokenParserFactory;
 import com.dnastack.auth.PermissionChecker;
 import com.dnastack.auth.PermissionCheckerFactory;
 import com.dnastack.auth.model.TenancyEnforcement;
+import com.dnastack.ga4gh.dataconnect.adapter.security.UserTokenTenancyValidator;
 import com.dnastack.auth.client.OidcHttpClient;
 import com.dnastack.auth.client.TokenActionsHttpClientFactory;
 import com.dnastack.auth.keyresolver.CachingIssuerPubKeyJwksResolver;
@@ -256,6 +257,23 @@ public class ApplicationConfig {
         ) {
             String policyEvaluationUrl = stripTrailingSlashes(walletUrl) + "/policies/evaluations";
             return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester, policyEvaluationUrl, observationRegistry, tokenValidatorConnectionPool, tenancyEnforcement);
+        }
+
+        @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer'")
+        @Bean
+        public UserTokenTenancyValidator userTokenTenancyValidator(
+            AuthConfig authConfig,
+            List<IssuerInfo> allowedIssuers,
+            @Value("${app.url}") String policyEvaluationRequester,
+            @Value("${app.auth.token-issuers[0].issuer-uri}") String walletUrl,
+            @Value("${app.tenancy.enforcement}") TenancyEnforcement tenancyEnforcement,
+            ObservationRegistry observationRegistry,
+            ConnectionPool tokenValidatorConnectionPool
+        ) {
+            String policyEvaluationUrl = stripTrailingSlashes(walletUrl) + "/policies/evaluations";
+            return UserTokenTenancyValidator.create(authConfig.getTokenIssuers(), allowedIssuers,
+                policyEvaluationRequester, policyEvaluationUrl, tenancyEnforcement, observationRegistry,
+                tokenValidatorConnectionPool);
         }
 
         private String stripTrailingSlashes(String url) {
