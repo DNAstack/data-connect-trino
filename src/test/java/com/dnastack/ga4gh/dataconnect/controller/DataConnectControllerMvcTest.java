@@ -1,6 +1,7 @@
 package com.dnastack.ga4gh.dataconnect.controller;
 
 import com.dnastack.ga4gh.dataconnect.DataConnectTrinoApplication;
+import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentials;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.DataConnectRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobException;
@@ -20,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -58,6 +60,9 @@ public class DataConnectControllerMvcTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @SpyBean
+    private ClientSuppliedCredentials clientSuppliedCredentialsReader;
 
     @MockBean
     private TrinoDataConnectAdapter trinoDataConnectAdapter;
@@ -195,6 +200,33 @@ public class DataConnectControllerMvcTest {
 
         // The tenant is already bound to the request by this point; what Trino is offered is the page alone.
         verify(trinoDataConnectAdapter).deleteQueryJob(eq(page), eq(queryJobId), any());
+    }
+
+    @Test
+    public void search_should_readTheCredentialsHeaderOnce_when_itRetriesForData() throws Exception {
+        // Reading the header verifies a relayed userToken, so it is not something to redo per retry attempt.
+        DataConnectRequest request = new DataConnectRequest();
+        request.setSqlQuery("SELECT * FROM test_table");
+        TableData emptyPage = new TableData(
+                DataModel.builder().ref("http://example.com/ref").build(),
+                new ArrayList<>(),
+                null,
+                new Pagination(null, URI.create("http://localhost:8080/search/page2"), null),
+                QueryJob.builder().id("test-job-123").build());
+        when(trinoDataConnectAdapter.search(anyString(), any(), any(), any())).thenReturn(emptyPage);
+        when(trinoDataConnectAdapter.getNextSearchPage(anyString(), anyString(), any(), any()))
+                .thenReturn(emptyPage);
+
+        mockMvc.perform(post("/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("GA4GH-Search-Authorization", "userToken=a.b.c")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        // The retry exhausted its attempts, so the header was there to be re-read four times over.
+        verify(trinoDataConnectAdapter, times(4)).getNextSearchPage(anyString(), anyString(), any(), any());
+        verify(clientSuppliedCredentialsReader, times(1)).parse(List.of("userToken=a.b.c"));
     }
 
     @Test
