@@ -101,6 +101,19 @@ public class TrinoHttpClientTenantRelayTest {
     }
 
     @Test
+    public void cancelQuery_should_carryTheRequestTenantInAnExtraCredential() throws Exception {
+        UUID tenantId = UUID.randomUUID();
+
+        tenantContextAccessor.runAs(tenantId,
+            () -> trinoHttpClient().cancelQuery("v1/statement/executing/q/slug/2", Map.of()));
+
+        RecordedRequest recorded = trino.takeRequest();
+        assertThat(recorded.getHeaders().values("X-Trino-Extra-Credential"))
+            .as("the extra credentials of a cancellation run within a tenant")
+            .contains("tenantId=" + tenantId);
+    }
+
+    @Test
     public void trinoQuery_should_carryTheCallersOtherExtraCredentials() throws Exception {
         trinoHttpClient().query("SELECT 1", Map.of("userToken", "a-user-token"));
 
