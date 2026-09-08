@@ -26,7 +26,6 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -99,16 +98,6 @@ public class TrinoHttpClient implements TrinoClient {
     }
 
     @Override
-    public void killQuery(String nextPageUrl) {
-        Request.Builder request = new Request.Builder().url(nextPageUrl).method("DELETE", null);
-        try {
-            execute(request, Collections.emptyMap());
-        } catch (IOException ie) {
-            throw new TrinoIOException("Unable to send DELETE request to kill old running query.", ie);
-        }
-    }
-
-    @Override
     public int cancelQuery(String page, Map<String, String> extraCredentials) {
         Span span = tracer.nextSpan().name("trinoCancel").start();
         try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
@@ -123,9 +112,24 @@ public class TrinoHttpClient implements TrinoClient {
         }
     }
 
-    //TODO: better url construction
+    /**
+     * The URL a page addresses on this client's Trino. A page reaches us either as the path this service handed a
+     * caller, or as the absolute {@code next_page_url} a query job stored, and both name the same page. Exactly one
+     * slash joins the two halves, whether or not the configured Trino URL ends in one.
+     */
     private String pageUrl(String page) {
-        return page.startsWith("/") ? this.trinoServer + page : this.trinoServer + "/" + page;
+        if (page.startsWith("http://") || page.startsWith("https://")) {
+            return page;
+        }
+        return stripTrailingSlashes(this.trinoServer) + (page.startsWith("/") ? page : "/" + page);
+    }
+
+    private static String stripTrailingSlashes(String url) {
+        int end = url.length();
+        while (end > 0 && url.charAt(end - 1) == '/') {
+            end--;
+        }
+        return url.substring(0, end);
     }
 
     private DataConnectAuthRequest extractExtraCredentialsRequest(TrinoDataPage trinoPage) {

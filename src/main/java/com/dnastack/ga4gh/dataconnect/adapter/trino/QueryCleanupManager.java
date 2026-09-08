@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.List;
 
 @Slf4j
@@ -41,11 +42,12 @@ public class QueryCleanupManager {
         if (!queryJobList.isEmpty()) {
             log.info("Terminating {} old queries", queryJobList.size());
             // The sweep spans every tenant, but each row is acted on within its own: the update filters on the
-            // tenant, and killQuery relays the tenant of whoever the work is being done for.
+            // tenant, and the cancellation relays the tenant of whoever the work is being done for.
             queryJobList.forEach(queryJob -> tenantContextAccessor.runAs(queryJob.getTenantId(), () -> {
                 final String queryJobId = queryJob.getId();
                 log.info("Terminating query with ID: {}", queryJobId);
-                client.killQuery(queryJob.getNextPageUrl());
+                int status = client.cancelQuery(queryJob.getNextPageUrl(), Map.of());
+                log.info("Trino answered {} to the cancellation of query {}", status, queryJobId);
                 jdbi.useExtension(QueryJobDao.class,
                     dao -> dao.setFinishedAt(tenantContextAccessor.getTenantId(), Instant.now(), queryJobId));
             }));

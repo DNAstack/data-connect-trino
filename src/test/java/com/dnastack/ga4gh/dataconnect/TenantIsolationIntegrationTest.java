@@ -204,7 +204,7 @@ public class TenantIsolationIntegrationTest {
         lifecycleHandler.onTenantDeleted(deletedTenant);
 
         assertThat(queryJobIn(deletedTenant)).as("the deleted tenant's query job").isEmpty();
-        verify(trinoClient).killQuery(any());
+        verify(trinoClient).cancelQuery(anyString(), anyMap());
     }
 
     @Test

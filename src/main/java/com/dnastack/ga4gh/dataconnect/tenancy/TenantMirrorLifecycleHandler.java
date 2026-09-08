@@ -13,6 +13,7 @@ import org.jdbi.v3.core.Jdbi;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -57,7 +58,8 @@ public class TenantMirrorLifecycleHandler implements TenantLifecycleHandler {
             List<QueryJob> running = jdbi.withExtension(QueryJobDao.class, dao -> dao.getUnfinished(tenant));
             running.forEach(queryJob -> {
                 log.info("Terminating query {} of deleted tenant {}", queryJob.getId(), tenantId);
-                client.killQuery(queryJob.getNextPageUrl());
+                int status = client.cancelQuery(queryJob.getNextPageUrl(), Map.of());
+                log.info("Trino answered {} to the cancellation of query {}", status, queryJob.getId());
             });
 
             jdbi.useTransaction(handle -> {
