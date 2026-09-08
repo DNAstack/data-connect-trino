@@ -20,8 +20,8 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -61,17 +61,17 @@ public class DataConnectControllerMvcTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @SpyBean
+    @MockitoSpyBean
     private ClientSuppliedCredentialsReader clientSuppliedCredentialsReader;
 
-    @MockBean
+    @MockitoBean
     private TrinoDataConnectAdapter trinoDataConnectAdapter;
 
-    @MockBean
+    @MockitoBean
     private Jdbi jdbi; // Mock the JDBI instance if used
 
     // The request boundary asks this whether the request's tenant can be served, and it reads the mocked Jdbi.
-    @MockBean
+    @MockitoBean
     private TenantMirrorResolver tenantResolver;
 
 
