@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
  * addresses. Forbidden rather than bad request: the credential is well-formed and genuine, and it is the
  * authority it carries that the request is not entitled to.
  */
-public class RelayedTokenTenantMismatchException extends RuntimeException implements HasHttpStatus {
+public class RelayedTokenTenantMismatchException extends ClientSuppliedCredentialsException {
 
     public RelayedTokenTenantMismatchException(String message, Throwable cause) {
         super(message, cause);
