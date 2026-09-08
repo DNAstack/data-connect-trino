@@ -58,8 +58,15 @@ public class TenantMirrorLifecycleHandler implements TenantLifecycleHandler {
             List<QueryJob> running = jdbi.withExtension(QueryJobDao.class, dao -> dao.getUnfinished(tenant));
             running.forEach(queryJob -> {
                 log.info("Terminating query {} of deleted tenant {}", queryJob.getId(), tenantId);
-                int status = client.cancelQuery(queryJob.getNextPageUrl(), Map.of());
-                log.info("Trino answered {} to the cancellation of query {}", status, queryJob.getId());
+                try {
+                    int status = client.cancelQuery(queryJob.getNextPageUrl(), Map.of());
+                    log.info("Trino answered {} to the cancellation of query {}", status, queryJob.getId());
+                } catch (RuntimeException e) {
+                    // Terminating these queries is best effort; the purge the feed asked for is not. A query
+                    // Trino will not answer for is left to Trino's own timeout rather than kept on file here.
+                    log.warn("Could not terminate query {} of deleted tenant {}; purging it regardless",
+                            queryJob.getId(), tenantId, e);
+                }
             });
 
             jdbi.useTransaction(handle -> {
