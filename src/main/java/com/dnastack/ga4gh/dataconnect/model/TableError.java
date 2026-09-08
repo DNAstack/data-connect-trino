@@ -37,6 +37,9 @@ public class TableError {
             error.setTitle(throwable.getMessage());
         } else if (throwable instanceof InvalidQueryJobException invalidQueryJobException) {
             error.setTitle("The query corresponding to this search could not be found (" + invalidQueryJobException.getQueryJobId() + ")");
+        } else if (throwable instanceof ClientSuppliedCredentialsException) {
+            // Refused at the request boundary, so the message says what the caller has to change.
+            error.setTitle(throwable.getMessage());
         } else if (throwable instanceof QueryParsingException) {
             error.setTitle("Unable to parse query");
         } else if (throwable instanceof UncheckedIOException) {
