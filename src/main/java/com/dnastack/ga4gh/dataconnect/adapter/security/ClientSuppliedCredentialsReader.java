@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Reads the extra credentials a caller sends in the {@code GA4GH-Search-Authorization} header, holding the
@@ -18,7 +17,7 @@ import java.util.Optional;
  * after Trino has begun work on it.
  */
 @Component
-public class ClientSuppliedCredentials {
+public class ClientSuppliedCredentialsReader {
 
     /** The header these credentials arrive in, named in what a refusal tells the caller. */
     private static final String CREDENTIALS_HEADER = "GA4GH-Search-Authorization";
@@ -26,11 +25,11 @@ public class ClientSuppliedCredentials {
     private static final String USER_TOKEN_CREDENTIAL = "userToken";
 
     private final TenantContextAccessor tenantContextAccessor;
-    private final Optional<UserTokenTenancyValidator> userTokenTenancyValidator;
+    private final UserTokenTenancyValidator userTokenTenancyValidator;
 
-    public ClientSuppliedCredentials(
+    public ClientSuppliedCredentialsReader(
         TenantContextAccessor tenantContextAccessor,
-        Optional<UserTokenTenancyValidator> userTokenTenancyValidator
+        UserTokenTenancyValidator userTokenTenancyValidator
     ) {
         this.tenantContextAccessor = tenantContextAccessor;
         this.userTokenTenancyValidator = userTokenTenancyValidator;
@@ -65,8 +64,7 @@ public class ClientSuppliedCredentials {
 
         String userToken = credentials.get(USER_TOKEN_CREDENTIAL);
         if (userToken != null) {
-            userTokenTenancyValidator.ifPresent(validator ->
-                validator.validate(tenantContextAccessor.getTenantId(), userToken));
+            userTokenTenancyValidator.validate(tenantContextAccessor.getTenantId(), userToken);
         }
 
         return credentials;

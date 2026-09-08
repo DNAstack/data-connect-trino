@@ -10,7 +10,7 @@ import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorExcep
 import com.dnastack.ga4gh.dataconnect.model.TableData;
 import com.dnastack.ga4gh.dataconnect.model.TableInfo;
 import com.dnastack.ga4gh.dataconnect.model.TablesList;
-import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentials;
+import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentialsReader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -28,11 +28,11 @@ import java.util.List;
 public class TablesController {
 
     private final TrinoDataConnectAdapter trinoDataConnectAdapter;
-    private final ClientSuppliedCredentials clientSuppliedCredentialsReader;
+    private final ClientSuppliedCredentialsReader clientSuppliedCredentialsReader;
 
     @Autowired
     public TablesController(TrinoDataConnectAdapter trinoDataConnectAdapter,
-                            ClientSuppliedCredentials clientSuppliedCredentialsReader) {
+                            ClientSuppliedCredentialsReader clientSuppliedCredentialsReader) {
         this.trinoDataConnectAdapter = trinoDataConnectAdapter;
         this.clientSuppliedCredentialsReader = clientSuppliedCredentialsReader;
     }
