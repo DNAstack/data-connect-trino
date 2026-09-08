@@ -113,11 +113,6 @@ public class TrinoDataConnectAdapterTest {
         }
 
         @Override
-        public void killQuery(String nextPageUrl) {
-            log.info("Something called MockTrinoClient.killQuery({})", nextPageUrl);
-        }
-
-        @Override
         public int cancelQuery(String page, Map<String, String> extraCredentials) {
             log.info("Something called MockTrinoClient.cancelQuery({})", page);
             cancelledPages.add(page);
