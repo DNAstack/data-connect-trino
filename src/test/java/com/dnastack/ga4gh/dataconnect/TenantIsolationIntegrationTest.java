@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect;
 
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataPage;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoIOException;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
 import com.dnastack.ga4gh.dataconnect.tenancy.TenantMirrorLifecycleHandler;
@@ -24,6 +25,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,7 +33,6 @@ import java.util.UUID;
 import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.DatabaseProvider.ZONKY;
 import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.RefreshMode.AFTER_EACH_TEST_METHOD;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -58,8 +59,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("no-auth")
 public class TenantIsolationIntegrationTest {
 
-    /** A page as Trino would issue it for {@link #QUERY_ID}, relayed back by a caller. */
     private static final String QUERY_ID = "20260903_120000_00001_abcde";
+
+    /** A page as Trino would issue it for {@link #QUERY_ID}, relayed back by a caller. */
     private static final String PAGE = "v1/statement/executing/" + QUERY_ID + "/y5bb5cace5500a2cf109b1c50c648b009c40a142f/2";
 
     @Autowired
@@ -205,6 +207,21 @@ public class TenantIsolationIntegrationTest {
 
         assertThat(queryJobIn(deletedTenant)).as("the deleted tenant's query job").isEmpty();
         verify(trinoClient).cancelQuery(anyString(), anyMap());
+    }
+
+    @Test
+    public void tenantDeletion_should_purgeTheTenantsQueryJobs_when_trinoRefusesTheCancellation() {
+        // Terminating the tenant's running queries is best effort; the purge the change feed asked for is not.
+        UUID deletedTenant = enabledTenant();
+        queryJobOf(deletedTenant);
+        when(trinoClient.cancelQuery(anyString(), anyMap()))
+                .thenThrow(new TrinoIOException("Trino is unreachable", new IOException("connection refused")));
+
+        lifecycleHandler.onTenantDeleted(deletedTenant);
+
+        assertThat(queryJobIn(deletedTenant))
+                .as("the deleted tenant's query job, after a cancellation that could not be delivered")
+                .isEmpty();
     }
 
     @Test

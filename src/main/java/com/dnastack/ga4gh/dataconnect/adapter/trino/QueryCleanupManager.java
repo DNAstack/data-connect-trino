@@ -46,8 +46,15 @@ public class QueryCleanupManager {
             queryJobList.forEach(queryJob -> tenantContextAccessor.runAs(queryJob.getTenantId(), () -> {
                 final String queryJobId = queryJob.getId();
                 log.info("Terminating query with ID: {}", queryJobId);
-                int status = client.cancelQuery(queryJob.getNextPageUrl(), Map.of());
-                log.info("Trino answered {} to the cancellation of query {}", status, queryJobId);
+                try {
+                    int status = client.cancelQuery(queryJob.getNextPageUrl(), Map.of());
+                    log.info("Trino answered {} to the cancellation of query {}", status, queryJobId);
+                } catch (RuntimeException e) {
+                    // The sweep covers every tenant, so one query Trino will not answer for costs only that
+                    // query. It is left unfinished on purpose, for the next sweep to try again.
+                    log.warn("Could not terminate query {}; leaving it for the next sweep", queryJobId, e);
+                    return;
+                }
                 jdbi.useExtension(QueryJobDao.class,
                     dao -> dao.setFinishedAt(tenantContextAccessor.getTenantId(), Instant.now(), queryJobId));
             }));
