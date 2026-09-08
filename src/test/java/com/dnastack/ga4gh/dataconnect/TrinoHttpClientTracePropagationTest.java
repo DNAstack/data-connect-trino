@@ -122,7 +122,6 @@ public class TrinoHttpClientTracePropagationTest {
 
     /** The Trino client exactly as the application builds it. */
     private OkHttpClient trinoHttpClient() {
-        return new ApplicationConfig(null, "", Set.of(), trino.url("/").toString())
-            .httpClient(observationRegistry);
+        return new ApplicationConfig(null, "", Set.of()).httpClient(observationRegistry);
     }
 }
