@@ -198,6 +198,27 @@ public class DataConnectControllerMvcTest {
     }
 
     @Test
+    public void search_should_returnBadRequest_when_theCredentialsHeaderIsMalformed() throws Exception {
+        DataConnectRequest request = new DataConnectRequest();
+        request.setSqlQuery("SELECT 1");
+
+        ResultActions resultActions = mockMvc.perform(
+                post("/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+                        .header("GA4GH-Search-Authorization", "userToken")
+                        .accept(MediaType.APPLICATION_JSON));
+
+        resultActions
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors", hasSize(1)))
+                .andExpect(jsonPath("$.errors[0].status", equalTo(400)))
+                .andExpect(jsonPath("$.errors[0].title", Matchers.containsString("name=value")));
+
+        verify(trinoDataConnectAdapter, never()).search(any(), any(), any(), any());
+    }
+
+    @Test
     public void deleteSearchQuery_should_returnNotFound_when_theAdapterRejectsThePage() throws Exception {
         String page = "v1/statement/executing/20260902_203359_48519_fnmag/y5bb5cace5500a2cf109b1c50c648b009c40a142f/4";
         String queryJobId = "20260902_203359_48519_fnmag";

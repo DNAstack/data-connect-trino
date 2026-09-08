@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.security;
 
 import com.dnastack.auth.PermissionChecker;
 import com.dnastack.auth.exception.TenancyRequirementException;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.MalformedClientSuppliedCredentialsException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.RelayedTokenTenantMismatchException;
 import com.dnastack.tenancy.context.TenantContextAccessor;
 import com.dnastack.tenancy.context.TenantId;
@@ -17,6 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -116,5 +118,60 @@ public class ClientSuppliedCredentialsTest {
 
         assertThatThrownBy(() -> credentialsReader().parse(List.of("userToken=a.b.c")))
             .isInstanceOf(UncheckedIOException.class);
+    }
+
+    @Test
+    public void parse_should_throwBadRequest_when_aCredentialCarriesNoEquals() {
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("userToken")))
+            .isInstanceOf(MalformedClientSuppliedCredentialsException.class)
+            .extracting(e -> ((MalformedClientSuppliedCredentialsException) e).httpStatus())
+            .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    public void parse_should_notEchoTheCredential_when_itCarriesNoEquals() {
+        // The whole segment could be a bearer token the caller meant to name, so none of it is repeated back.
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("a.secret.token")))
+            .hasMessageNotContaining("a.secret.token");
+    }
+
+    @Test
+    public void parse_should_throwBadRequest_when_theSameCredentialIsSuppliedTwice() {
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("userToken=a.b.c", "userToken=d.e.f")))
+            .isInstanceOf(MalformedClientSuppliedCredentialsException.class)
+            .hasMessageContaining("userToken")
+            .extracting(e -> ((MalformedClientSuppliedCredentialsException) e).httpStatus())
+            .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    public void parse_should_notEchoEitherValue_when_theSameCredentialIsSuppliedTwice() {
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("userToken=a.b.c", "userToken=d.e.f")))
+            .hasMessageNotContaining("a.b.c")
+            .hasMessageNotContaining("d.e.f");
+    }
+
+    @Test
+    public void parse_should_checkNoUserToken_when_anotherCredentialIsMalformed() {
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("userToken=a.b.c", "somethingElse")))
+            .isInstanceOf(MalformedClientSuppliedCredentialsException.class);
+
+        verify(userTokenPermissionChecker, never()).checkTokenTenancy(any(), any());
+    }
+
+    @Test
+    public void parse_should_returnNoCredentials_when_theHeaderIsAbsent() {
+        assertThat(credentialsReader().parse(List.of()))
+            .as("the credentials read from an absent header")
+            .isEmpty();
+    }
+
+    @Test
+    public void parse_should_ignoreABlankEntry_when_theHeaderEndsInASeparator() {
+        // Spring splits the header on commas, so a trailing one yields a blank entry that names nothing. That is
+        // a lenient client rather than a malformed credential, so it is skipped rather than refused.
+        assertThat(credentialsReader().parse(List.of("userToken=a.b.c", " ")))
+            .as("the credentials read from a header with a trailing separator")
+            .containsExactly(entry("userToken", "a.b.c"));
     }
 }
