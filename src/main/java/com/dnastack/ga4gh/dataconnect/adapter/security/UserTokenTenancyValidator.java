@@ -31,10 +31,20 @@ import java.util.List;
 @Slf4j
 public class UserTokenTenancyValidator {
 
+    /** Absent where this deployment holds no relayed token to a tenant. See {@link #checkingNothing()}. */
     private final PermissionChecker userTokenPermissionChecker;
 
     UserTokenTenancyValidator(PermissionChecker userTokenPermissionChecker) {
         this.userTokenPermissionChecker = userTokenPermissionChecker;
+    }
+
+    /**
+     * A validator for a deployment with nothing to check: one whose authentication is not bearer tokens at all,
+     * or one that has named no audience for a relayed token. Callers hold a validator either way, so "there is
+     * nothing to check here" is stated once, here, rather than at every place one is used.
+     */
+    public static UserTokenTenancyValidator checkingNothing() {
+        return new UserTokenTenancyValidator(null);
     }
 
     /**
@@ -66,7 +76,7 @@ public class UserTokenTenancyValidator {
         if (userTokenIssuers.isEmpty()) {
             log.info("No app.auth.token-issuers[].user-token-audiences are configured, so a relayed userToken "
                 + "will not be held to the tenant of the request carrying it");
-            return new UserTokenTenancyValidator(null);
+            return checkingNothing();
         }
 
         log.info("A relayed userToken will be held to the tenant of the request carrying it, accepting the "

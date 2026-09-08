@@ -14,7 +14,6 @@ import java.io.UncheckedIOException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,14 +30,14 @@ import static org.mockito.Mockito.verify;
  * The request boundary for a caller's extra credentials: what it parses, and when it holds the relayed
  * {@code userToken} to the tenant of the request carrying it.
  */
-public class ClientSuppliedCredentialsTest {
+public class ClientSuppliedCredentialsReaderTest {
 
     private final TenantContextAccessor tenantContextAccessor = new TenantContextAccessor();
     private final PermissionChecker userTokenPermissionChecker = mock(PermissionChecker.class);
 
-    private ClientSuppliedCredentials credentialsReader() {
-        return new ClientSuppliedCredentials(tenantContextAccessor,
-            Optional.of(new UserTokenTenancyValidator(userTokenPermissionChecker)));
+    private ClientSuppliedCredentialsReader credentialsReader() {
+        return new ClientSuppliedCredentialsReader(tenantContextAccessor,
+            new UserTokenTenancyValidator(userTokenPermissionChecker));
     }
 
     @Test
@@ -76,13 +75,14 @@ public class ClientSuppliedCredentialsTest {
     }
 
     @Test
-    public void parse_should_checkNothing_when_noValidatorIsConfigured() {
-        // The bearer profiles host the validator; under basic and no-auth there is none to hold a token to.
+    public void parse_should_checkNothing_when_theValidatorHasNothingToCheck() {
+        // Basic auth, no auth, and a bearer deployment that has named no relayed-token audience all land here.
         Map<String, String> credentials =
-            new ClientSuppliedCredentials(tenantContextAccessor, Optional.empty())
+            new ClientSuppliedCredentialsReader(tenantContextAccessor, UserTokenTenancyValidator.checkingNothing())
                 .parse(List.of("userToken=a.b.c"));
 
-        assertThat(credentials).as("the credentials read without a validator").containsEntry("userToken", "a.b.c");
+        assertThat(credentials).as("the credentials read by a validator with nothing to check")
+            .containsEntry("userToken", "a.b.c");
         verify(userTokenPermissionChecker, never()).checkTokenTenancy(any(), any());
     }
 

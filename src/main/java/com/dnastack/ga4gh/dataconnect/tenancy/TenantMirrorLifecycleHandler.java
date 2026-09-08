@@ -36,16 +36,17 @@ public class TenantMirrorLifecycleHandler implements TenantLifecycleHandler {
 
     @Override
     public void onTenantEnabled(TenantSnapshot tenant) {
-        jdbi.useExtension(TenantMirrorDao.class,
-                dao -> dao.upsert(tenant.getId(), tenant.getName(), TenantStatus.ENABLED.name()));
-        log.info("Tenant [{}] mirrored as ENABLED", tenant.getId());
+        mirror(tenant, TenantStatus.ENABLED);
     }
 
     @Override
     public void onTenantDisabled(TenantSnapshot tenant) {
-        jdbi.useExtension(TenantMirrorDao.class,
-                dao -> dao.upsert(tenant.getId(), tenant.getName(), TenantStatus.DISABLED.name()));
-        log.info("Tenant [{}] mirrored as DISABLED", tenant.getId());
+        mirror(tenant, TenantStatus.DISABLED);
+    }
+
+    private void mirror(TenantSnapshot tenant, TenantStatus status) {
+        jdbi.useExtension(TenantMirrorDao.class, dao -> dao.upsert(tenant.getId(), tenant.getName(), status));
+        log.info("Tenant [{}] mirrored as {}", tenant.getId(), status);
     }
 
     @Override

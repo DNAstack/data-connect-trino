@@ -33,6 +33,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -124,6 +125,17 @@ public class ApplicationConfig {
                     .allowedMethods("*");
             }
         };
+    }
+
+    /**
+     * The validator for a deployment whose bearer-token configuration does not host one - basic auth, no auth, or
+     * scope-only evaluation. Every reader of the credentials header holds a validator, so the absence of anything
+     * to check is a validator that checks nothing rather than a validator that is not there.
+     */
+    @Bean
+    @ConditionalOnMissingBean(UserTokenTenancyValidator.class)
+    public UserTokenTenancyValidator userTokenTenancyValidatorCheckingNothing() {
+        return UserTokenTenancyValidator.checkingNothing();
     }
 
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'scope'")
