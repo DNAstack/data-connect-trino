@@ -1,5 +1,6 @@
 package com.dnastack.ga4gh.dataconnect.controller;
 
+import com.dnastack.tenancy.context.TenantIdentitySource;
 import org.junit.Test;
 
 import static com.dnastack.ga4gh.dataconnect.controller.DataConnectController.relayedPagePath;
@@ -19,6 +20,16 @@ public class DataConnectControllerTest {
         "v1/statement/executing/20260909_120000_00001_abcde/y5bb5cace5500a2cf109b1c50c648b009c40a142f/1";
 
     private static final String TENANT = "8e5f2a1c-0d3b-4e6a-9c7f-1b2d3e4f5a6b";
+
+    @Test
+    public void tenantPathVariable_should_beTheOneEveryMappingSpells() {
+        // Every tenant-scoped mapping in this service writes "/tenants/{tenantId}" out in full, so that the
+        // paths this service serves can be found by grepping for them. That spelling has to agree with the
+        // name the tenancy library reads the tenant out of, and nothing but this says so.
+        assertThat(TenantIdentitySource.TENANT_PATH_VARIABLE)
+            .as("the path variable the tenancy library resolves the request's tenant from")
+            .isEqualTo("tenantId");
+    }
 
     @Test
     public void relayedPagePath_should_readThePage_when_givenARequestUri() {

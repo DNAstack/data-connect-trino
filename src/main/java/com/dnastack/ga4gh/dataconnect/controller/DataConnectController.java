@@ -10,7 +10,6 @@ import com.dnastack.ga4gh.dataconnect.adapter.trino.DataConnectRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
 import com.dnastack.ga4gh.dataconnect.model.TableData;
-import com.dnastack.tenancy.context.TenantIdentitySource;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.core.IntervalFunction;
@@ -33,12 +32,6 @@ import java.util.function.Supplier;
 public class DataConnectController {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
-
-    /**
-     * The tenant-scoped form of every path here. The un-prefixed form is kept alongside it and resolves to the
-     * management tenant, so callers that predate tenancy keep working.
-     */
-    static final String TENANT_PREFIX = "/tenants/{" + TenantIdentitySource.TENANT_PATH_VARIABLE + "}";
 
     /** The segment that separates this service's own prefix from the page Trino issued. */
     private static final String SEARCH_SEGMENT = "/search/";
@@ -84,7 +77,7 @@ public class DataConnectController {
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
     @PreAuthorize("@accessEvaluator.canAccessTenantResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
-    @PostMapping(value = {"/search", TENANT_PREFIX + "/search"})
+    @PostMapping(value = {"/search", "/tenants/{tenantId}/search"})
     public TableData search(@RequestBody DataConnectRequest dataConnectRequest,
                             HttpServletRequest request,
                             @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
@@ -128,7 +121,7 @@ public class DataConnectController {
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
     @PreAuthorize("@accessEvaluator.canAccessTenantResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
-    @GetMapping(value = {"/search/**", TENANT_PREFIX + "/search/**"})
+    @GetMapping(value = {"/search/**", "/tenants/{tenantId}/search/**"})
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
                                               HttpServletRequest request,
                                               @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
@@ -178,7 +171,7 @@ public class DataConnectController {
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
     @PreAuthorize("@accessEvaluator.canAccessTenantResource('/search/', {'data-connect:query'}, {'data-connect:query'})")
-    @DeleteMapping(value = {"/search/**", TENANT_PREFIX + "/search/**"})
+    @DeleteMapping(value = {"/search/**", "/tenants/{tenantId}/search/**"})
     public ResponseEntity<?> deleteSearchQuery(@RequestParam("queryJobId") String queryJobId,
                                                HttpServletRequest request,
                                                @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {

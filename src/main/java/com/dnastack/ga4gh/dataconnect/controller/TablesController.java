@@ -40,7 +40,7 @@ public class TablesController {
     @AuditActionUri("data-connect:info")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessTenantResource('/tables', 'data-connect:info', 'data-connect:info')")
-    @GetMapping(value = {"/tables", DataConnectController.TENANT_PREFIX + "/tables"})
+    @GetMapping(value = {"/tables", "/tenants/{tenantId}/tables"})
     public ResponseEntity<TablesList> getTables(HttpServletRequest request,
                                                 @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
         TablesList tablesList;
@@ -64,7 +64,7 @@ public class TablesController {
     // endpoint's path. Changing it means changing policies in every environment.
     @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessTenantResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
     @GetMapping(value = {"/tables/catalog/{catalogName}/schema/{schemaName}",
-                         DataConnectController.TENANT_PREFIX + "/tables/catalog/{catalogName}/schema/{schemaName}"})
+                         "/tenants/{tenantId}/tables/catalog/{catalogName}/schema/{schemaName}"})
     public ResponseEntity<TablesList> getTablesByCatalogAndSchema(@PathVariable("catalogName") String catalogName,
                                                                   @PathVariable("schemaName") String schemaName,
                                                                   HttpServletRequest request,
@@ -87,7 +87,7 @@ public class TablesController {
     @AuditActionUri("data-connect:get-table-info")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessTenantResource('/table/' + #table_name + '/info', 'data-connect:info', 'data-connect:info')")
-    @GetMapping(value = {"/table/{table_name}/info", DataConnectController.TENANT_PREFIX + "/table/{table_name}/info"})
+    @GetMapping(value = {"/table/{table_name}/info", "/tenants/{tenantId}/table/{table_name}/info"})
     public TableInfo getTableInfo(@PathVariable("table_name") String tableName,
                                   HttpServletRequest request,
                                   @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
@@ -109,7 +109,7 @@ public class TablesController {
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
     @PreAuthorize("hasAuthority('SCOPE_data-connect:data') && @accessEvaluator.canAccessTenantResource('/table/' + #table_name + '/data', 'data-connect:data', 'data-connect:data')")
-    @GetMapping(value = {"/table/{table_name}/data", DataConnectController.TENANT_PREFIX + "/table/{table_name}/data"})
+    @GetMapping(value = {"/table/{table_name}/data", "/tenants/{tenantId}/table/{table_name}/data"})
     public TableData getTableData(@PathVariable("table_name") String tableName,
                                   HttpServletRequest request,
                                   @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
