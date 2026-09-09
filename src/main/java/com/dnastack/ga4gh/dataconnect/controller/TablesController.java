@@ -59,6 +59,9 @@ public class TablesController {
     // result's index. This endpoint is how a client jumps straight to one of them.
     @AuditActionUri("data-connect:get-tables-in-catalog")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
+    // The resource names a point in the logical space wallet policies are written against, which is shared with
+    // collection-service and outlives any one route: it stops at the catalog on purpose, and is not this
+    // endpoint's path. Changing it means changing policies in every environment.
     @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessTenantResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
     @GetMapping(value = {"/tables/catalog/{catalogName}/schema/{schemaName}",
                          DataConnectController.TENANT_PREFIX + "/tables/catalog/{catalogName}/schema/{schemaName}"})

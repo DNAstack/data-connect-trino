@@ -145,6 +145,9 @@ management:
 
 ---
 
+# This service is also the open-source GA4GH Data Connect reference implementation, so depending on DNAstack's
+# OAuth server is optional and everything that does so lives behind this profile. Not a dev/deployed split: the
+# values here are development defaults like those in the base document, and Helm overrides them per environment.
 spring:
   config:
     activate:
