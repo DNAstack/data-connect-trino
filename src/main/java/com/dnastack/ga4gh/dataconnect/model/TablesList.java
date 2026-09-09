@@ -40,8 +40,4 @@ public class TablesList {
         this.error = error;
         this.pagination = pagination;
     }
-
-    public static TablesList errorInstance(TableError tableError) {
-        return new TablesList(null, tableError, null);
-    }
 }
