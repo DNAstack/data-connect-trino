@@ -121,7 +121,7 @@ public class DataConnectController {
             );
             return tableDataSupplier.get();
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TableData::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
     }
@@ -142,7 +142,7 @@ public class DataConnectController {
             tableData = trinoDataConnectAdapter
                 .getNextSearchPage(page, queryJobId, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TableData::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
         if(log.isDebugEnabled()) {
@@ -192,7 +192,7 @@ public class DataConnectController {
             trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
             // Carries the status the exception asks for, and the error body a GET of the same page would return.
-            throw new TableApiErrorException(ex, TableData::errorInstance);
+            throw new TableApiErrorException(ex);
         }
         return ResponseEntity.noContent().build();
     }

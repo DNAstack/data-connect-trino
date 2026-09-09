@@ -27,14 +27,18 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.DatabaseProvider.ZONKY;
 import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.RefreshMode.AFTER_EACH_TEST_METHOD;
+import static java.util.stream.Collectors.toSet;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.*;
@@ -227,6 +231,61 @@ public class DataConnectControllerMvcTest {
         // The retry exhausted its attempts, so the header was there to be re-read four times over.
         verify(trinoDataConnectAdapter, times(4)).getNextSearchPage(anyString(), anyString(), any(), any());
         verify(clientSuppliedCredentialsReader, times(1)).parse(List.of("userToken=a.b.c"));
+    }
+
+    /**
+     * The three endpoint families return three different types on success, and used to answer three differently
+     * shaped error bodies to match. One shape now serves all of them, so these assert the same body from each.
+     */
+    @Test
+    public void anyEndpoint_should_answerTheSameShapedErrorBody() throws Exception {
+        when(trinoDataConnectAdapter.getTables(any(), any()))
+                .thenThrow(new InvalidQueryJobException("a-query-job"));
+        when(trinoDataConnectAdapter.getTableInfo(anyString(), any(), any()))
+                .thenThrow(new InvalidQueryJobException("a-query-job"));
+        doThrow(new InvalidQueryJobException("a-query-job"))
+                .when(trinoDataConnectAdapter).deleteQueryJob(anyString(), anyString(), any());
+
+        Set<String> tablesShape = errorBodyShapeOf(get("/tables"));
+        Set<String> tableInfoShape = errorBodyShapeOf(get("/table/{name}/info", "a_table"));
+        Set<String> searchShape = errorBodyShapeOf(
+                delete("/search/v1/statement/executing/a-query-job/slug/1").param("queryJobId", "a-query-job"));
+
+        assertThat(tablesShape)
+                .as("the error body of an endpoint returning TablesList, against one returning TableInfo")
+                .isEqualTo(tableInfoShape);
+        assertThat(searchShape)
+                .as("the error body of an endpoint returning TableData, against one returning TableInfo")
+                .isEqualTo(tableInfoShape);
+    }
+
+    @Test
+    public void anyEndpoint_should_answerAnErrorBodyOfNothingButTheErrors() throws Exception {
+        when(trinoDataConnectAdapter.getTables(any(), any()))
+                .thenThrow(new InvalidQueryJobException("a-query-job"));
+
+        mockMvc.perform(get("/tables").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errors", hasSize(1)))
+                .andExpect(jsonPath("$.errors[0].status", equalTo(404)))
+                // Nothing the endpoint's success type would have carried, and nothing deprecated.
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.error").doesNotExist())
+                .andExpect(jsonPath("$.tables").doesNotExist())
+                .andExpect(jsonPath("$.pagination").doesNotExist());
+    }
+
+    /**
+     * The top-level fields of an error body. Compared rather than the body itself, because the trace id the
+     * advice folds into every error's details differs between two requests.
+     */
+    private Set<String> errorBodyShapeOf(MockHttpServletRequestBuilder request) throws Exception {
+        String body = mockMvc.perform(request.accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(body).properties().stream().map(Map.Entry::getKey).collect(toSet());
     }
 
     @Test

@@ -49,7 +49,7 @@ public class TablesController {
             tablesList = trinoDataConnectAdapter
                 .getTables(request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TablesList::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
         return ResponseEntity.ok().headers(getExtraAuthHeaders(tablesList)).body(tablesList);
@@ -75,7 +75,7 @@ public class TablesController {
             // The catalog and schema, which the advice that reports this failure does not have. It decides the
             // severity and carries the stack trace, so neither is repeated here.
             log.info("Could not get tables for catalog {} and schema {}", catalogName, schemaName);
-            throw new TableApiErrorException(ex, TablesList::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
         return ResponseEntity.ok().headers(getExtraAuthHeaders(tablesList)).body(tablesList);
@@ -96,7 +96,7 @@ public class TablesController {
             tableInfo = trinoDataConnectAdapter
                 .getTableInfo(tableName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TableInfo::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
         return tableInfo;
@@ -117,7 +117,7 @@ public class TablesController {
             tableData = trinoDataConnectAdapter
                 .getTableData(tableName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TableData::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
         return tableData;
