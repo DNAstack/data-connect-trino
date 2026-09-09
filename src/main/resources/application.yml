@@ -51,6 +51,9 @@ app:
   query-cleanup:
     cron-interval: "*/10 * * ? * *" # Every 10 seconds
     timeout-in-seconds: 120
+    # A query that will not cancel is retried every sweep until it has been idle this long, then written off.
+    # Must exceed timeout-in-seconds: both are measured from the query's last activity.
+    give-up-after-seconds: 900 # 15 minutes
   query-job-cleanup:
     cron-interval: "0 0 1 * * ?" # Every day at 1am
     deletion-timeout-in-days: 7
