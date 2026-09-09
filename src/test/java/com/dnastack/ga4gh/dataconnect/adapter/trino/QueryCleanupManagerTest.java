@@ -17,7 +17,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 
@@ -57,15 +57,23 @@ public class QueryCleanupManagerTest {
     @MockitoBean
     private TrinoClient trinoClient;
 
-    /** A query abandoned long enough ago that the sweep will pick it up. */
+    /**
+     * A query idle long enough for the sweep to pick it up, but not long enough for it to give up on: it is
+     * still worth asking Trino about, so a refusal leaves it for the next sweep.
+     */
     private void abandonedQueryJob(String queryJobId, String nextPageUrl) {
-        Instant longAgo = Instant.now().minus(30, ChronoUnit.DAYS);
+        abandonedQueryJob(queryJobId, nextPageUrl, Duration.ofMinutes(5));
+    }
+
+    /** A query whose last activity was {@code idleFor} ago. */
+    private void abandonedQueryJob(String queryJobId, String nextPageUrl, Duration idleFor) {
+        Instant lastActivity = Instant.now().minus(idleFor);
         jdbi.useExtension(QueryJobDao.class, dao -> dao.create(QueryJob.builder()
                 .id(queryJobId)
                 .tenantId(TenantId.MANAGEMENT.getValue())
                 .query("SELECT 1")
-                .startedAt(longAgo)
-                .lastActivityAt(longAgo)
+                .startedAt(lastActivity)
+                .lastActivityAt(lastActivity)
                 .nextPageUrl(nextPageUrl)
                 .build()));
     }
@@ -114,6 +122,66 @@ public class QueryCleanupManagerTest {
         assertThat(queryJob("query-unreachable")).get()
                 .extracting(QueryJob::getFinishedAt)
                 .as("the query Trino would not answer for")
+                .isNull();
+    }
+
+    @Test
+    public void terminateOldQueries_should_markAQueryFinished_when_trinoDoesNotRecognizeItsPage() {
+        // The page relayed here is the one Trino handed back and this service stored, so Trino not knowing it
+        // means the query has already ended. Asking again would 404 for as long as the row lives.
+        abandonedQueryJob("query-already-over", REACHABLE_PAGE);
+        when(trinoClient.cancelQuery(eq(REACHABLE_PAGE), anyMap())).thenReturn(404);
+
+        queryCleanupManager.terminateOldQueries();
+
+        assertThat(queryJob("query-already-over")).get()
+                .extracting(QueryJob::getFinishedAt)
+                .as("a query Trino no longer knows about")
+                .isNotNull();
+    }
+
+    @Test
+    public void terminateOldQueries_shouldNot_markAQueryFinished_when_trinoRefusesTheCancellation() {
+        // Trino answers, but not with a cancellation: the query may well still be running, so the row stays
+        // open for the next sweep rather than being recorded as something it is not.
+        abandonedQueryJob("query-refused", UNREACHABLE_PAGE);
+        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap())).thenReturn(503);
+
+        queryCleanupManager.terminateOldQueries();
+
+        assertThat(queryJob("query-refused")).get()
+                .extracting(QueryJob::getFinishedAt)
+                .as("a query whose cancellation Trino refused")
+                .isNull();
+    }
+
+    @Test
+    public void terminateOldQueries_should_markAQueryFinished_when_itHasResistedCancellationPastTheGiveUpTimeout() {
+        // Without this, a query Trino will never cancel is retried every sweep until the row is purged days
+        // later. Trino ages its own queries out, so writing it off here concedes little.
+        abandonedQueryJob("query-zombie", UNREACHABLE_PAGE, Duration.ofMinutes(20));
+        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap()))
+                .thenThrow(new TrinoIOException("Trino is unreachable", new IOException("connection refused")));
+
+        queryCleanupManager.terminateOldQueries();
+
+        assertThat(queryJob("query-zombie")).get()
+                .extracting(QueryJob::getFinishedAt)
+                .as("a query still resisting cancellation past the give-up timeout")
+                .isNotNull();
+    }
+
+    @Test
+    public void terminateOldQueries_should_keepAskingAboutAQueryUntilTheGiveUpTimeout() {
+        abandonedQueryJob("query-recently-idle", UNREACHABLE_PAGE, Duration.ofMinutes(5));
+        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap()))
+                .thenThrow(new TrinoIOException("Trino is unreachable", new IOException("connection refused")));
+
+        queryCleanupManager.terminateOldQueries();
+
+        assertThat(queryJob("query-recently-idle")).get()
+                .extracting(QueryJob::getFinishedAt)
+                .as("a query that has not yet been idle long enough to write off")
                 .isNull();
     }
 
