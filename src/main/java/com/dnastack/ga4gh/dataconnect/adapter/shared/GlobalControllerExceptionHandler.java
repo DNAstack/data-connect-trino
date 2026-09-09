@@ -5,6 +5,7 @@ import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorExcep
 import com.dnastack.ga4gh.dataconnect.model.TableError;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -31,7 +32,13 @@ public class GlobalControllerExceptionHandler {
     public ResponseEntity<?> handleTableApiErrorException(TableApiErrorException throwable) {
         String traceId = tracer.currentSpan().context().traceId();
         TableError error = TableError.fromThrowable(throwable.getCause(), null);
-        log.error("Generating response with error that escaped controller: {}", error, throwable);
+        if (isClientError(error)) {
+            // The fault is in the request, so there is no stack trace here worth reading, and nothing for an
+            // error dashboard to count: a caller sending a bad request is this service working as intended.
+            log.info("Answering {} to a request this service will not serve: {}", error.getStatus(), error);
+        } else {
+            log.error("Generating response with error that escaped controller: {}", error, throwable);
+        }
 
         if (traceId != null) {
             error.setDetails(traceId + ": " + error.getDetails());
@@ -41,6 +48,12 @@ public class GlobalControllerExceptionHandler {
 
         return ResponseEntity.status(error.getStatus())
             .body(body);
+    }
+
+    /** Whether the status blames the caller rather than this service. */
+    private static boolean isClientError(TableError error) {
+        return HttpStatus.resolve(error.getStatus()) != null
+            && HttpStatus.valueOf(error.getStatus()).is4xxClientError();
     }
 
     private static String escapeQuotes(String s) {

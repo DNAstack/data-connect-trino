@@ -72,7 +72,9 @@ public class TablesController {
             tablesList = trinoDataConnectAdapter
                     .getTablesByCatalogAndSchema(catalogName, schemaName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            log.error("Error getting tables for catalog {} and schema {}", catalogName, schemaName, ex);
+            // The catalog and schema, which the advice that reports this failure does not have. It decides the
+            // severity and carries the stack trace, so neither is repeated here.
+            log.info("Could not get tables for catalog {} and schema {}", catalogName, schemaName);
             throw new TableApiErrorException(ex, TablesList::errorInstance);
         }
 
