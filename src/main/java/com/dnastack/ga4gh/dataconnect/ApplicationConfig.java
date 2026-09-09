@@ -29,7 +29,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -56,6 +55,14 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @EnableWebSecurity
 @Configuration
 public class ApplicationConfig {
+
+    /**
+     * The deployments that host a real {@link UserTokenTenancyValidator}: bearer tokens judged against wallet
+     * policy. Stated once, so the validator that checks nothing can be conditioned on precisely its negation and
+     * the two cannot drift into overlapping or leaving a gap.
+     */
+    private static final String WALLET_BEARER_AUTH =
+        "'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'wallet'";
 
 
     @Getter
@@ -123,9 +130,13 @@ public class ApplicationConfig {
      * The validator for a deployment whose bearer-token configuration does not host one - basic auth, no auth, or
      * scope-only evaluation. Every reader of the credentials header holds a validator, so the absence of anything
      * to check is a validator that checks nothing rather than a validator that is not there.
+     * <p>
+     * Conditioned on the exact negation of {@link #WALLET_BEARER_AUTH} rather than on the real validator being
+     * missing: {@code @ConditionalOnMissingBean} answers from the beans registered so far, which on a plain
+     * {@code @Configuration} makes it a question about definition order.
      */
     @Bean
-    @ConditionalOnMissingBean(UserTokenTenancyValidator.class)
+    @ConditionalOnExpression("!(" + WALLET_BEARER_AUTH + ")")
     public UserTokenTenancyValidator userTokenTenancyValidatorCheckingNothing() {
         return UserTokenTenancyValidator.checkingNothing();
     }
@@ -187,7 +198,7 @@ public class ApplicationConfig {
     }
 
     @ConditionalOnClass(name = { "com.dnastack.auth.PermissionChecker", "com.dnastack.auth.model.IssuerInfo" })
-    @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'wallet'")
+    @ConditionalOnExpression(WALLET_BEARER_AUTH)
     @Configuration
     protected static class WalletJwtSecurityConfig {
 
