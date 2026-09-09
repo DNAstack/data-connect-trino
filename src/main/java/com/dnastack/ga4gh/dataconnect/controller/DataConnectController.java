@@ -27,8 +27,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @RestController
 @Slf4j
@@ -42,8 +40,8 @@ public class DataConnectController {
      */
     static final String TENANT_PREFIX = "/tenants/{" + TenantIdentitySource.TENANT_PATH_VARIABLE + "}";
 
-    /** What follows this service's own prefix on a /search/** path: the page Trino issued. */
-    private static final Pattern RELAYED_PAGE = Pattern.compile("^(?:/tenants/[^/]+)?/search/(.+)$");
+    /** The segment that separates this service's own prefix from the page Trino issued. */
+    private static final String SEARCH_SEGMENT = "/search/";
 
     private final TrinoDataConnectAdapter trinoDataConnectAdapter;
     private final ClientSuppliedCredentialsReader clientSuppliedCredentialsReader;
@@ -108,7 +106,7 @@ public class DataConnectController {
                     @Override
                     public TableData get() {
                         TableData nextSearchPage = trinoDataConnectAdapter.getNextSearchPage(
-                            relayedPagePath(previousPage.getPagination().getNextPageUrl().getPath(), request.getContextPath()),
+                            relayedPagePath(previousPage.getPagination().getNextPageUrl().getPath()),
                             previousPage.getQueryJob().getId(),
                             request,
                             extraCredentials);
@@ -134,7 +132,7 @@ public class DataConnectController {
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
                                               HttpServletRequest request,
                                               @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
-        String page = relayedPagePath(request.getRequestURI(), request.getContextPath());
+        String page = relayedPagePath(request.getRequestURI());
         log.debug("Request: /search/** page= {}", page);
         TableData tableData;
 
@@ -186,7 +184,7 @@ public class DataConnectController {
                                                @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
         // A request that names no page at all leaves the page empty, which the adapter rejects like any other
         // page that does not belong to this query job.
-        String page = relayedPagePath(request.getRequestURI(), request.getContextPath());
+        String page = relayedPagePath(request.getRequestURI());
         log.info("Terminating query with ID: {}", queryJobId);
         try {
             trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
@@ -198,15 +196,20 @@ public class DataConnectController {
     }
 
     /**
-     * The Trino page a {@code /search/**} path addresses, which is everything after this service's own prefix:
-     * the context path, the optional {@code /tenants/{tenantId}} segment, and {@code /search/}.
+     * The Trino page a {@code /search/**} path addresses, which is everything after this service's own prefix.
+     * <p>
+     * That prefix is skipped rather than matched, because the two kinds of path this is asked about spell it
+     * differently. A request URI reaches the servlet with any proxy prefix already stripped, so it carries only
+     * the context path and the optional {@code /tenants/{tenantId}} segment pair. The path of a page URL this
+     * service generated carries {@code X-Forwarded-Prefix} put back on, ahead of both. What the two have in
+     * common is the {@code /search/} that ends the prefix and begins the page, and a Trino page holds no
+     * segment of its own by that name.
      *
-     * @param path        an absolute path on this service, either a request URI or the path of a page URL it generated
-     * @param contextPath the servlet context path the service is mounted under, possibly empty
+     * @param path an absolute path on this service, either a request URI or the path of a page URL it generated
      * @return the page path, or an empty string if the given path addresses no page
      */
-    static String relayedPagePath(String path, String contextPath) {
-        Matcher matcher = RELAYED_PAGE.matcher(path.substring(contextPath.length()));
-        return matcher.matches() ? matcher.group(1) : "";
+    static String relayedPagePath(String path) {
+        int endOfPrefix = path.lastIndexOf(SEARCH_SEGMENT);
+        return endOfPrefix < 0 ? "" : path.substring(endOfPrefix + SEARCH_SEGMENT.length());
     }
 }

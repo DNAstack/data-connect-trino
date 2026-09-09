@@ -342,6 +342,39 @@ public class DataConnectControllerMvcTest {
     }
 
     @Test
+    public void search_should_relayTheBarePageToTrino_when_theCallerReachedThisServiceThroughAProxyPrefix() throws Exception {
+        // The fast path re-reads the nextPageUrl this service generated, and that URL carries
+        // X-Forwarded-Prefix. What Trino is offered is the page alone, with none of this service's prefix on it.
+        String page = "v1/statement/executing/test-job-123/y5bb5cace5500a2cf109b1c50c648b009c40a142f/1";
+        DataConnectRequest request = new DataConnectRequest();
+        request.setSqlQuery("SELECT * FROM test_table");
+        TableData queuedPage = new TableData(
+                DataModel.builder().ref("http://example.com/ref").build(),
+                new ArrayList<>(),
+                null,
+                new Pagination(null,
+                        URI.create("https://publisher.example.com/api/data-connect/search/" + page
+                                + "?queryJobId=test-job-123"),
+                        null),
+                QueryJob.builder().id("test-job-123").build());
+        when(trinoDataConnectAdapter.search(anyString(), any(), any(), any())).thenReturn(queuedPage);
+        when(trinoDataConnectAdapter.getNextSearchPage(anyString(), anyString(), any(), any()))
+                .thenReturn(queuedPage);
+
+        mockMvc.perform(post("/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .header("X-Forwarded-Proto", "https")
+                        .header("X-Forwarded-Host", "publisher.example.com")
+                        .header("X-Forwarded-Prefix", "/api/data-connect")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(trinoDataConnectAdapter, atLeastOnce())
+                .getNextSearchPage(eq(page), eq("test-job-123"), any(), any());
+    }
+
+    @Test
     public void search_should_retryCallsToTrinoUntilDataIsReturned() throws Exception {
         // Prepare test data
         String testQuery = "SELECT * FROM test_table";
