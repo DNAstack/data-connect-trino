@@ -61,8 +61,4 @@ public class TableData {
         }
         this.pagination = tableData.getPagination();
     }
-
-    public static TableData errorInstance(TableError error) {
-        return new TableData(null, null, List.of(error), null,null);
-    }
 }

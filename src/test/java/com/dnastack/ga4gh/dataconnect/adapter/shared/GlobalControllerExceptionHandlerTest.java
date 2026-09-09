@@ -8,7 +8,6 @@ import ch.qos.logback.core.read.ListAppender;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.MalformedClientSuppliedCredentialsException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
-import com.dnastack.ga4gh.dataconnect.model.TableData;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
@@ -68,7 +67,7 @@ public class GlobalControllerExceptionHandlerTest {
     }
 
     private void handle(Throwable cause) {
-        handler().handleTableApiErrorException(new TableApiErrorException(cause, TableData::errorInstance));
+        handler().handleTableApiErrorException(new TableApiErrorException(cause));
     }
 
     @Test
@@ -134,8 +133,7 @@ public class GlobalControllerExceptionHandlerTest {
     public void handleTableApiErrorException_should_answerTheStatusTheErrorCarries() {
         assertThat(handler()
             .handleTableApiErrorException(new TableApiErrorException(
-                new MalformedClientSuppliedCredentialsException("not of the form name=value"),
-                TableData::errorInstance))
+                new MalformedClientSuppliedCredentialsException("not of the form name=value")))
             .getStatusCode()
             .value())
             .as("the status answered for a malformed credentials header")

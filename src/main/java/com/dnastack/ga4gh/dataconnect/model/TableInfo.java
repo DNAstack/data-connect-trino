@@ -32,8 +32,4 @@ public class TableInfo implements Comparable<TableInfo> {
     public int compareTo(TableInfo o) {
         return this.name.compareTo(o.name);
     }
-
-    public static TableInfo errorInstance(TableError error) {
-        return new TableInfo(null, null, null, List.of(error));
-    }
 }

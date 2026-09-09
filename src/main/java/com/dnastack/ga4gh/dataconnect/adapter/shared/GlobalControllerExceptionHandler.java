@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.shared;
 
 import io.micrometer.tracing.Tracer;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
+import com.dnastack.ga4gh.dataconnect.model.DataConnectErrorResponse;
 import com.dnastack.ga4gh.dataconnect.model.TableError;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,10 +45,8 @@ public class GlobalControllerExceptionHandler {
             error.setDetails(traceId + ": " + error.getDetails());
         }
 
-        Object body = throwable.getResponseBodyGenerator().apply(error);
-
         return ResponseEntity.status(error.getStatus())
-            .body(body);
+            .body(DataConnectErrorResponse.of(error));
     }
 
     /** Whether the status blames the caller rather than this service. */
