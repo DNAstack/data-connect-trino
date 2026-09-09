@@ -260,7 +260,6 @@ public class ApplicationConfig {
                 .toList();
         }
 
-        @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer'")
         @Bean
         public PermissionChecker permissionChecker(
             List<IssuerInfo> allowedIssuers,
@@ -270,11 +269,10 @@ public class ApplicationConfig {
             ObservationRegistry observationRegistry,
             ConnectionPool tokenValidatorConnectionPool
         ) {
-            String policyEvaluationUrl = stripTrailingSlashes(walletUrl) + "/policies/evaluations";
-            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester, policyEvaluationUrl, observationRegistry, tokenValidatorConnectionPool, tenancyEnforcement);
+            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester,
+                policyEvaluationUrl(walletUrl), observationRegistry, tokenValidatorConnectionPool, tenancyEnforcement);
         }
 
-        @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer'")
         @Bean
         public UserTokenTenancyValidator userTokenTenancyValidator(
             AuthConfig authConfig,
@@ -285,10 +283,14 @@ public class ApplicationConfig {
             ObservationRegistry observationRegistry,
             ConnectionPool tokenValidatorConnectionPool
         ) {
-            String policyEvaluationUrl = stripTrailingSlashes(walletUrl) + "/policies/evaluations";
             return UserTokenTenancyValidator.create(authConfig.getTokenIssuers(), allowedIssuers,
-                policyEvaluationRequester, policyEvaluationUrl, tenancyEnforcement, observationRegistry,
+                policyEvaluationRequester, policyEvaluationUrl(walletUrl), tenancyEnforcement, observationRegistry,
                 tokenValidatorConnectionPool);
+        }
+
+        /** Where wallet evaluates a policy, derived from the issuer this deployment was configured with. */
+        private String policyEvaluationUrl(String walletUrl) {
+            return stripTrailingSlashes(walletUrl) + "/policies/evaluations";
         }
 
         private String stripTrailingSlashes(String url) {
