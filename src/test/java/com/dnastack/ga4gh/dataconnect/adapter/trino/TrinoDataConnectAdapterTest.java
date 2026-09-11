@@ -78,7 +78,10 @@ public class TrinoDataConnectAdapterTest {
 
         private Iterator<String> responsePageIterator;
 
-        /** The status cancelQuery reports; tests set it to make Trino accept or reject the page. */
+        /**
+         * The cancelQuery() mock returns this status (default NO_CONTENT means success). Tests may alter this value
+         * to simulate failure or rejection.
+         */
         int cancelQueryStatus = HttpStatus.NO_CONTENT.value();
 
         /** The pages cancelQuery was asked to cancel, in call order. */

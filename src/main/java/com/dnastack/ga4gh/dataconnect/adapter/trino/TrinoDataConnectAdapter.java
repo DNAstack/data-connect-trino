@@ -302,11 +302,14 @@ public class TrinoDataConnectAdapter {
     public void deleteQueryJob(String page, String queryJobId, Map<String, String> extraCredentials) {
         // Sanity-check that the queryJobId matches the query we are terminating
         if (!page.contains(queryJobId)) {
-            log.info("Page {} offered to cancel query job {} belongs to another query", page, queryJobId);
+            log.info("deleteQueryJob rejecting args: queryJobId {} does not match page {}", queryJobId, page);
             throw new InvalidQueryJobException(queryJobId);
         }
 
-        // Throws an appropriate exception if queryJobId is unknown to us (prevents the call to trino)
+        // Throws if this query job is unknown to us, so nothing below it runs: not the call to Trino, and not the
+        // bookkeeping update at the end. This is a lookup of our own records, not a security check -- the queryJobId
+        // is guessable; Trino's random slug in the page path is not. Cancelling a query is therefore exactly as hard as
+        // reading its next page: both come down to holding a page path Trino issued.
         getQueryJob(queryJobId);
 
         int trinoStatus = client.cancelQuery(page, extraCredentials);
