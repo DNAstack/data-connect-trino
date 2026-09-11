@@ -807,18 +807,27 @@ class DataConnectE2eTest extends BaseE2eTest {
         Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
         String nextPageUrl = result.getPagination().getNextPageUrl().toString();
 
-        // Trino issues each page under a slug of its own, so a page with the slug altered is one it never issued,
-        // which is the best a caller who knows only the query job id can construct. The query id stays as it is,
-        // both in the path and in the queryJobId parameter, so the request gets as far as Trino.
-        String[] pathSegments = nextPageUrl.split("/");
-        String slug = pathSegments[pathSegments.length - 2];
-        char lastCharOfSlug = slug.charAt(slug.length() - 1);
-        String forgedSlug = slug.substring(0, slug.length() - 1) + (lastCharOfSlug == '0' ? '1' : '0');
-        String forgedPageUrl = nextPageUrl.replace(slug, forgedSlug);
-        assertThat(forgedPageUrl).as("forged page URL").isNotEqualTo(nextPageUrl);
+        String forgedPageUrl = forgePageSlug(nextPageUrl);
 
         log.info("Sending a DELETE request to a page Trino never issued, then asserting the query still runs");
         sendDeleteRequest(forgedPageUrl, 404);
+
+        result = dataConnectApiGetRequest(nextPageUrl, 200, Table.class);
+        assertThat(result.getErrors()).as("errors from the still-running query's next page").isNullOrEmpty();
+    }
+
+    @Test
+    void getNextPageUrl_should_rejectAPageTrinoDidNotIssue() throws IOException {
+        DataConnectRequest query =
+                new DataConnectRequest("SELECT * FROM " + tables().queryTermination().qualifiedName());
+        log.info("Running query {} so there is a live query whose results we can try to read", query);
+        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
+        String nextPageUrl = result.getPagination().getNextPageUrl().toString();
+        String forgedPageUrl = forgePageSlug(nextPageUrl);
+
+        log.info("Sending a GET request to a page Trino never issued, then asserting no rows come back");
+        Table forgedPage = dataConnectApiGetRequest(forgedPageUrl, 502, Table.class);
+        assertThat(forgedPage.getData()).as("rows returned for a page Trino never issued").isNullOrEmpty();
 
         result = dataConnectApiGetRequest(nextPageUrl, 200, Table.class);
         assertThat(result.getErrors()).as("errors from the still-running query's next page").isNullOrEmpty();
@@ -837,6 +846,21 @@ class DataConnectE2eTest extends BaseE2eTest {
         result = dataConnectApiGetRequest(nextPageUrl, 400, Table.class);
         assertThat(result.getErrors()).as("errors from the cancelled query's next page").hasSize(1);
         assertThat(result.getErrors().getFirst().getDetails().toLowerCase()).as("error detail from the cancelled query's next page").contains("canceled"); // Trino uses the american spelling
+    }
+
+    /**
+     * Returns {@code nextPageUrl} with the slug Trino issued it under replaced by one Trino never issued. The query
+     * id stays as it is, both in the path and in the queryJobId parameter, so a request to the returned URL gets as
+     * far as Trino: it is the best a caller who knows only the query job id can construct.
+     */
+    private static String forgePageSlug(String nextPageUrl) {
+        String[] pathSegments = nextPageUrl.split("/");
+        String slug = pathSegments[pathSegments.length - 2];
+        char lastCharOfSlug = slug.charAt(slug.length() - 1);
+        String forgedSlug = slug.substring(0, slug.length() - 1) + (lastCharOfSlug == '0' ? '1' : '0');
+        String forgedPageUrl = nextPageUrl.replace(slug, forgedSlug);
+        assertThat(forgedPageUrl).as("forged page URL").isNotEqualTo(nextPageUrl);
+        return forgedPageUrl;
     }
 
     private Table executeSearchQueryOnVariedTypes() throws Exception {
