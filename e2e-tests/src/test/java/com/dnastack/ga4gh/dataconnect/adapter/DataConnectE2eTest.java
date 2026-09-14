@@ -834,6 +834,23 @@ class DataConnectE2eTest extends BaseE2eTest {
     }
 
     @Test
+    void deleteNextPageUrl_should_rejectTheTrinoManagementPath() throws IOException {
+        DataConnectRequest query =
+                new DataConnectRequest("SELECT * FROM " + tables().queryTermination().qualifiedName());
+        log.info("Running query {} so there is a live query to try to cancel by its id alone", query);
+        Table result = dataConnectApiRequest(Method.POST, "/search", query, 200, Table.class);
+        String nextPageUrl = result.getPagination().getNextPageUrl().toString();
+
+        String managementPathUrl = managementPathUrl(nextPageUrl);
+
+        log.info("Sending a DELETE to Trino's management path, then asserting the query still runs");
+        sendDeleteRequest(managementPathUrl, 404);
+
+        result = dataConnectApiGetRequest(nextPageUrl, 200, Table.class);
+        assertThat(result.getErrors()).as("errors from the still-running query's next page").isNullOrEmpty();
+    }
+
+    @Test
     void deleteNextPageUrl_should_terminateQuery() throws IOException {
         DataConnectRequest query =
                 new DataConnectRequest("SELECT * FROM " + tables().queryTermination().qualifiedName());
@@ -861,6 +878,17 @@ class DataConnectE2eTest extends BaseE2eTest {
         String forgedPageUrl = nextPageUrl.replace(slug, forgedSlug);
         assertThat(forgedPageUrl).as("forged page URL").isNotEqualTo(nextPageUrl);
         return forgedPageUrl;
+    }
+
+    /**
+     * Returns the URL of Trino's management path {@code /v1/query/<queryId>} for the same query as {@code nextPageUrl},
+     * carried under this service's {@code /search/} relay. It names the query by its (guessable) id alone, with no
+     * slug -- the path a caller reaches for to act on a query it cannot produce a page URL for.
+     */
+    private static String managementPathUrl(String nextPageUrl) {
+        String queryJobId = nextPageUrl.replaceFirst(".*[?&]queryJobId=([^&]+).*", "$1");
+        String relayBase = nextPageUrl.substring(0, nextPageUrl.indexOf("/search/") + "/search/".length());
+        return relayBase + "v1/query/" + queryJobId + "?queryJobId=" + queryJobId;
     }
 
     private Table executeSearchQueryOnVariedTypes() throws Exception {

@@ -245,6 +245,26 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
+    public void deleteQueryJob_shouldNot_askTrinoToCancel_when_thePageIsTheManagementApiPath() {
+        currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
+        // Trino's management path cancels a query from its id alone, with no per-page slug. Its id segment matches, so
+        // a bare substring check would relay it; but it is not a page Trino issued for this query, so it is refused.
+        String managementPath = "v1/query/" + currentQueryJob.getId();
+
+        try {
+            dataConnectAdapter.deleteQueryJob(managementPath, currentQueryJob.getId(), Map.of());
+            fail("Expected the Trino management path to fail the cancellation");
+        } catch (InvalidQueryJobException expected) {
+            assertThat(expected.getQueryJobId(), equalTo(currentQueryJob.getId()));
+        }
+
+        assertThat("Trino is not asked to cancel via its management path",
+                mockTrinoClient.cancelledPages, Matchers.empty());
+        verify(queryJobDao, never()).setQueryFinishedAndLastActivityTime(any());
+    }
+
+
+    @Test
     public void deleteQueryJob_shouldNot_askTrinoToCancel_when_noPageIsNamed() {
         currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
 
