@@ -267,6 +267,26 @@ public class TrinoDataConnectAdapter {
         return toTableData(response, queryJob, request);
     }
 
+    /**
+     * Whether {@code page} is one of query {@code queryJobId}'s own result pages -- a path under Trino's statement
+     * API naming this query -- rather than some other Trino endpoint a relayed path could reach. It refuses in
+     * particular the management path {@code /v1/query/{id}} (a sibling of {@code /v1/statement}, not under it), whose
+     * DELETE cancels a query from its id alone, with no per-page slug for Trino to check. The only thing assumed of
+     * Trino's layout is that the statement API is rooted at {@code /v1/statement}, which {@link TrinoHttpClient}
+     * already relies on; the page's shape below that -- the queued/executing split, the slug, the page token -- is
+     * left to Trino, so an upgrade that changes it cannot turn a live query's own pages away.
+     */
+    private static boolean isStatementPageOf(String page, String queryJobId) {
+        String normalized = page.startsWith("/") ? page.substring(1) : page;
+        if (!normalized.startsWith("v1/statement/")) {
+            return false;
+        }
+        List<String> segments = List.of(normalized.split("/"));
+        // A page Trino issued names this query in one of its segments, and never steps up a directory -- which, once
+        // the relayed URL is normalized, could climb out of the statement API and into a sibling endpoint.
+        return segments.contains(queryJobId) && !segments.contains("..");
+    }
+
     public TableData getNextSearchPage(
         String page,
         String queryJobId,
@@ -300,9 +320,11 @@ public class TrinoDataConnectAdapter {
      * does not recognize the page
      */
     public void deleteQueryJob(String page, String queryJobId, Map<String, String> extraCredentials) {
-        // Sanity-check that the queryJobId matches the query we are terminating
-        if (!page.contains(queryJobId)) {
-            log.info("deleteQueryJob rejecting args: queryJobId {} does not match page {}", queryJobId, page);
+        // The page must be one of this query's own result pages under Trino's statement API, not some other Trino
+        // endpoint a caller could name from the guessable query id alone -- above all not the management path
+        // /v1/query/{id}, whose DELETE cancels a query with no per-page slug for Trino to check.
+        if (!isStatementPageOf(page, queryJobId)) {
+            log.info("deleteQueryJob rejecting args: page {} is not a results page of query job {}", page, queryJobId);
             throw new InvalidQueryJobException(queryJobId);
         }
 
