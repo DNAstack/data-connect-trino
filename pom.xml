@@ -7,7 +7,7 @@
   <parent>
     <groupId>com.dnastack.starter</groupId>
     <artifactId>spring-boot-parent</artifactId>
-    <version>4.1.0</version>
+    <version>6.0-alpha-23-g0199ace</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -44,6 +44,11 @@
     <feign.version>13.6</feign.version>
     <feign-form.version>3.8.0</feign-form.version>
     <lombok.version>1.18.42</lombok.version>
+    <!-- Every module of java-open-source-libraries carries this version and is released together, so one
+         property covers all of them. The parent's own default trails the 6.0 pre-release line by several
+         majors, so it has to be overridden here as well as in the parent coordinates above. -->
+    <dnastack.libraries.version>6.0-alpha-23-g0199ace</dnastack.libraries.version>
+    <spring-boot-tenancy.version>2.0.0-alpha-5-gc9a21a6</spring-boot-tenancy.version>
 
     <!-- Testing - Java 23 support. These overrides can be removed when we upgrade spring-boot-starter-parent to a version that supports Java 23. -->
     <mockito.version>5.20.0</mockito.version>
@@ -240,6 +245,24 @@
     <dependency>
       <groupId>com.dnastack</groupId>
       <artifactId>dnastack-token-validator</artifactId>
+    </dependency>
+
+    <!-- Multi-tenancy -->
+    <dependency>
+      <groupId>com.dnastack</groupId>
+      <artifactId>spring-boot-tenancy-context</artifactId>
+      <version>${spring-boot-tenancy.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dnastack</groupId>
+      <artifactId>spring-boot-tenancy-lifecycle</artifactId>
+      <version>${spring-boot-tenancy.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dnastack</groupId>
+      <artifactId>spring-boot-tenancy-test</artifactId>
+      <version>${spring-boot-tenancy.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <!-- Audit Event Logger -->

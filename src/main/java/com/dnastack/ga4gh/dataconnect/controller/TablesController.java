@@ -4,6 +4,7 @@ import com.dnastack.audit.aspect.AuditActionUri;
 import com.dnastack.audit.aspect.AuditEventCustomize;
 import com.dnastack.audit.aspect.AuditIgnore;
 import com.dnastack.audit.aspect.AuditIgnoreHeaders;
+import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentialsReader;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.QueryJobAppenderAuditEventCustomizer;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
@@ -27,25 +28,28 @@ import java.util.List;
 public class TablesController {
 
     private final TrinoDataConnectAdapter trinoDataConnectAdapter;
+    private final ClientSuppliedCredentialsReader clientSuppliedCredentialsReader;
 
     @Autowired
-    public TablesController(TrinoDataConnectAdapter trinoDataConnectAdapter) {
+    public TablesController(TrinoDataConnectAdapter trinoDataConnectAdapter,
+                            ClientSuppliedCredentialsReader clientSuppliedCredentialsReader) {
         this.trinoDataConnectAdapter = trinoDataConnectAdapter;
+        this.clientSuppliedCredentialsReader = clientSuppliedCredentialsReader;
     }
 
     @AuditActionUri("data-connect:info")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
-    @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessResource('/tables', 'data-connect:info', 'data-connect:info')")
-    @GetMapping(value = "/tables")
+    @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessTenantResource('/tables', 'data-connect:info', 'data-connect:info')")
+    @GetMapping(value = {"/tables", "/tenants/{tenantId}/tables"})
     public ResponseEntity<TablesList> getTables(HttpServletRequest request,
                                                 @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
         TablesList tablesList;
 
         try {
             tablesList = trinoDataConnectAdapter
-                .getTables(request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                .getTables(request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TablesList::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
         return ResponseEntity.ok().headers(getExtraAuthHeaders(tablesList)).body(tablesList);
@@ -55,8 +59,12 @@ public class TablesController {
     // result's index. This endpoint is how a client jumps straight to one of them.
     @AuditActionUri("data-connect:get-tables-in-catalog")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
-    @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
-    @GetMapping(value = "/tables/catalog/{catalogName}/schema/{schemaName}")
+    // The resource names a point in the logical space wallet policies are written against, which is shared with
+    // collection-service and outlives any one route: it stops at the catalog on purpose, and is not this
+    // endpoint's path. Changing it means changing policies in every environment.
+    @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessTenantResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
+    @GetMapping(value = {"/tables/catalog/{catalogName}/schema/{schemaName}",
+                         "/tenants/{tenantId}/tables/catalog/{catalogName}/schema/{schemaName}"})
     public ResponseEntity<TablesList> getTablesByCatalogAndSchema(@PathVariable("catalogName") String catalogName,
                                                                   @PathVariable("schemaName") String schemaName,
                                                                   HttpServletRequest request,
@@ -65,10 +73,12 @@ public class TablesController {
 
         try {
             tablesList = trinoDataConnectAdapter
-                    .getTablesByCatalogAndSchema(catalogName, schemaName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                    .getTablesByCatalogAndSchema(catalogName, schemaName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            log.error("Error getting tables for catalog {} and schema {}", catalogName, schemaName, ex);
-            throw new TableApiErrorException(ex, TablesList::errorInstance);
+            // The catalog and schema, which the advice that reports this failure does not have. It decides the
+            // severity and carries the stack trace, so neither is repeated here.
+            log.info("Could not get tables for catalog {} and schema {}", catalogName, schemaName);
+            throw new TableApiErrorException(ex);
         }
 
         return ResponseEntity.ok().headers(getExtraAuthHeaders(tablesList)).body(tablesList);
@@ -76,8 +86,8 @@ public class TablesController {
 
     @AuditActionUri("data-connect:get-table-info")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
-    @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessResource('/table/' + #table_name + '/info', 'data-connect:info', 'data-connect:info')")
-    @GetMapping(value = "/table/{table_name}/info")
+    @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessTenantResource('/table/' + #table_name + '/info', 'data-connect:info', 'data-connect:info')")
+    @GetMapping(value = {"/table/{table_name}/info", "/tenants/{tenantId}/table/{table_name}/info"})
     public TableInfo getTableInfo(@PathVariable("table_name") String tableName,
                                   HttpServletRequest request,
                                   @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
@@ -87,9 +97,9 @@ public class TablesController {
         try {
             log.debug("Getting info for table {}", tableName);
             tableInfo = trinoDataConnectAdapter
-                .getTableInfo(tableName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                .getTableInfo(tableName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TableInfo::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
         return tableInfo;
@@ -98,8 +108,8 @@ public class TablesController {
     @AuditActionUri("data-connect:get-table-data")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
-    @PreAuthorize("hasAuthority('SCOPE_data-connect:data') && @accessEvaluator.canAccessResource('/table/' + #table_name + '/data', 'data-connect:data', 'data-connect:data')")
-    @GetMapping(value = "/table/{table_name}/data")
+    @PreAuthorize("hasAuthority('SCOPE_data-connect:data') && @accessEvaluator.canAccessTenantResource('/table/' + #table_name + '/data', 'data-connect:data', 'data-connect:data')")
+    @GetMapping(value = {"/table/{table_name}/data", "/tenants/{tenantId}/table/{table_name}/data"})
     public TableData getTableData(@PathVariable("table_name") String tableName,
                                   HttpServletRequest request,
                                   @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
@@ -108,9 +118,9 @@ public class TablesController {
 
         try {
             tableData = trinoDataConnectAdapter
-                .getTableData(tableName, request, DataConnectController.parseCredentialsHeader(clientSuppliedCredentials));
+                .getTableData(tableName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TableData::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
         return tableData;

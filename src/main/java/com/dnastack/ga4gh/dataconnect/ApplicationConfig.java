@@ -9,19 +9,17 @@ import com.dnastack.auth.client.TokenActionsHttpClientFactory;
 import com.dnastack.auth.keyresolver.CachingIssuerPubKeyJwksResolver;
 import com.dnastack.auth.keyresolver.IssuerPubKeyStaticResolver;
 import com.dnastack.auth.model.IssuerInfo;
+import com.dnastack.auth.model.TenancyEnforcement;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig.OauthClientConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.DelegatingJwtDecoder;
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
-import com.dnastack.ga4gh.dataconnect.adapter.telemetry.TrinoTelemetryClient;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient;
+import com.dnastack.ga4gh.dataconnect.adapter.security.UserTokenTenancyValidator;
 import com.dnastack.oauth.okhttp.OkHttpClients;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.JwtException;
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +56,14 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @Configuration
 public class ApplicationConfig {
 
-    private final String trinoDatasourceUrl;
+    /**
+     * The deployments that host a real {@link UserTokenTenancyValidator}: bearer tokens judged against wallet
+     * policy. Stated once, so the validator that checks nothing can be conditioned on precisely its negation and
+     * the two cannot drift into overlapping or leaving a gap.
+     */
+    private static final String WALLET_BEARER_AUTH =
+        "'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'wallet'";
+
 
     @Getter
     private final Set<String> hiddenCatalogs;
@@ -74,13 +79,11 @@ public class ApplicationConfig {
     public ApplicationConfig(
         Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter,
         @Value("${cors.urls}") String corsUrls,
-        @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs,
-        @Value("${trino.datasource.url}") String trinoDatasourceUrl
+        @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs
     ) {
         this.jwtScopesConverter = jwtScopesConverter;
         this.corsUrls = corsUrls;
         this.hiddenCatalogs = hiddenCatalogs;
-        this.trinoDatasourceUrl = trinoDatasourceUrl;
     }
 
     @Bean
@@ -104,12 +107,6 @@ public class ApplicationConfig {
     }
 
     @Bean
-    public TrinoClient getTrinoClient(OkHttpClient httpClient, io.micrometer.tracing.Tracer tracer, ServiceAccountAuthenticator accountAuthenticator, MeterRegistry registry) {
-        return new TrinoTelemetryClient(
-            new TrinoHttpClient(tracer, httpClient, trinoDatasourceUrl, accountAuthenticator), registry);
-    }
-
-    @Bean
     public ConnectionPool tokenValidatorConnectionPool() {
         return new ConnectionPool();
     }
@@ -127,6 +124,21 @@ public class ApplicationConfig {
                     .allowedMethods("*");
             }
         };
+    }
+
+    /**
+     * The validator for a deployment whose bearer-token configuration does not host one - basic auth, no auth, or
+     * scope-only evaluation. Every reader of the credentials header holds a validator, so the absence of anything
+     * to check is a validator that checks nothing rather than a validator that is not there.
+     * <p>
+     * Conditioned on the exact negation of {@link #WALLET_BEARER_AUTH} rather than on the real validator being
+     * missing: {@code @ConditionalOnMissingBean} answers from the beans registered so far, which on a plain
+     * {@code @Configuration} makes it a question about definition order.
+     */
+    @Bean
+    @ConditionalOnExpression("!(" + WALLET_BEARER_AUTH + ")")
+    public UserTokenTenancyValidator userTokenTenancyValidatorCheckingNothing() {
+        return UserTokenTenancyValidator.checkingNothing();
     }
 
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'scope'")
@@ -186,7 +198,7 @@ public class ApplicationConfig {
     }
 
     @ConditionalOnClass(name = { "com.dnastack.auth.PermissionChecker", "com.dnastack.auth.model.IssuerInfo" })
-    @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'wallet'")
+    @ConditionalOnExpression(WALLET_BEARER_AUTH)
     @Configuration
     protected static class WalletJwtSecurityConfig {
 
@@ -248,17 +260,37 @@ public class ApplicationConfig {
                 .toList();
         }
 
-        @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer'")
         @Bean
         public PermissionChecker permissionChecker(
             List<IssuerInfo> allowedIssuers,
             @Value("${app.url}") String policyEvaluationRequester,
             @Value("${app.auth.token-issuers[0].issuer-uri}") String walletUrl,
+            @Value("${app.tenancy.enforcement}") TenancyEnforcement tenancyEnforcement,
             ObservationRegistry observationRegistry,
             ConnectionPool tokenValidatorConnectionPool
         ) {
-            String policyEvaluationUrl = stripTrailingSlashes(walletUrl) + "/policies/evaluations";
-            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester, policyEvaluationUrl, observationRegistry, tokenValidatorConnectionPool);
+            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester,
+                policyEvaluationUrl(walletUrl), observationRegistry, tokenValidatorConnectionPool, tenancyEnforcement);
+        }
+
+        @Bean
+        public UserTokenTenancyValidator userTokenTenancyValidator(
+            AuthConfig authConfig,
+            List<IssuerInfo> allowedIssuers,
+            @Value("${app.url}") String policyEvaluationRequester,
+            @Value("${app.auth.token-issuers[0].issuer-uri}") String walletUrl,
+            @Value("${app.tenancy.enforcement}") TenancyEnforcement tenancyEnforcement,
+            ObservationRegistry observationRegistry,
+            ConnectionPool tokenValidatorConnectionPool
+        ) {
+            return UserTokenTenancyValidator.create(authConfig.getTokenIssuers(), allowedIssuers,
+                policyEvaluationRequester, policyEvaluationUrl(walletUrl), tenancyEnforcement, observationRegistry,
+                tokenValidatorConnectionPool);
+        }
+
+        /** Where wallet evaluates a policy, derived from the issuer this deployment was configured with. */
+        private String policyEvaluationUrl(String walletUrl) {
+            return stripTrailingSlashes(walletUrl) + "/policies/evaluations";
         }
 
         private String stripTrailingSlashes(String url) {

@@ -135,6 +135,14 @@ spec:
                --username=$(SPRING_DATASOURCE_USERNAME) \
                --password=$(SPRING_DATASOURCE_PASSWORD) \
                --logLevel debug \
+               update && \
+              liquibase \
+               --driver=org.postgresql.Driver \
+               --changeLogFile=/db.changelog-tenant-lifecycle-setup.yaml \
+               --url={{ include "dataConnectTrino.jdbcUri" . }} \
+               --username=$(SPRING_DATASOURCE_USERNAME) \
+               --password=$(SPRING_DATASOURCE_PASSWORD) \
+               --logLevel debug \
                update
           env:
             - name: SPRING_DATASOURCE_USERNAME
@@ -229,6 +237,35 @@ spec:
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/jwks'
             - name: APP_AUTH_TOKENISSUERS_0_AUDIENCES_0
               value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
+            # The audiences a caller's relayed userToken may be issued for. That token is addressed to whichever
+            # service evaluates data policy, so its audience is not this service's and has to be named here
+            # explicitly. While unset, a relayed userToken is not held to the tenant of the request carrying it.
+            {{- range $index, $audience := ((.Values.global).tenancy).userTokenAudiences | default list }}
+            - name: APP_AUTH_TOKENISSUERS_0_USERTOKENAUDIENCES_{{ $index }}
+              value: '{{ $audience }}'
+            {{- end }}
+            # Multi-tenancy. Both behaviours ship off, and an environment moves up the enforcement ladder
+            # (LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT) by setting global.tenancy, without a rebuild.
+            - name: APP_TENANCY_ENFORCEMENT
+              value: "{{ ((.Values.global).tenancy).enforcement | default "LOG_ONLY" }}"
+            - name: TENANTLIFECYCLE_ENABLED
+              value: "{{ ((.Values.global).tenancy).lifecycleEnabled | default false }}"
+            - name: TENANTLIFECYCLE_WALLETURI
+              value: '{{- include "dnastack.wallet.internalUrl" . }}'
+            - name: TENANTLIFECYCLE_OAUTH_TOKENURI
+              value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
+            - name: TENANTLIFECYCLE_OAUTH_RESOURCE
+              value: '{{- include "dnastack.wallet.externalUrl" . }}'
+            - name: TENANTLIFECYCLE_OAUTH_CLIENTID
+              valueFrom:
+                secretKeyRef:
+                  name: 'data-connect-trino-client-credentials'
+                  key: clientId
+            - name: TENANTLIFECYCLE_OAUTH_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: 'data-connect-trino-client-credentials'
+                  key: clientSecret
             - name: APP_SERVICE_INFO_ID
               value: "com.dnastack.data-connect"
             - name: APP_SERVICE_INFO_NAME

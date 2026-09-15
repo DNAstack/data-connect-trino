@@ -23,3 +23,6 @@ README.html
 Chart.lock
 env\.sh
 test-secrets.env
+
+# Unpacked from the tenancy library by ci/build-docker-predeploy-image.
+/ci/predeploy/db/

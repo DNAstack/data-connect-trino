@@ -51,9 +51,27 @@ app:
   query-cleanup:
     cron-interval: "*/10 * * ? * *" # Every 10 seconds
     timeout-in-seconds: 120
+    # A query that will not cancel is retried every sweep until it has been idle this long, then written off.
+    # Must exceed timeout-in-seconds: both are measured from the query's last activity.
+    give-up-after-seconds: 900 # 15 minutes
   query-job-cleanup:
     cron-interval: "0 0 1 * * ?" # Every day at 1am
     deletion-timeout-in-days: 7
+  tenancy:
+    # LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT. Ships at the bottom of the ladder: a tenantless token is
+    # accepted and the mismatch is only logged, so tenancy can be turned on per environment without a rebuild.
+    enforcement: LOG_ONLY
+
+# The poller that mirrors wallet's tenant directory. Off until an environment turns it on.
+tenant-lifecycle:
+  enabled: false
+  wallet-uri: http://localhost:8081
+  oauth:
+    client-id: data-connect-trino
+    client-secret: dev-secret-never-use-in-prod
+    token-uri: http://localhost:8081/oauth/token
+    resource: http://localhost:8081/
+    scope: admin:tenants
 
 trino:
   datasource:
@@ -127,6 +145,9 @@ management:
 
 ---
 
+# This service is also the open-source GA4GH Data Connect reference implementation, so depending on DNAstack's
+# OAuth server is optional and everything that does so lives behind this profile. Not a dev/deployed split: the
+# values here are development defaults like those in the base document, and Helm overrides them per environment.
 spring:
   config:
     activate:
@@ -143,6 +164,11 @@ app:
       - issuer-uri: http://localhost:8081
         jwk-set-uri: http://localhost:8081/oauth/jwks
         audiences: ["http://localhost:${server.port}", "http://data-connect-trino.local"]
+        # The audiences a caller's relayed userToken may be issued for, which are the data resource's rather
+        # than this service's — deliberately not the list above, so that neither token can be presented as the
+        # other. Empty here: a relayed userToken is only held to the request's tenant where an environment
+        # names the audience it expects.
+        user-token-audiences: []
 
     trino-oauth-client:
       token-uri: http://localhost:8081/oauth/token

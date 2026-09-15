@@ -4,6 +4,7 @@ import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.oauth.client.starter.config.OAuthClientFactoryConfiguration;
 import com.dnastack.oauth.feign.FeignClients;
 import com.dnastack.oauth.okhttp.OkHttpClients;
+import com.dnastack.oauth.tenant.TokenTenantPolicy;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -28,6 +29,8 @@ public class CollectionServiceClientConfiguration {
         feign.okhttp.OkHttpClient feignClient = new feign.okhttp.OkHttpClient(httpClient);
         return FeignClients.newBuilder(
                 oAuthClientFactoryConfiguration.getDefaultConfig().withOverrides(configuration.getOauthClient()),
+                // This client's requests name no tenant, so it acts as the management tenant on all of them.
+                TokenTenantPolicy.managementOnly(),
                 feignClient,
                 feignClient)
             .target(CollectionServiceClient.class, configuration.getBaseUri());
