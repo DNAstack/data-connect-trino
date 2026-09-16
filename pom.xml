@@ -7,7 +7,7 @@
   <parent>
     <groupId>com.dnastack.starter</groupId>
     <artifactId>spring-boot-parent</artifactId>
-    <version>6.0-alpha-23-g0199ace</version>
+    <version>6.0-alpha-35-gd6ed908</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -47,8 +47,8 @@
     <!-- Every module of java-open-source-libraries carries this version and is released together, so one
          property covers all of them. The parent's own default trails the 6.0 pre-release line by several
          majors, so it has to be overridden here as well as in the parent coordinates above. -->
-    <dnastack.libraries.version>6.0-alpha-23-g0199ace</dnastack.libraries.version>
-    <spring-boot-tenancy.version>2.0.0-alpha-5-gc9a21a6</spring-boot-tenancy.version>
+    <dnastack.libraries.version>6.0-alpha-35-gd6ed908</dnastack.libraries.version>
+    <spring-boot-tenancy.version>2.0.0-alpha-12-ge663e72</spring-boot-tenancy.version>
 
     <!-- Testing - Java 23 support. These overrides can be removed when we upgrade spring-boot-starter-parent to a version that supports Java 23. -->
     <mockito.version>5.20.0</mockito.version>
