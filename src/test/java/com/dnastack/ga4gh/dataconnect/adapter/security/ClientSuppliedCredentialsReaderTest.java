@@ -32,6 +32,9 @@ import static org.mockito.Mockito.verify;
  */
 public class ClientSuppliedCredentialsReaderTest {
 
+    /** A tenant that is not the request's, for the credentials a caller sends under a reserved name. */
+    private static final String OTHER_TENANT = UUID.randomUUID().toString();
+
     private final TenantContextAccessor tenantContextAccessor = new TenantContextAccessor();
     private final PermissionChecker userTokenPermissionChecker = mock(PermissionChecker.class);
 
@@ -42,13 +45,77 @@ public class ClientSuppliedCredentialsReaderTest {
 
     @Test
     public void parse_should_returnEachCredential_when_theHeaderCarriesSeveral() {
+        // A credential this service knows nothing about is relayed as sent: which credentials Trino accepts is
+        // Trino's business, not this service's.
         Map<String, String> credentials = credentialsReader()
-            .parse(List.of("userToken=a.b.c", "somethingElse=with=an=equals"));
+            .parse(List.of("userToken=a.b.c", "somethingElse=a-value"));
 
         assertThat(credentials)
             .as("the credentials read from the header")
-            .containsEntry("userToken", "a.b.c")
-            .containsEntry("somethingElse", "with=an=equals");
+            .containsExactly(entry("userToken", "a.b.c"), entry("somethingElse", "a-value"));
+    }
+
+    @Test
+    public void parse_should_refuseTheHeader_when_aCredentialNamesATenant() {
+        // Not because a caller naming a tenant gains anything -- the tenant indicator is caller-controlled by
+        // contract, and the service evaluating policy holds it to the token it was sent -- but because Trino
+        // takes the last value given for a name. Two of them would have this service audit the query under one
+        // tenant while Trino ran it under another.
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("tenantId=" + OTHER_TENANT)))
+            .as("reading a header whose caller named a tenant")
+            .isInstanceOf(MalformedClientSuppliedCredentialsException.class)
+            .hasMessageContaining("tenantId")
+            .hasMessageContaining("sent by this service");
+    }
+
+    @Test
+    public void parse_should_refuseTheHeader_when_aCredentialNamesTheTraceContext() {
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("traceparent=00-0af7651916cd43dd-b7ad6b71-01")))
+            .as("reading a header whose caller named the trace context")
+            .isInstanceOf(MalformedClientSuppliedCredentialsException.class)
+            .hasMessageContaining("traceparent");
+    }
+
+    @Test
+    public void parse_should_refuseTheHeader_when_aNameCarriesSurroundingSpace() {
+        // Trino trims a credential's name, its header authenticator matches the name without trimming, and this
+        // service relays by name. Rather than pick one of those readings, a padded name is refused: a caller
+        // that cannot say plainly which credential it means is not answered with a guess.
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("userToken =a.b.c")))
+            .as("reading a credential whose name is padded with space")
+            .isInstanceOf(MalformedClientSuppliedCredentialsException.class)
+            .hasMessageContaining("name=value");
+    }
+
+    @Test
+    public void parse_should_checkNoUserToken_when_itsNameIsPaddedWithSpace() {
+        // The padded name reached neither the tenancy check nor Trino's reserved-name filtering before, while
+        // Trino trimmed it back to userToken and evaluated policy with it.
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("userToken =a.b.c")))
+            .isInstanceOf(MalformedClientSuppliedCredentialsException.class);
+
+        verify(userTokenPermissionChecker, never()).checkTokenTenancy(any(), any());
+    }
+
+
+    @Test
+    public void parse_should_refuseTheHeader_when_aCredentialCarriesASecondEquals() {
+        // Trino splits on every '=' and refuses what is then not a pair, so this reaches it as a bad request
+        // whatever this service does with it. Refusing it here says so while the caller can still be told why.
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("somethingElse=with=an=equals")))
+            .as("reading a credential carrying more than one '='")
+            .isInstanceOf(MalformedClientSuppliedCredentialsException.class)
+            .hasMessageContaining("name=value");
+    }
+
+    @Test
+    public void parse_should_refuseTheHeader_when_aValueCarriesAPercent() {
+        // Trino URL-decodes a credential's value, so a value carrying an escape is not the value this service
+        // read. Refusing the escape keeps the two readings the same without decoding on Trino's behalf.
+        assertThatThrownBy(() -> credentialsReader().parse(List.of("userToken=one%20two")))
+            .as("reading a credential whose value carries a percent escape")
+            .isInstanceOf(MalformedClientSuppliedCredentialsException.class)
+            .hasMessageContaining("name=value");
     }
 
     @Test
@@ -69,7 +136,7 @@ public class ClientSuppliedCredentialsReaderTest {
 
     @Test
     public void parse_should_checkNothing_when_theCallerSuppliedNoUserToken() {
-        credentialsReader().parse(List.of("somethingElse=value"));
+        credentialsReader().parse(List.of("somethingElse=a-value"));
 
         verify(userTokenPermissionChecker, never()).checkTokenTenancy(any(), any());
     }
