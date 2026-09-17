@@ -44,7 +44,11 @@ public class TrinoHttpClient implements TrinoClient {
      * The extra credential the Trino plugins read the request's tenant from. Part of a contract shared with
      * trino-service, so its name is not ours alone to change.
      */
-    private static final String TENANT_ID_CREDENTIAL = "tenantId";
+    /** The credential naming the tenant a query runs in. Asserted here, never taken from the caller. */
+    public static final String TENANT_ID_CREDENTIAL = "tenantId";
+
+    /** The credential carrying this request's trace context, so Trino's plugins parent their work to it. */
+    public static final String TRACEPARENT_CREDENTIAL = "traceparent";
 
     private final String trinoServer;
     private final String trinoSearchEndpoint;
@@ -251,7 +255,7 @@ public class TrinoHttpClient implements TrinoClient {
             // credential arrives regardless, because it travels on the query's identity rather than through Trino's
             // tracing, and that is what the Trino plugins parent their work to.
             String traceFlags = Boolean.TRUE.equals(traceContext.sampled()) ? "01" : "00";
-            request.addHeader("X-Trino-Extra-Credential", "traceparent=00-%s-%s-%s"
+            request.addHeader("X-Trino-Extra-Credential", TRACEPARENT_CREDENTIAL + "=00-%s-%s-%s"
                 .formatted(traceContext.traceId(), traceContext.spanId(), traceFlags));
         }
         // The request's tenant, which Trino's plugins scope their work to. It travels as a credential of its own
