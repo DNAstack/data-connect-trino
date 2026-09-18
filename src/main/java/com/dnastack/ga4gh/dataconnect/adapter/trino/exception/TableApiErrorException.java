@@ -3,10 +3,9 @@ package com.dnastack.ga4gh.dataconnect.adapter.trino.exception;
 import lombok.NonNull;
 
 /**
- * Wraps whatever a handler failed with, to be answered to the caller by the global exception advice. The advice
- * reports it and turns the cause into a status and a
- * {@link com.dnastack.ga4gh.dataconnect.model.DataConnectErrorResponse}, which is the same body for every
- * endpoint - see that class for why one body serves them all.
+ * General, uniform exception for errors that come from the Data Connect implementation. There is a global
+ * ControllerAdvice that logs all exceptions of this type and turns the cause into an HTTP response status and a
+ * {@link com.dnastack.ga4gh.dataconnect.model.DataConnectErrorResponse} body.
  */
 public class TableApiErrorException extends RuntimeException {
 

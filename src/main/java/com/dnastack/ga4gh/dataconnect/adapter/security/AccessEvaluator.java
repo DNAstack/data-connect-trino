@@ -37,9 +37,10 @@ public class AccessEvaluator {
      * to preauthorize the request
      * Additionally, you can handle exceptions using @ExceptionHandler
      * <p>
-     * Guards a tenant-scoped resource: the token's tenant claim must match the request's tenant (resolved from
-     * the {tenantId} path variable; legacy paths resolve to the management tenant), a management-tenant token
-     * passing for any tenant. The resource URI itself carries no tenant, so one policy covers every tenant.
+     * Guards a tenant-scoped resource: the token's tenant claim must match the request's tenant, which is the
+     * tenant the {tenantId} path variable names, or the management tenant where a legacy path names none. A
+     * management-tenant token passes for any tenant. The resource URI itself carries no tenant, so one policy
+     * covers every tenant.
      * @param requiredResource path to the api endpoint
      * @param requiredActions check actions defined in policy
      * @param requiredScopes check scopes defined in policy

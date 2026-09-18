@@ -56,8 +56,8 @@ public class ClientSuppliedCredentialsReaderTest {
     @Test
     public void parse_should_refuseTheHeader_when_aNameCarriesSurroundingSpace() {
         // Trino trims a credential's name, its header authenticator matches the name without trimming, and this
-        // service relays by name. Rather than pick one of those readings, a padded name is refused: a caller
-        // that cannot say plainly which credential it means is not answered with a guess.
+        // service relays by name. Rather than pick one of those readings, the reader refuses a padded name: a
+        // caller that cannot say plainly which credential it means does not get a guess in reply.
         assertThatThrownBy(() -> credentialsReader.parse(List.of("userToken =a.b.c")))
             .as("reading a credential whose name is padded with space")
             .isInstanceOf(MalformedClientSuppliedCredentialsException.class)

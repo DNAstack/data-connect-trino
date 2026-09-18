@@ -55,13 +55,13 @@ public class TablesController {
         return ResponseEntity.ok().headers(getExtraAuthHeaders(tablesList)).body(tablesList);
     }
 
-    // Each page of the GET /tables result covers one catalog and schema, and every page is listed in that
-    // result's index. This endpoint is how a client jumps straight to one of them.
+    // Each page of the GET /tables result covers one catalog and schema, and that result's index lists every
+    // page. This endpoint is how a client jumps straight to one of them.
     @AuditActionUri("data-connect:get-tables-in-catalog")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
-    // The resource names a point in the logical space wallet policies are written against, which is shared with
-    // collection-service and outlives any one route: it stops at the catalog on purpose, and is not this
-    // endpoint's path. Changing it means changing policies in every environment.
+    // The resource below names a point in the logical space that wallet policies are written against. That space
+    // is shared with collection-service and outlives any one route, so the resource stops at the catalog on
+    // purpose and is not this endpoint's path. Changing it means changing policies in every environment.
     @PreAuthorize("hasAuthority('SCOPE_data-connect:info') && @accessEvaluator.canAccessTenantResource('/tables/catalog/' + #catalogName, 'data-connect:info', 'data-connect:info')")
     @GetMapping(value = {"/tables/catalog/{catalogName}/schema/{schemaName}",
                          "/tenants/{tenantId}/tables/catalog/{catalogName}/schema/{schemaName}"})
@@ -75,8 +75,8 @@ public class TablesController {
             tablesList = trinoDataConnectAdapter
                     .getTablesByCatalogAndSchema(catalogName, schemaName, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            // The catalog and schema, which the advice that reports this failure does not have. It decides the
-            // severity and carries the stack trace, so neither is repeated here.
+            // The catalog and schema, which the advice that reports this failure does not have. That advice
+            // decides the severity and carries the stack trace, so neither is repeated here.
             log.info("Could not get tables for catalog {} and schema {}", catalogName, schemaName);
             throw new TableApiErrorException(ex);
         }

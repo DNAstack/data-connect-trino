@@ -237,8 +237,8 @@ spec:
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/jwks'
             - name: APP_AUTH_TOKENISSUERS_0_AUDIENCES_0
               value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
-            # Multi-tenancy. Both behaviours ship off, and an environment moves up the enforcement ladder
-            # (LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT) by setting global.tenancy, without a rebuild.
+
+            # Multi-tenancy settings (disabled by default)
             - name: APP_TENANCY_ENFORCEMENT
               value: "{{ ((.Values.global).tenancy).enforcement | default "LOG_ONLY" }}"
             - name: TENANTLIFECYCLE_ENABLED
@@ -259,6 +259,7 @@ spec:
                 secretKeyRef:
                   name: 'data-connect-trino-client-credentials'
                   key: clientSecret
+
             - name: APP_SERVICE_INFO_ID
               value: "com.dnastack.data-connect"
             - name: APP_SERVICE_INFO_NAME

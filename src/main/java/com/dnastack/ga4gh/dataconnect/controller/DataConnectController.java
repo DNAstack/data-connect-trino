@@ -84,8 +84,7 @@ public class DataConnectController {
 
         try {
             log.debug("Request: /search query= {}", dataConnectRequest.getSqlQuery());
-            // Read once for the whole request: the header does not change between attempts, and reading it
-            // verifies any relayed userToken it carries.
+            // Read once for the whole request: the header does not change between the attempts below.
             final Map<String, String> extraCredentials = clientSuppliedCredentialsReader.parse(clientSuppliedCredentials);
             final TableData tableData = trinoDataConnectAdapter
                 .search(dataConnectRequest.getSqlQuery(), request, extraCredentials, null);
@@ -182,7 +181,8 @@ public class DataConnectController {
         try {
             trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            // Carries the status the exception asks for, and the error body a GET of the same page would return.
+            // TableApiErrorException carries the status ex asks for, and the error body a GET of the same page
+            // would return.
             throw new TableApiErrorException(ex);
         }
         return ResponseEntity.noContent().build();
@@ -191,8 +191,8 @@ public class DataConnectController {
     /**
      * The Trino page a {@code /search/**} path addresses, which is everything after this service's own prefix.
      * <p>
-     * That prefix is skipped rather than matched, because the two kinds of path this is asked about spell it
-     * differently. A request URI reaches the servlet with any proxy prefix already stripped, so it carries only
+     * This skips that prefix rather than matching it, because the two kinds of path it is asked about spell the
+     * prefix differently. A request URI reaches the servlet with any proxy prefix already stripped, so it carries only
      * the context path and the optional {@code /tenants/{tenantId}} segment pair. The path of a page URL this
      * service generated carries {@code X-Forwarded-Prefix} put back on, ahead of both. What the two have in
      * common is the {@code /search/} that ends the prefix and begins the page, and a Trino page holds no

@@ -25,8 +25,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * What every {@code @PreAuthorize} on this service resolves to. The decision itself belongs to the token
- * validator; what is checked here is that the tenant the request addresses is the tenant the caller's token is
- * held to, and that a request with nothing to judge is denied rather than allowed.
+ * validator; these tests check that the tenant the request addresses is the tenant the caller's token is held
+ * to, and that this service denies a request with nothing to judge rather than allowing it.
  */
 public class AccessEvaluatorTest {
 

@@ -4,8 +4,8 @@ import org.springframework.http.HttpStatus;
 
 /**
  * The {@code GA4GH-Search-Authorization} header could not be read as a set of named credentials. Bad request
- * rather than forbidden: nothing has been judged about the caller's authority, because there is no credential
- * to judge.
+ * rather than forbidden: this service has judged nothing about the caller's authority, because there is no
+ * credential to judge.
  */
 public class MalformedClientSuppliedCredentialsException extends ClientSuppliedCredentialsException {
 

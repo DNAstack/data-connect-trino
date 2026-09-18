@@ -25,9 +25,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * How a request this service will not serve is reported to the operator. A caller's own mistake is not this
+ * How this service reports a request it will not serve to the operator. A caller's own mistake is not this
  * service's error, so it must not arrive in the logs looking like one: an error dashboard that counts malformed
- * headers alongside genuine failures cannot be used to tell whether the service is healthy.
+ * headers alongside genuine failures cannot tell whether the service is healthy.
  */
 public class GlobalControllerExceptionHandlerTest {
 

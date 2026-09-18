@@ -277,13 +277,14 @@ public class TrinoDataConnectAdapter {
     }
 
     /**
-     * Whether {@code page} is one of query {@code queryJobId}'s own result pages -- a path under Trino's statement
-     * API naming this query -- rather than some other Trino endpoint a relayed path could reach. It refuses in
-     * particular the management path {@code /v1/query/{id}} (a sibling of {@code /v1/statement}, not under it), whose
-     * DELETE cancels a query from its id alone, with no per-page slug for Trino to check. The only thing assumed of
-     * Trino's layout is that the statement API is rooted at {@code /v1/statement}, which {@link TrinoHttpClient}
-     * already relies on; the page's shape below that -- the queued/executing split, the slug, the page token -- is
-     * left to Trino, so an upgrade that changes it cannot turn a live query's own pages away.
+     * Whether {@code page} is one of query {@code queryJobId}'s own result pages: a path under Trino's statement API
+     * that names this query. Every other Trino endpoint a relayed path could reach answers false, above all the
+     * management path {@code /v1/query/{id}}, a sibling of {@code /v1/statement} whose DELETE cancels a query from
+     * its id alone, with no per-page slug for Trino to check.
+     * <p>
+     * This assumes only that Trino roots its statement API at {@code /v1/statement}, which {@link TrinoHttpClient}
+     * assumes as well. It reads nothing into the rest of the path -- the queued/executing split, the slug, the page
+     * token -- so a Trino upgrade that changes that shape cannot turn a live query's own pages away.
      */
     private static boolean isStatementPageOf(String page, String queryJobId) {
         String normalized = page.startsWith("/") ? page.substring(1) : page;
@@ -291,8 +292,8 @@ public class TrinoDataConnectAdapter {
             return false;
         }
         List<String> segments = List.of(normalized.split("/"));
-        // A page Trino issued names this query in one of its segments, and never steps up a directory -- which, once
-        // the relayed URL is normalized, could climb out of the statement API and into a sibling endpoint.
+        // A page Trino issued names this query in one of its segments. A ".." segment is refused because
+        // normalizing the relayed URL would let it climb out of the statement API into a sibling endpoint.
         return segments.contains(queryJobId) && !segments.contains("..");
     }
 
@@ -320,8 +321,8 @@ public class TrinoDataConnectAdapter {
     }
 
     /**
-     * Cancels the query whose next page is {@code page}. Performs both a backend cancellation in trino, and
-     * updates our bookkeeping to mark the query as finished.
+     * Cancels the query whose next page is {@code page}. Cancels it in Trino, and updates our bookkeeping to mark
+     * the query as finished.
      *
      * @param page the next-page path of the query to cancel
      * @param queryJobId the id of the query to cancel (must match the queryJobId embedded in {@code page})
@@ -330,18 +331,15 @@ public class TrinoDataConnectAdapter {
      * does not recognize the page
      */
     public void deleteQueryJob(String page, String queryJobId, Map<String, String> extraCredentials) {
-        // The page must be one of this query's own result pages under Trino's statement API, not some other Trino
-        // endpoint a caller could name from the guessable query id alone -- above all not the management path
-        // /v1/query/{id}, whose DELETE cancels a query with no per-page slug for Trino to check.
         if (!isStatementPageOf(page, queryJobId)) {
             log.info("deleteQueryJob rejecting args: page {} is not a results page of query job {}", page, queryJobId);
             throw new InvalidQueryJobException(queryJobId);
         }
 
-        // Throws if this query job is unknown to us, so nothing below it runs: not the call to Trino, and not the
-        // bookkeeping update at the end. This is a lookup of our own records, not a security check -- the queryJobId
-        // is guessable; Trino's random slug in the page path is not. Cancelling a query is therefore exactly as hard as
-        // reading its next page: both come down to holding a page path Trino issued.
+        // This lookup throws if the query job is unknown to us, so nothing below it runs: not the call to Trino,
+        // and not the bookkeeping update at the end. It reads our own records and is not a security check -- the
+        // queryJobId is guessable, while Trino's random slug in the page path is not. Cancelling a query is
+        // therefore exactly as hard as reading its next page: both come down to holding a page path Trino issued.
         getQueryJob(queryJobId);
 
         int trinoStatus = client.cancelQuery(page, extraCredentials);
@@ -758,10 +756,10 @@ public class TrinoDataConnectAdapter {
      * It may or may not have a path (depending on X-Forwarded-Prefix and on whether the caller addressed a tenant),
      * and it will never end with a slash.
      * <p>
-     * Every link this service hands back is built on this, so a caller that addressed a tenant is sent back to that
-     * tenant's paths and one that used the legacy paths keeps getting legacy ones. It is taken from the request
-     * rather than from the tenant context because the two differ for a legacy request, which resolves to the
-     * management tenant while addressing no tenant in its URLs.
+     * This service builds every link it hands back on this URL, so a caller that addressed a tenant gets that
+     * tenant's paths back and a caller that used the legacy paths keeps getting legacy ones. The prefix comes from
+     * the request rather than from the tenant context because the two differ for a legacy request: that request
+     * resolves to the management tenant while naming no tenant in its URLs.
      *
      * @param request Http Servlet Request
      * @return Base URL
@@ -810,8 +808,8 @@ public class TrinoDataConnectAdapter {
     }
 
     /**
-     * The {@code /tenants/{tenantId}} segment pair the request was addressed to, if it was addressed to one.
-     * The tenant it names has already been resolved by the request boundary, which rejects an unknown one.
+     * The {@code /tenants/{tenantId}} segment pair the caller addressed, if the caller addressed one. The request
+     * boundary has already resolved the tenant it names, and rejects an unknown one.
      */
     private static Optional<String> tenantPathPrefix(HttpServletRequest request) {
         Matcher matcher = TENANT_PATH_PREFIX.matcher(request.getRequestURI().substring(request.getContextPath().length()));
@@ -1031,8 +1029,8 @@ public class TrinoDataConnectAdapter {
     }
 
     /**
-     * Catalog and schema listings differ per tenant, and an anonymous caller supplies no token to tell one
-     * tenant's listing from another's, so the tenant is part of every key.
+     * Catalog and schema listings differ per tenant, and an anonymous caller supplies no token that would tell one
+     * tenant's listing from another's, so every key names the tenant.
      */
     private String getCacheKey(Map<String, String> extraCredentials) {
         String userToken = extraCredentials.get("userToken");

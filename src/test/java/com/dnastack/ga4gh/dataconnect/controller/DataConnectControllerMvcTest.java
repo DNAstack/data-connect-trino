@@ -74,7 +74,8 @@ public class DataConnectControllerMvcTest {
     @MockitoBean
     private Jdbi jdbi; // Mock the JDBI instance if used
 
-    // The request boundary asks this whether the request's tenant can be served, and it reads the mocked Jdbi.
+    // The request boundary asks the resolver whether the request's tenant can be served, and the real one reads
+    // the mocked Jdbi.
     @MockitoBean
     private TenantMirrorResolver tenantResolver;
 
@@ -202,13 +203,13 @@ public class DataConnectControllerMvcTest {
 
         resultActions.andExpect(status().isNoContent());
 
-        // The tenant is already bound to the request by this point; what Trino is offered is the page alone.
+        // The tenant is already bound to the request by this point, and this service offers Trino the page alone.
         verify(trinoDataConnectAdapter).deleteQueryJob(eq(page), eq(queryJobId), any());
     }
 
     @Test
     public void search_should_readTheCredentialsHeaderOnce_when_itRetriesForData() throws Exception {
-        // Reading the header verifies a relayed userToken, so it is not something to redo per retry attempt.
+        // The header does not change between attempts, so the retries below must not read it again.
         DataConnectRequest request = new DataConnectRequest();
         request.setSqlQuery("SELECT * FROM test_table");
         TableData emptyPage = new TableData(
@@ -234,8 +235,8 @@ public class DataConnectControllerMvcTest {
     }
 
     /**
-     * The three endpoint families return three different types on success, and used to answer three differently
-     * shaped error bodies to match. One shape now serves all of them, so these assert the same body from each.
+     * The three endpoint families return three different types on success, and one error body serves all three.
+     * These assert that same body from each of them.
      */
     @Test
     public void anyEndpoint_should_answerTheSameShapedErrorBody() throws Exception {
@@ -276,8 +277,8 @@ public class DataConnectControllerMvcTest {
     }
 
     /**
-     * The top-level fields of an error body. Compared rather than the body itself, because the trace id the
-     * advice folds into every error's details differs between two requests.
+     * The top-level fields of an error body. These tests compare the fields rather than the whole body, because
+     * the trace id the advice folds into every error's details differs between two requests.
      */
     private Set<String> errorBodyShapeOf(MockHttpServletRequestBuilder request) throws Exception {
         String body = mockMvc.perform(request.accept(MediaType.APPLICATION_JSON))
@@ -344,7 +345,7 @@ public class DataConnectControllerMvcTest {
     @Test
     public void search_should_relayTheBarePageToTrino_when_theCallerReachedThisServiceThroughAProxyPrefix() throws Exception {
         // The fast path re-reads the nextPageUrl this service generated, and that URL carries
-        // X-Forwarded-Prefix. What Trino is offered is the page alone, with none of this service's prefix on it.
+        // X-Forwarded-Prefix. This service offers Trino the page alone, with none of its own prefix on it.
         String page = "v1/statement/executing/test-job-123/y5bb5cace5500a2cf109b1c50c648b009c40a142f/1";
         DataConnectRequest request = new DataConnectRequest();
         request.setSqlQuery("SELECT * FROM test_table");

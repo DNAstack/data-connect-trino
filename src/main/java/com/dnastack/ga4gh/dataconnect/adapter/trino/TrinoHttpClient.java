@@ -41,10 +41,10 @@ public class TrinoHttpClient implements TrinoClient {
     private static final String DEFAULT_TRINO_USER_NAME = "data-connect-trino";
 
     /**
-     * The extra credential the Trino plugins read the request's tenant from. Part of a contract shared with
-     * trino-service, so its name is not ours alone to change.
+     * The credential naming the tenant a query runs in, which the Trino plugins read the request's tenant from.
+     * This service asserts it and never takes it from the caller. Its name belongs to a contract shared with
+     * trino-service, so it is not ours alone to change.
      */
-    /** The credential naming the tenant a query runs in. Asserted here, never taken from the caller. */
     public static final String TENANT_ID_CREDENTIAL = "tenantId";
 
     /** The credential carrying this request's trace context, so Trino's plugins parent their work to it. */
@@ -259,13 +259,13 @@ public class TrinoHttpClient implements TrinoClient {
                 .formatted(traceContext.traceId(), traceContext.spanId(), traceFlags));
         }
         // The request's tenant, which Trino's plugins scope their work to. It travels as a credential of its own
-        // rather than being read off the userToken's tenant claim: an anonymous request carries no userToken at
-        // all, and yet its policy evaluation is still tenant-scoped.
+        // rather than in the userToken's tenant claim: an anonymous request carries no userToken at all, and its
+        // policy evaluation is still tenant-scoped.
         request.addHeader("X-Trino-Extra-Credential",
             TENANT_ID_CREDENTIAL + "=" + tenantContextAccessor.getTenantId().asString());
 
-        // Extra credentials reach us from the caller, so one the caller sent under the name above is dropped here:
-        // asserting a tenant is the request boundary's business, not the caller's.
+        // Extra credentials reach us from the caller, so this drops any the caller sent under
+        // TENANT_ID_CREDENTIAL: asserting a tenant is the request boundary's business, not the caller's.
         extraCredentials.forEach((k, v) -> {
             if (TENANT_ID_CREDENTIAL.equals(k)) {
                 log.warn("Ignoring caller-supplied {} extra credential; the request's own tenant is sent instead",
