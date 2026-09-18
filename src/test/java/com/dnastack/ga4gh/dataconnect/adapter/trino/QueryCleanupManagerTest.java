@@ -24,6 +24,7 @@ import java.util.Optional;
 import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.DatabaseProvider.ZONKY;
 import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.RefreshMode.AFTER_EACH_TEST_METHOD;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -194,5 +195,28 @@ public class QueryCleanupManagerTest {
         queryCleanupManager.terminateOldQueries();
 
         verify(trinoClient).cancelQuery(REACHABLE_PAGE, Map.of());
+    }
+
+    @Test
+    public void requireGiveUpAfterExceedsTimeout_should_returnNormally_when_givingUpComesAfterTheTimeout() {
+        QueryCleanupManager.requireGiveUpAfterExceedsTimeout(900, 120);
+    }
+
+    @Test
+    public void requireGiveUpAfterExceedsTimeout_should_throwIllegalState_when_theTwoThresholdsAreEqual() {
+        // Equal leaves no sweep between becoming eligible for cancellation and being written off, so a query
+        // would be recorded as finished on the same sweep that first asks Trino to cancel it.
+        assertThatThrownBy(() -> QueryCleanupManager.requireGiveUpAfterExceedsTimeout(120, 120))
+                .as("configuring the two cleanup thresholds the same")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("app.query-cleanup.give-up-after-seconds")
+                .hasMessageContaining("app.query-cleanup.timeout-in-seconds");
+    }
+
+    @Test
+    public void requireGiveUpAfterExceedsTimeout_should_throwIllegalState_when_givingUpComesFirst() {
+        assertThatThrownBy(() -> QueryCleanupManager.requireGiveUpAfterExceedsTimeout(60, 120))
+                .as("configuring the sweep to give up before it would cancel")
+                .isInstanceOf(IllegalStateException.class);
     }
 }

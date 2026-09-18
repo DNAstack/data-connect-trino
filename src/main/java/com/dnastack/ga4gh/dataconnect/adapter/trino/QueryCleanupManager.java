@@ -3,6 +3,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.trino;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
 import com.dnastack.tenancy.context.TenantContextAccessor;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +41,27 @@ public class QueryCleanupManager {
         this.jdbi = jdbi;
         this.client = client;
         this.tenantContextAccessor = tenantContextAccessor;
+    }
+
+    /**
+     * Fails startup rather than letting the sweep run with the two thresholds the wrong way round, which would
+     * write a query off on the same sweep that first tries to cancel it.
+     */
+    @PostConstruct
+    void checkCleanupTimeouts() {
+        requireGiveUpAfterExceedsTimeout(giveUpAfterSeconds, queryCleanupTimeoutInSeconds);
+    }
+
+    /**
+     * @throws IllegalStateException if {@code giveUpAfterSeconds} does not exceed {@code timeoutInSeconds}. Both
+     * count from a query's last activity: a query becomes eligible for cancellation at the one and is written off
+     * at the other, so an order the wrong way round leaves no sweep in between to do the cancelling.
+     */
+    static void requireGiveUpAfterExceedsTimeout(int giveUpAfterSeconds, int timeoutInSeconds) {
+        if (giveUpAfterSeconds <= timeoutInSeconds) {
+            throw new IllegalStateException("app.query-cleanup.give-up-after-seconds (" + giveUpAfterSeconds
+                + ") must exceed app.query-cleanup.timeout-in-seconds (" + timeoutInSeconds + ")");
+        }
     }
 
     @Scheduled(cron = "${app.query-cleanup.cron-interval}")
