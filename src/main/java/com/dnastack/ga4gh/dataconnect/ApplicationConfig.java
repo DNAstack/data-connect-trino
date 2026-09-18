@@ -9,19 +9,16 @@ import com.dnastack.auth.client.TokenActionsHttpClientFactory;
 import com.dnastack.auth.keyresolver.CachingIssuerPubKeyJwksResolver;
 import com.dnastack.auth.keyresolver.IssuerPubKeyStaticResolver;
 import com.dnastack.auth.model.IssuerInfo;
+import com.dnastack.auth.model.TenancyEnforcement;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig.OauthClientConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.DelegatingJwtDecoder;
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
-import com.dnastack.ga4gh.dataconnect.adapter.telemetry.TrinoTelemetryClient;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
-import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient;
 import com.dnastack.oauth.okhttp.OkHttpClients;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.JwtException;
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +55,10 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @Configuration
 public class ApplicationConfig {
 
-    private final String trinoDatasourceUrl;
+    /** The deployments whose bearer tokens are judged against wallet policy, rather than by scope alone. */
+    private static final String WALLET_BEARER_AUTH =
+        "'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'wallet'";
+
 
     @Getter
     private final Set<String> hiddenCatalogs;
@@ -74,13 +74,11 @@ public class ApplicationConfig {
     public ApplicationConfig(
         Converter<Jwt, ? extends AbstractAuthenticationToken> jwtScopesConverter,
         @Value("${cors.urls}") String corsUrls,
-        @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs,
-        @Value("${trino.datasource.url}") String trinoDatasourceUrl
+        @Value("${trino.hidden-catalogs}") Set<String> hiddenCatalogs
     ) {
         this.jwtScopesConverter = jwtScopesConverter;
         this.corsUrls = corsUrls;
         this.hiddenCatalogs = hiddenCatalogs;
-        this.trinoDatasourceUrl = trinoDatasourceUrl;
     }
 
     @Bean
@@ -101,12 +99,6 @@ public class ApplicationConfig {
     @Bean
     public OkHttpClient httpClient(ObservationRegistry observationRegistry) {
         return OkHttpClients.getBuilder("trino", observationRegistry).build();
-    }
-
-    @Bean
-    public TrinoClient getTrinoClient(OkHttpClient httpClient, io.micrometer.tracing.Tracer tracer, ServiceAccountAuthenticator accountAuthenticator, MeterRegistry registry) {
-        return new TrinoTelemetryClient(
-            new TrinoHttpClient(tracer, httpClient, trinoDatasourceUrl, accountAuthenticator), registry);
     }
 
     @Bean
@@ -186,7 +178,7 @@ public class ApplicationConfig {
     }
 
     @ConditionalOnClass(name = { "com.dnastack.auth.PermissionChecker", "com.dnastack.auth.model.IssuerInfo" })
-    @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'wallet'")
+    @ConditionalOnExpression(WALLET_BEARER_AUTH)
     @Configuration
     protected static class WalletJwtSecurityConfig {
 
@@ -248,17 +240,22 @@ public class ApplicationConfig {
                 .toList();
         }
 
-        @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer'")
         @Bean
         public PermissionChecker permissionChecker(
             List<IssuerInfo> allowedIssuers,
             @Value("${app.url}") String policyEvaluationRequester,
             @Value("${app.auth.token-issuers[0].issuer-uri}") String walletUrl,
+            @Value("${app.tenancy.enforcement}") TenancyEnforcement tenancyEnforcement,
             ObservationRegistry observationRegistry,
             ConnectionPool tokenValidatorConnectionPool
         ) {
-            String policyEvaluationUrl = stripTrailingSlashes(walletUrl) + "/policies/evaluations";
-            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester, policyEvaluationUrl, observationRegistry, tokenValidatorConnectionPool);
+            return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester,
+                policyEvaluationUrl(walletUrl), observationRegistry, tokenValidatorConnectionPool, tenancyEnforcement);
+        }
+
+        /** Where wallet evaluates a policy, built from the issuer this deployment is configured with. */
+        private String policyEvaluationUrl(String walletUrl) {
+            return stripTrailingSlashes(walletUrl) + "/policies/evaluations";
         }
 
         private String stripTrailingSlashes(String url) {

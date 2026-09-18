@@ -51,9 +51,27 @@ app:
   query-cleanup:
     cron-interval: "*/10 * * ? * *" # Every 10 seconds
     timeout-in-seconds: 120
+    # A query that will not cancel is retried every sweep until it has been idle this long, then written off.
+    # Must exceed timeout-in-seconds: both are measured from the query's last activity.
+    give-up-after-seconds: 900 # 15 minutes
   query-job-cleanup:
     cron-interval: "0 0 1 * * ?" # Every day at 1am
     deletion-timeout-in-days: 7
+  tenancy:
+    # LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT. This default sits at the bottom of the ladder: a
+    # tenantless token passes, and a mismatch only gets logged. An environment raises it without a rebuild.
+    enforcement: LOG_ONLY
+
+# The poller that mirrors wallet's tenant directory. Off until an environment turns it on.
+tenant-lifecycle:
+  enabled: false
+  wallet-uri: http://localhost:8081
+  oauth:
+    client-id: data-connect-trino
+    client-secret: dev-secret-never-use-in-prod
+    token-uri: http://localhost:8081/oauth/token
+    resource: http://localhost:8081/
+    scope: admin:tenants
 
 trino:
   datasource:
@@ -127,6 +145,9 @@ management:
 
 ---
 
+# This service is also the open-source GA4GH Data Connect reference implementation, so depending on DNAstack's
+# OAuth server is optional and everything that does so lives behind this profile. Not a dev/deployed split: the
+# values here are development defaults like those in the base document, and Helm overrides them per environment.
 spring:
   config:
     activate:

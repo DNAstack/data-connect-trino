@@ -73,11 +73,6 @@ public class TrinoTelemetryClient implements TrinoClient {
     }
 
     @Override
-    public void killQuery(String nextPageUrl) {
-        client.killQuery(nextPageUrl);
-    }
-
-    @Override
     public int cancelQuery(String page, Map<String, String> extraCredentials) {
         return client.cancelQuery(page, extraCredentials);
     }

@@ -4,6 +4,7 @@ import com.dnastack.audit.aspect.AuditActionUri;
 import com.dnastack.audit.aspect.AuditEventCustomize;
 import com.dnastack.audit.aspect.AuditIgnore;
 import com.dnastack.audit.aspect.AuditIgnoreHeaders;
+import com.dnastack.ga4gh.dataconnect.adapter.security.ClientSuppliedCredentialsReader;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.QueryJobAppenderAuditEventCustomizer;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.DataConnectRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataConnectAdapter;
@@ -25,7 +26,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 @RestController
 @Slf4j
@@ -33,7 +33,11 @@ public class DataConnectController {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    /** The segment that separates this service's own prefix from the page Trino issued. */
+    private static final String SEARCH_SEGMENT = "/search/";
+
     private final TrinoDataConnectAdapter trinoDataConnectAdapter;
+    private final ClientSuppliedCredentialsReader clientSuppliedCredentialsReader;
 
     private static final RetryConfig retryConfig = RetryConfig.<TableData>custom()
         .intervalFunction(IntervalFunction.of(1)) // trino throttles us for up to 10 seconds per page request when no further results are ready
@@ -47,8 +51,10 @@ public class DataConnectController {
     private static final RetryRegistry retryRegistry = RetryRegistry.of(retryConfig);
 
     @Autowired
-    public DataConnectController(TrinoDataConnectAdapter trinoDataConnectAdapter) {
+    public DataConnectController(TrinoDataConnectAdapter trinoDataConnectAdapter,
+                                 ClientSuppliedCredentialsReader clientSuppliedCredentialsReader) {
         this.trinoDataConnectAdapter = trinoDataConnectAdapter;
+        this.clientSuppliedCredentialsReader = clientSuppliedCredentialsReader;
     }
 
     /**
@@ -70,16 +76,18 @@ public class DataConnectController {
     @AuditActionUri("data-connect:search")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
-    @PreAuthorize("@accessEvaluator.canAccessResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
-    @PostMapping(value = "/search")
+    @PreAuthorize("@accessEvaluator.canAccessTenantResource('/search', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
+    @PostMapping(value = {"/search", "/tenants/{tenantId}/search"})
     public TableData search(@RequestBody DataConnectRequest dataConnectRequest,
                             HttpServletRequest request,
                             @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
 
         try {
             log.debug("Request: /search query= {}", dataConnectRequest.getSqlQuery());
+            // Read once for the whole request: the header does not change between the attempts below.
+            final Map<String, String> extraCredentials = clientSuppliedCredentialsReader.parse(clientSuppliedCredentials);
             final TableData tableData = trinoDataConnectAdapter
-                .search(dataConnectRequest.getSqlQuery(), request, parseCredentialsHeader(clientSuppliedCredentials), null);
+                .search(dataConnectRequest.getSqlQuery(), request, extraCredentials, null);
 
             // Motivation for the following code is to resolve auth errors in Trino on the POST request rather than during subsequent GET requests.
             // If the Trino query job is not executed within the given limit (~16 seconds) it falls back to return current response.
@@ -90,10 +98,10 @@ public class DataConnectController {
                     @Override
                     public TableData get() {
                         TableData nextSearchPage = trinoDataConnectAdapter.getNextSearchPage(
-                            previousPage.getPagination().getNextPageUrl().getPath().split(request.getContextPath() + "/search/")[1],
+                            relayedPagePath(previousPage.getPagination().getNextPageUrl().getPath()),
                             previousPage.getQueryJob().getId(),
                             request,
-                            parseCredentialsHeader(clientSuppliedCredentials));
+                            extraCredentials);
 
                         previousPage = nextSearchPage;
                         return nextSearchPage;
@@ -103,7 +111,7 @@ public class DataConnectController {
             );
             return tableDataSupplier.get();
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TableData::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
     }
@@ -111,21 +119,20 @@ public class DataConnectController {
     @AuditActionUri("data-connect:next-page")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
-    @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
-    @GetMapping(value = "/search/**")
+    @PreAuthorize("@accessEvaluator.canAccessTenantResource('/search/', {'data-connect:query', 'data-connect:data'}, {'data-connect:query', 'data-connect:data'})")
+    @GetMapping(value = {"/search/**", "/tenants/{tenantId}/search/**"})
     public TableData getNextPaginatedResponse(@RequestParam("queryJobId") String queryJobId,
                                               HttpServletRequest request,
                                               @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
-        String page = request.getRequestURI()
-                             .split(request.getContextPath() + "/search/")[1];
+        String page = relayedPagePath(request.getRequestURI());
         log.debug("Request: /search/** page= {}", page);
         TableData tableData;
 
         try {
             tableData = trinoDataConnectAdapter
-                .getNextSearchPage(page, queryJobId, request, parseCredentialsHeader(clientSuppliedCredentials));
+                .getNextSearchPage(page, queryJobId, request, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            throw new TableApiErrorException(ex, TableData::errorInstance);
+            throw new TableApiErrorException(ex);
         }
 
         if(log.isDebugEnabled()) {
@@ -162,31 +169,40 @@ public class DataConnectController {
     @AuditActionUri("data-connect:delete-query")
     @AuditIgnoreHeaders("GA4GH-Search-Authorization")
     @AuditEventCustomize(QueryJobAppenderAuditEventCustomizer.class)
-    @PreAuthorize("@accessEvaluator.canAccessResource('/search/', {'data-connect:query'}, {'data-connect:query'})")
-    @DeleteMapping(value = "/search/**")
+    @PreAuthorize("@accessEvaluator.canAccessTenantResource('/search/', {'data-connect:query'}, {'data-connect:query'})")
+    @DeleteMapping(value = {"/search/**", "/tenants/{tenantId}/search/**"})
     public ResponseEntity<?> deleteSearchQuery(@RequestParam("queryJobId") String queryJobId,
                                                HttpServletRequest request,
                                                @AuditIgnore @RequestHeader(value = "GA4GH-Search-Authorization", defaultValue = "") List<String> clientSuppliedCredentials) {
-        // A request that names no page at all leaves the parts empty, which the adapter rejects like any other
+        // A request that names no page at all leaves the page empty, which the adapter rejects like any other
         // page that does not belong to this query job.
-        String[] pathParts = request.getRequestURI()
-                                    .split(request.getContextPath() + "/search/", 2);
-        String page = pathParts.length > 1 ? pathParts[1] : "";
+        String page = relayedPagePath(request.getRequestURI());
         log.info("Terminating query with ID: {}", queryJobId);
         try {
-            trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, parseCredentialsHeader(clientSuppliedCredentials));
+            trinoDataConnectAdapter.deleteQueryJob(page, queryJobId, clientSuppliedCredentialsReader.parse(clientSuppliedCredentials));
         } catch (Exception ex) {
-            // Carries the status the exception asks for, and the error body a GET of the same page would return.
-            throw new TableApiErrorException(ex, TableData::errorInstance);
+            // TableApiErrorException carries the status ex asks for, and the error body a GET of the same page
+            // would return.
+            throw new TableApiErrorException(ex);
         }
         return ResponseEntity.noContent().build();
     }
 
-    // TODO make this method into a Spring MVC parameter provider
-    public static Map<String, String> parseCredentialsHeader(List<String> clientSuppliedCredentials) {
-        return clientSuppliedCredentials.stream()
-            .map(val -> val.split("=", 2))
-            .collect(Collectors.toMap(kv -> kv[0], kv -> kv[1]));
+    /**
+     * The Trino page a {@code /search/**} path addresses, which is everything after this service's own prefix.
+     * <p>
+     * This skips that prefix rather than matching it, because the two kinds of path it is asked about spell the
+     * prefix differently. A request URI reaches the servlet with any proxy prefix already stripped, so it carries only
+     * the context path and the optional {@code /tenants/{tenantId}} segment pair. The path of a page URL this
+     * service generated carries {@code X-Forwarded-Prefix} put back on, ahead of both. What the two have in
+     * common is the {@code /search/} that ends the prefix and begins the page, and a Trino page holds no
+     * segment of its own by that name.
+     *
+     * @param path an absolute path on this service, either a request URI or the path of a page URL it generated
+     * @return the page path, or an empty string if the given path addresses no page
+     */
+    static String relayedPagePath(String path) {
+        int endOfPrefix = path.lastIndexOf(SEARCH_SEGMENT);
+        return endOfPrefix < 0 ? "" : path.substring(endOfPrefix + SEARCH_SEGMENT.length());
     }
-
 }

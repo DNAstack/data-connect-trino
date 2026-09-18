@@ -872,10 +872,13 @@ class DataConnectE2eTest extends BaseE2eTest {
      */
     private static String forgePageSlug(String nextPageUrl) {
         String[] pathSegments = nextPageUrl.split("/");
-        String slug = pathSegments[pathSegments.length - 2];
+        int slugIndex = pathSegments.length - 2;
+        String slug = pathSegments[slugIndex];
         char lastCharOfSlug = slug.charAt(slug.length() - 1);
-        String forgedSlug = slug.substring(0, slug.length() - 1) + (lastCharOfSlug == '0' ? '1' : '0');
-        String forgedPageUrl = nextPageUrl.replace(slug, forgedSlug);
+        // This rebuilds the URL from its segments rather than substituting into it, so only the slug segment
+        // changes, however the rest of the URL happens to read.
+        pathSegments[slugIndex] = slug.substring(0, slug.length() - 1) + (lastCharOfSlug == '0' ? '1' : '0');
+        String forgedPageUrl = String.join("/", pathSegments);
         assertThat(forgedPageUrl).as("forged page URL").isNotEqualTo(nextPageUrl);
         return forgedPageUrl;
     }
