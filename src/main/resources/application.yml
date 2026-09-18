@@ -164,11 +164,6 @@ app:
       - issuer-uri: http://localhost:8081
         jwk-set-uri: http://localhost:8081/oauth/jwks
         audiences: ["http://localhost:${server.port}", "http://data-connect-trino.local"]
-        # The audiences a caller's relayed userToken may be issued for, which are the data resource's rather
-        # than this service's — deliberately not the list above, so that neither token can be presented as the
-        # other. Empty here: a relayed userToken is only held to the request's tenant where an environment
-        # names the audience it expects.
-        user-token-audiences: []
 
     trino-oauth-client:
       token-uri: http://localhost:8081/oauth/token
