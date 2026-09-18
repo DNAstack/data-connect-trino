@@ -9,7 +9,7 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 
 import java.util.UUID;
 
-/** The local mirror of wallet's tenant directory; written only from the tenant-lifecycle feed. */
+/** The local mirror of wallet's tenant directory. The tenant-lifecycle feed is its only writer. */
 @InstanceScoped(reason = "the tenant directory itself is instance-scoped data")
 public interface TenantMirrorDao {
 

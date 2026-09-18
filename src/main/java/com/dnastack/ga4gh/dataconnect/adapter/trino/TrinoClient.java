@@ -36,7 +36,7 @@ public interface TrinoClient {
      *                         {@link #next(String, Map)}. Trino issues each page with a slug of its own and accepts
      *                         the cancellation only for a page it issued, so relaying a page a caller supplied is how
      *                         that caller demonstrates it holds one. Either the path alone, as this service hands it
-     *                         to a caller, or the absolute URL the sweeps store as {@code next_page_url}.
+     *                         to a caller, or the absolute URL a query job stores as {@code next_page_url}.
      * @param extraCredentials The extra X-Trino-Extra-Credentials to include in the request.
      * @return the HTTP status Trino answered with. 2xx means the query was cancelled; 404 means Trino does not
      * recognize the page.

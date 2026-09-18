@@ -253,7 +253,7 @@ public class ApplicationConfig {
                 policyEvaluationUrl(walletUrl), observationRegistry, tokenValidatorConnectionPool, tenancyEnforcement);
         }
 
-        /** Where wallet evaluates a policy, derived from the issuer this deployment was configured with. */
+        /** Where wallet evaluates a policy, built from the issuer this deployment is configured with. */
         private String policyEvaluationUrl(String walletUrl) {
             return stripTrailingSlashes(walletUrl) + "/policies/evaluations";
         }

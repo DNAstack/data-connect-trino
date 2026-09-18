@@ -30,8 +30,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The sweep that terminates abandoned queries. It runs unattended over every tenant's rows, so a query Trino will
- * not answer for has to cost only that query.
+ * The sweep that terminates abandoned queries. It runs unattended over every tenant's rows, so a query Trino
+ * will not answer must cost only that query.
  */
 @AutoConfigureEmbeddedDatabase(provider = ZONKY, refresh = AFTER_EACH_TEST_METHOD, type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -112,7 +112,8 @@ public class QueryCleanupManagerTest {
 
     @Test
     public void terminateOldQueries_shouldNot_markAQueryFinished_when_trinoWillNotAnswerForIt() {
-        // Left unfinished on purpose, so the next sweep tries it again rather than leaving it running in Trino.
+        // The sweep leaves the row unfinished on purpose, so the next sweep tries it again rather than leaving
+        // the query running in Trino.
         abandonedQueryJob("query-unreachable", UNREACHABLE_PAGE);
         when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap()))
                 .thenThrow(new TrinoIOException("Trino is unreachable", new IOException("connection refused")));
@@ -157,7 +158,7 @@ public class QueryCleanupManagerTest {
 
     @Test
     public void terminateOldQueries_should_markAQueryFinished_when_itHasResistedCancellationPastTheGiveUpTimeout() {
-        // Without this, a query Trino will never cancel is retried every sweep until the row is purged days
+        // Without this, a query Trino will never cancel would be retried every sweep until the row is purged days
         // later. Trino ages its own queries out, so writing it off here concedes little.
         abandonedQueryJob("query-zombie", UNREACHABLE_PAGE, Duration.ofMinutes(20));
         when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap()))

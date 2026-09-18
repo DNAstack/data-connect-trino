@@ -15,21 +15,16 @@ import java.util.List;
  * {@code errors}, holding the same {@link TableError}. A body carrying that one field is therefore a valid
  * instance of any of the three: a client that deserializes the response into the type its endpoint promises gets
  * the errors it asked about, and every other field of that type left empty — which is what a failed request
- * means.
+ * means. So a failure does not have to name the endpoint's return type where it is raised.
  * <p>
- * So the endpoint's return type does not need restating at the point a failure is raised. It did once: each
- * handler passed the advice a function for building its own type's error instance, which was a second place for
- * the endpoint's shape to be recorded and a second place for it to be recorded wrongly.
- * <p>
- * What those per-type instances added over this one was an explicit {@code "data": null} on
- * {@code TableData} and, on {@code TablesList}, a copy of the first error under the deprecated singular
- * {@code error} field. Neither is read by anything: the consumers surveyed — explorer and data-lake-frontend,
- * front and back end — test {@code errors} for truthiness and never look at {@code error}, and no consumer
- * distinguishes a {@code null} field from an absent one. Jackson does not either.
+ * This body carries {@code errors} and nothing else. It omits {@link TableData}'s {@code data} and the
+ * deprecated singular {@code error} of {@link TablesList}, which the known consumers — explorer and
+ * data-lake-frontend, front and back end — do not read: they test {@code errors} for truthiness, and none of
+ * them tells a {@code null} field from an absent one. Neither does Jackson.
  * <p>
  * This is only for a request that failed outright. A listing that succeeded while one catalog behind it did not
  * still answers 200 with a {@link TablesList} whose {@code errors} describe that catalog, which is the partial
- * result Data Connect asks for and is built in {@code TrinoCatalog} rather than here.
+ * result Data Connect asks for, and which {@code TrinoCatalog} builds rather than this record.
  *
  * @param errors what went wrong. Always at least one; a failure with nothing to say about it would tell a caller
  * nothing that the status has not already.

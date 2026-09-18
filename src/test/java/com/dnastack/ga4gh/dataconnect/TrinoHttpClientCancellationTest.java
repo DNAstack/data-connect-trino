@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Verifies how a query cancellation addresses Trino. One method serves both callers that hold a page as this
- * service handed it out and callers that hold the absolute {@code next_page_url} the sweeps stored, so it has to
+ * service handed it out and callers that hold the absolute {@code next_page_url} a query job stored, so it has to
  * accept either form and reach the same place.
  */
 public class TrinoHttpClientCancellationTest {
@@ -59,7 +59,7 @@ public class TrinoHttpClientCancellationTest {
     public void cancelQuery_should_addressAPageGivenAsAnAbsoluteUrl() throws Exception {
         trino.enqueue(new MockResponse().setResponseCode(204));
 
-        // The sweeps cancel from the next_page_url they stored, which is the absolute URI Trino handed back.
+        // The sweep cancels from the next_page_url the query job stored, the absolute URI Trino handed back.
         int status = trinoHttpClient().cancelQuery(trino.url(PAGE_PATH).toString(), Map.of());
 
         RecordedRequest recorded = trino.takeRequest();

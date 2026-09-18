@@ -23,8 +23,8 @@ public class DataConnectControllerTest {
 
     @Test
     public void tenantPathVariable_should_beTheOneEveryMappingSpells() {
-        // Every tenant-scoped mapping in this service writes "/tenants/{tenantId}" out in full, so that the
-        // paths this service serves can be found by grepping for them. That spelling has to agree with the
+        // Every tenant-scoped mapping in this service writes "/tenants/{tenantId}" out in full, so that a grep
+        // finds every path this service serves. That spelling has to agree with the
         // name the tenancy library reads the tenant out of, and nothing but this says so.
         assertThat(TenantIdentitySource.TENANT_PATH_VARIABLE)
             .as("the path variable the tenancy library resolves the request's tenant from")
@@ -49,7 +49,7 @@ public class DataConnectControllerTest {
     public void relayedPagePath_should_readThePage_when_givenAGeneratedUrlBehindAProxyPrefix() {
         // The path of the nextPageUrl this service hands back when the caller reached it through a gateway
         // that set X-Forwarded-Prefix. The POST /search fast path re-reads its own generated URL, so a prefix
-        // here used to leave the page empty and send the follow-up request to Trino's root.
+        // here must not leave the page empty and send the follow-up request to Trino's root.
         assertThat(relayedPagePath("/api/data-connect/search/" + PAGE))
             .as("the page read from a generated URL carrying a proxy prefix")
             .isEqualTo(PAGE);

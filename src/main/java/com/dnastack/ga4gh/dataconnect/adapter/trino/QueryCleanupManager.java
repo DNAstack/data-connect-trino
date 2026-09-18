@@ -26,9 +26,9 @@ public class QueryCleanupManager {
     private int queryCleanupTimeoutInSeconds;
 
     /**
-     * How long a query may go on resisting cancellation before the sweep stops asking about it. Measured from
-     * the same last activity as {@link #queryCleanupTimeoutInSeconds}, so it has to be the larger of the two:
-     * a query becomes eligible for cancellation at the one, and is written off at the other.
+     * How long a query may go on resisting cancellation before the sweep stops asking about it. This counts from
+     * the same last activity as {@link #queryCleanupTimeoutInSeconds} and must be configured larger than it:
+     * a query becomes eligible for cancellation at queryCleanupTimeoutInSeconds, and is written off after this time.
      */
     @Value("${app.query-cleanup.give-up-after-seconds}")
     private int giveUpAfterSeconds;
@@ -50,8 +50,8 @@ public class QueryCleanupManager {
         });
         if (!queryJobList.isEmpty()) {
             log.info("Terminating {} old queries", queryJobList.size());
-            // The sweep spans every tenant, but each row is acted on within its own: the update filters on the
-            // tenant, and the cancellation relays the tenant of whoever the work is being done for.
+            // The sweep spans every tenant, and runs each row in the tenant that row belongs to: the update
+            // filters on that tenant, and the cancellation relays it to Trino.
             queryJobList.forEach(queryJob -> tenantContextAccessor.runAs(queryJob.getTenantId(), () -> {
                 final String queryJobId = queryJob.getId();
                 log.info("Terminating query with ID: {}", queryJobId);
@@ -65,13 +65,13 @@ public class QueryCleanupManager {
                         + "leaving it to Trino's own timeout", queryJobId, queryJob.getLastActivityAt());
                     markFinished(queryJobId);
                 }
-                // Otherwise it is left unfinished on purpose, for the next sweep to try again.
+                // Otherwise the job stays unfinished on purpose, for the next sweep to try again.
             }));
         }
     }
 
     /**
-     * Asks Trino to cancel the query this job addresses.
+     * Asks Trino to cancel the query associated with the given job.
      * <p>
      * A 404 counts as cancelled. The page relayed here is the one Trino itself handed back and this service
      * stored, so Trino not recognising it says the query has ended rather than that the page was never issued —
@@ -83,8 +83,8 @@ public class QueryCleanupManager {
     private boolean cancelQuery(QueryJob queryJob) {
         try {
             int status = client.cancelQuery(queryJob.getNextPageUrl(), Map.of());
-            // Read as a range rather than through HttpStatus, which rejects a status it does not know: an
-            // intermediary is free to answer 520, and that is a refusal to be retried, not a malformed status.
+            // This compares the status as a range rather than through HttpStatus, which rejects a status it does
+            // not know: an intermediary is free to answer 520, and that is a refusal to retry, not a bad status.
             if ((status >= 200 && status <= 299) || status == HttpStatus.NOT_FOUND.value()) {
                 log.info("Trino answered {} to the cancellation of query {}", status, queryJob.getId());
                 return true;
@@ -92,7 +92,7 @@ public class QueryCleanupManager {
             log.warn("Trino answered {} to the cancellation of query {}", status, queryJob.getId());
             return false;
         } catch (RuntimeException e) {
-            // The sweep covers every tenant, so one query Trino will not answer for costs only that query.
+            // Catching this keeps one query Trino will not answer from ending the sweep over every other row.
             log.warn("Could not reach Trino to cancel query {}", queryJob.getId(), e);
             return false;
         }

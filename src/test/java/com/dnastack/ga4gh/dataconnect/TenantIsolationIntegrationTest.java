@@ -46,7 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Cross-tenant negative suite: a query job created in one tenant must not be readable, followable or cancellable
  * from another, an unknown or disabled tenant must be turned away at the request boundary before any of that,
- * and the legacy un-prefixed paths must keep behaving as they did — as the management tenant.
+ * and the legacy un-prefixed paths must go on serving the management tenant.
  */
 @AutoConfigureEmbeddedDatabase(provider = ZONKY, refresh = AFTER_EACH_TEST_METHOD, type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
 @RunWith(SpringJUnit4ClassRunner.class)

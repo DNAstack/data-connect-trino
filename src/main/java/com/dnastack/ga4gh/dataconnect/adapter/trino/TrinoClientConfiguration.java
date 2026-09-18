@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Assembles the client that talks to Trino. It lives beside the client rather than in the application-wide
- * configuration because the client needs the request tenant to relay it, and only the layers named in
- * {@code TenancyArchitectureTest} may hold the accessor that supplies it.
+ * configuration because the client relays the request's tenant, and only the layers named in
+ * {@code TenancyArchitectureTest} may hold the {@code TenantContextAccessor} that supplies it.
  */
 @Configuration
 public class TrinoClientConfiguration {

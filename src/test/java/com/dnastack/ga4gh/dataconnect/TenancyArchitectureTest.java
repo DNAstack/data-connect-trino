@@ -38,7 +38,7 @@ public class TenancyArchitectureTest {
 
     /**
      * A house convention rather than a library rule: where a method is scoped to a tenant, the tenant reads as
-     * the scope the rest of the arguments are interpreted in, so it comes first — and a caller that has them in
+     * the scope the rest of the arguments are interpreted in, so it comes first, and putting the arguments in
      * the wrong order is then a compile error rather than a silent swap of two same-typed arguments.
      */
     private static ArchRule tenantTakingMethodsTakeTheTenantFirst() {
