@@ -237,13 +237,6 @@ spec:
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/jwks'
             - name: APP_AUTH_TOKENISSUERS_0_AUDIENCES_0
               value: '{{- include "dnastack.dataConnectTrino.externalUrl" . }}'
-            # The audiences a caller's relayed userToken may be issued for. That token is addressed to whichever
-            # service evaluates data policy, so its audience is not this service's and has to be named here
-            # explicitly. While unset, a relayed userToken is not held to the tenant of the request carrying it.
-            {{- range $index, $audience := ((.Values.global).tenancy).userTokenAudiences | default list }}
-            - name: APP_AUTH_TOKENISSUERS_0_USERTOKENAUDIENCES_{{ $index }}
-              value: '{{ $audience }}'
-            {{- end }}
             # Multi-tenancy. Both behaviours ship off, and an environment moves up the enforcement ladder
             # (LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT) by setting global.tenancy, without a rebuild.
             - name: APP_TENANCY_ENFORCEMENT

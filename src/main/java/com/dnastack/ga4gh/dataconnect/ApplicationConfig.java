@@ -14,7 +14,6 @@ import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.AuthConfig.OauthClientConfig;
 import com.dnastack.ga4gh.dataconnect.adapter.security.DelegatingJwtDecoder;
 import com.dnastack.ga4gh.dataconnect.adapter.security.ServiceAccountAuthenticator;
-import com.dnastack.ga4gh.dataconnect.adapter.security.UserTokenTenancyValidator;
 import com.dnastack.oauth.okhttp.OkHttpClients;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
@@ -56,11 +55,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @Configuration
 public class ApplicationConfig {
 
-    /**
-     * The deployments that host a real {@link UserTokenTenancyValidator}: bearer tokens judged against wallet
-     * policy. Stated once, so the validator that checks nothing can be conditioned on precisely its negation and
-     * the two cannot drift into overlapping or leaving a gap.
-     */
+    /** The deployments whose bearer tokens are judged against wallet policy, rather than by scope alone. */
     private static final String WALLET_BEARER_AUTH =
         "'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'wallet'";
 
@@ -124,21 +119,6 @@ public class ApplicationConfig {
                     .allowedMethods("*");
             }
         };
-    }
-
-    /**
-     * The validator for a deployment whose bearer-token configuration does not host one - basic auth, no auth, or
-     * scope-only evaluation. Every reader of the credentials header holds a validator, so the absence of anything
-     * to check is a validator that checks nothing rather than a validator that is not there.
-     * <p>
-     * Conditioned on the exact negation of {@link #WALLET_BEARER_AUTH} rather than on the real validator being
-     * missing: {@code @ConditionalOnMissingBean} answers from the beans registered so far, which on a plain
-     * {@code @Configuration} makes it a question about definition order.
-     */
-    @Bean
-    @ConditionalOnExpression("!(" + WALLET_BEARER_AUTH + ")")
-    public UserTokenTenancyValidator userTokenTenancyValidatorCheckingNothing() {
-        return UserTokenTenancyValidator.checkingNothing();
     }
 
     @ConditionalOnExpression("'${app.auth.authorization-type}' == 'bearer' && '${app.auth.access-evaluator}' == 'scope'")
@@ -271,21 +251,6 @@ public class ApplicationConfig {
         ) {
             return PermissionCheckerFactory.create(allowedIssuers, policyEvaluationRequester,
                 policyEvaluationUrl(walletUrl), observationRegistry, tokenValidatorConnectionPool, tenancyEnforcement);
-        }
-
-        @Bean
-        public UserTokenTenancyValidator userTokenTenancyValidator(
-            AuthConfig authConfig,
-            List<IssuerInfo> allowedIssuers,
-            @Value("${app.url}") String policyEvaluationRequester,
-            @Value("${app.auth.token-issuers[0].issuer-uri}") String walletUrl,
-            @Value("${app.tenancy.enforcement}") TenancyEnforcement tenancyEnforcement,
-            ObservationRegistry observationRegistry,
-            ConnectionPool tokenValidatorConnectionPool
-        ) {
-            return UserTokenTenancyValidator.create(authConfig.getTokenIssuers(), allowedIssuers,
-                policyEvaluationRequester, policyEvaluationUrl(walletUrl), tenancyEnforcement, observationRegistry,
-                tokenValidatorConnectionPool);
         }
 
         /** Where wallet evaluates a policy, derived from the issuer this deployment was configured with. */

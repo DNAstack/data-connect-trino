@@ -2,8 +2,6 @@ package com.dnastack.ga4gh.dataconnect.adapter.security;
 
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoHttpClient;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.MalformedClientSuppliedCredentialsException;
-import com.dnastack.tenancy.context.TenantContextAccessor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -22,14 +20,11 @@ import java.util.regex.Pattern;
  * names this service means to relay — so no credential a caller invents can displace one this service asserts
  * on its own authority, whatever spelling it arrives in.
  */
-@Slf4j
 @Component
 public class ClientSuppliedCredentialsReader {
 
     /** The header these credentials arrive in, named in what a refusal tells the caller. */
     private static final String CREDENTIALS_HEADER = "GA4GH-Search-Authorization";
-
-    private static final String USER_TOKEN_CREDENTIAL = "userToken";
 
     /**
      * The credentials this service sends on its own authority, and so will not relay from a caller.
@@ -55,25 +50,12 @@ public class ClientSuppliedCredentialsReader {
      */
     private static final Pattern CREDENTIAL = Pattern.compile("(\\w+)=([\\p{Graph}&&[^%,=]]+)");
 
-    private final TenantContextAccessor tenantContextAccessor;
-    private final UserTokenTenancyValidator userTokenTenancyValidator;
-
-    public ClientSuppliedCredentialsReader(
-        TenantContextAccessor tenantContextAccessor,
-        UserTokenTenancyValidator userTokenTenancyValidator
-    ) {
-        this.tenantContextAccessor = tenantContextAccessor;
-        this.userTokenTenancyValidator = userTokenTenancyValidator;
-    }
-
     /**
      * @param clientSuppliedCredentials the header's values, each a {@code name=value} pair. A blank value names
      * nothing and is skipped, which is what a header ending in a separator leaves behind.
      * @return the credentials by name
      * @throws MalformedClientSuppliedCredentialsException if a value is not an unambiguous {@code name=value}
      * pair, or names a credential another value already named
-     * @throws com.dnastack.ga4gh.dataconnect.adapter.trino.exception.RelayedTokenTenantMismatchException if a
-     * supplied {@code userToken} names a tenant other than the request's
      */
     public Map<String, String> parse(List<String> clientSuppliedCredentials) {
         Map<String, String> credentials = new LinkedHashMap<>();
@@ -98,16 +80,6 @@ public class ClientSuppliedCredentialsReader {
                 throw new MalformedClientSuppliedCredentialsException("The credential " + name
                     + " is supplied more than once in the " + CREDENTIALS_HEADER + " header");
             }
-        }
-
-        // Temporary (CU-86bbtvppq). A relayed token is the caller's own, addressed to the service that
-        // evaluates data policy, and that service is the one that can hold it to a tenant -- it verifies the
-        // token it was sent and knows the tenant the request asks about. Checking it here repeats that work
-        // against an audience this service was never the audience of. It stands only until Trino passes the
-        // request's tenant to collection-service and collection-service enforces it, and comes out then.
-        String userToken = credentials.get(USER_TOKEN_CREDENTIAL);
-        if (userToken != null) {
-            userTokenTenancyValidator.validate(tenantContextAccessor.getTenantId(), userToken);
         }
 
         return credentials;
