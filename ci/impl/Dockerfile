@@ -4,7 +4,7 @@
 ## Stage 1: Build and test the Java Sources
 ##
 
-FROM amazoncorretto:21-alpine@sha256:fda60fd7965970ce7ed7ce789b18418647b56ac6112fc17df006337bdc6355c4 AS build
+FROM amazoncorretto:21-alpine@sha256:0057581d2f023b8851cf60bc45b18b62c7e4cf27b46d230a83e1ce5d2b941ccf AS build
 ARG APP_NAME
 ARG APP_VERSION
 
@@ -34,7 +34,7 @@ RUN ./mvnw -B -X package
 
 # This stage uses a JRE rather than JDK because it doesn't have to build anything; it just runs the fat jar
 # produced by the previous stage.
-FROM amazoncorretto:21-alpine@sha256:fda60fd7965970ce7ed7ce789b18418647b56ac6112fc17df006337bdc6355c4
+FROM amazoncorretto:21-alpine@sha256:0057581d2f023b8851cf60bc45b18b62c7e4cf27b46d230a83e1ce5d2b941ccf
 ARG APP_NAME
 ARG APP_VERSION
 
