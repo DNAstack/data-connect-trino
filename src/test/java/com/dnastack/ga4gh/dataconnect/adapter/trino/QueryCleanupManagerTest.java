@@ -11,19 +11,20 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.DatabaseProvider.ZONKY;
+import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.DatabaseProvider.EMBEDDED;
 import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.RefreshMode.AFTER_EACH_TEST_METHOD;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,10 +32,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The sweep that terminates abandoned queries. It runs unattended over every tenant's rows, so a query Trino
- * will not answer must cost only that query.
+ * Covers {@link QueryCleanupManager#terminateOldQueries()}, the sweep that cancels abandoned queries. It runs
+ * unattended across every tenant's query jobs, so this test suite ensures a mid-sweep failure doesn't stop
+ * the sweep over the remaining query jobs.
  */
-@AutoConfigureEmbeddedDatabase(provider = ZONKY, refresh = AFTER_EACH_TEST_METHOD, type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
+@AutoConfigureEmbeddedDatabase(provider = EMBEDDED, refresh = AFTER_EACH_TEST_METHOD, type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(
         // MOCK, not NONE: the tenancy context auto-configuration only contributes to a servlet application, and
@@ -59,7 +61,7 @@ public class QueryCleanupManagerTest {
     private TrinoClient trinoClient;
 
     /**
-     * A query idle long enough for the sweep to pick it up, but not long enough for it to give up on: it is
+     * A query that has been idle long enough for the sweep to try to cancel it, but not long enough to give up on: it is
      * still worth asking Trino about, so a refusal leaves it for the next sweep.
      */
     private void abandonedQueryJob(String queryJobId, String nextPageUrl) {
@@ -199,7 +201,8 @@ public class QueryCleanupManagerTest {
 
     @Test
     public void requireGiveUpAfterExceedsTimeout_should_returnNormally_when_givingUpComesAfterTheTimeout() {
-        QueryCleanupManager.requireGiveUpAfterExceedsTimeout(900, 120);
+        assertThatNoException()
+                .isThrownBy(() -> QueryCleanupManager.requireGiveUpAfterExceedsTimeout(900, 120));
     }
 
     @Test

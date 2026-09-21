@@ -70,7 +70,7 @@ public class AccessEvaluatorTest {
     }
 
     @Test
-    public void canAccessTenantResource_should_holdTheTokenToTheTenantTheRequestAddresses() {
+    public void canAccessTenantResource_should_checkPermissionsAgainstTheTenantTheRequestAddresses() {
         UUID requestTenant = UUID.randomUUID();
         authenticateWithBearerToken();
         AccessEvaluator accessEvaluator = accessEvaluator();
@@ -79,19 +79,19 @@ public class AccessEvaluatorTest {
             () -> accessEvaluator.canAccessTenantResource("/search", ACTIONS, SCOPES));
 
         assertThat(tenantPassedToTheChecker())
-            .as("the tenant a request addressing one is judged against")
+            .as("the tenant the permission checker was asked about")
             .isEqualTo(requestTenant);
     }
 
     @Test
-    public void canAccessTenantResource_should_holdTheTokenToTheManagementTenant_when_theRequestNamedNoTenant() {
+    public void canAccessTenantResource_should_checkPermissionsAgainstTheManagementTenant_when_theRequestNamedNoTenant() {
         // A legacy un-prefixed path resolves to the management tenant, which is where its data has always lived.
         authenticateWithBearerToken();
 
         accessEvaluator().canAccessTenantResource("/search", ACTIONS, SCOPES);
 
         assertThat(tenantPassedToTheChecker())
-            .as("the tenant a legacy request is judged against")
+            .as("the tenant the permission checker was asked about")
             .isEqualTo(TenantId.MANAGEMENT.getValue());
     }
 

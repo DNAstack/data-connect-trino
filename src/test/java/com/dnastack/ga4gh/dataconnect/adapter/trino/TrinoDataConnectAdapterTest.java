@@ -24,7 +24,6 @@ import org.hamcrest.Matchers;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.extension.ExtensionCallback;
 import org.jdbi.v3.core.extension.ExtensionConsumer;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.http.HttpStatus;
@@ -127,7 +126,7 @@ public class TrinoDataConnectAdapterTest {
     private final TenantContextAccessor tenantContextAccessor = new TenantContextAccessor();
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         // Minimal Tracer stub: only currentTraceContext().context().traceId() is exercised
         // by the code under test (when persisting QueryJob.originalTraceId).
         TraceContext traceContext = mock(TraceContext.class);
@@ -171,10 +170,6 @@ public class TrinoDataConnectAdapterTest {
                 mockTrinoClient, jdbi, mockApplicationConfig, List.of(dataModelSupplier), tracer,
                 tenantContextAccessor, Duration.ofMinutes(5), 100
         );
-    }
-
-    @After
-    public void tearDown() throws Exception {
     }
 
     private MockHttpServletRequest createRequestWithForwardedHeaders() {
@@ -306,7 +301,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTableData_should_handleArrayWithNullEntries() throws Exception {
+    public void getTableData_should_handleArrayWithNullEntries() {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
@@ -353,7 +348,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTableData_should_handleNullArray() throws Exception {
+    public void getTableData_should_handleNullArray() {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
@@ -398,7 +393,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTableData_should_handleMapWithIntegerKey() throws Exception {
+    public void getTableData_should_handleMapWithIntegerKey() {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
@@ -451,7 +446,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTableData_should_handleNullMapValue() throws Exception {
+    public void getTableData_should_handleNullMapValue() {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
@@ -499,7 +494,7 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
-    public void getTableData_should_includeDataModel_when_supplierProvidesOne_and_tableIsEmpty() throws Exception {
+    public void getTableData_should_includeDataModel_when_supplierProvidesOne_and_tableIsEmpty() {
         mockTrinoClient.setResponsePages(List.of(
                 //language=json
                 """
@@ -770,7 +765,6 @@ public class TrinoDataConnectAdapterTest {
         String targetCatalog = "catalog1";
         String targetSchema = "schemaA";
         String nextSchema = "schemaB";
-        String nextCatalog = "catalog2"; // Exists but not needed for link in this case
         when(mockApplicationConfig.getHiddenCatalogs()).thenReturn(Collections.emptySet());
 
         mockTrinoClient.setResponsePages(List.of(
@@ -1132,8 +1126,8 @@ public class TrinoDataConnectAdapterTest {
         TablesList tablesOfB = tenantContextAccessor.runAs(UUID.randomUUID(), () ->
                 dataConnectAdapter.getTablesByCatalogAndSchema("catalog_b", "schema_b", new MockHttpServletRequest(), Map.of()));
 
-        assertThat(tablesOfA.getTableInfos().getFirst().getName(), equalTo("catalog_a.schema_a.table_a"));
-        assertThat(tablesOfB.getTableInfos().getFirst().getName(), equalTo("catalog_b.schema_b.table_b"));
+        assertThat(tablesOfA.getTableInfos(), contains(hasProperty("name", equalTo("catalog_a.schema_a.table_a"))));
+        assertThat(tablesOfB.getTableInfos(), contains(hasProperty("name", equalTo("catalog_b.schema_b.table_b"))));
     }
 
     @Test

@@ -25,13 +25,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * How this service reports a request it will not serve to the operator. A caller's own mistake is not this
- * service's error, so it must not arrive in the logs looking like one: an error dashboard that counts malformed
- * headers alongside genuine failures cannot tell whether the service is healthy.
+ * Covers how {@link GlobalControllerExceptionHandler} logs exceptions that escape controller methods: exceptions that
+ * map to a 4xx response are logged at INFO with no stack trace, and those that map to 5xx log at ERROR with one.
  */
 public class GlobalControllerExceptionHandlerTest {
 
     private final ListAppender<ILoggingEvent> loggedEvents = new ListAppender<>();
+    @SuppressWarnings("LoggerInitializedWithForeignClass")
     private final Logger handlerLogger = (Logger) LoggerFactory.getLogger(GlobalControllerExceptionHandler.class);
 
     @Before

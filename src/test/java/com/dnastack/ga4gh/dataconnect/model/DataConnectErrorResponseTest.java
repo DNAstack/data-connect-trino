@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class DataConnectErrorResponseTest {
 
-    /** Strict on unknown fields on purpose: a field this body carries that a response type cannot hold fails. */
+    /** Fails on unknown properties so tests will reject error responses with nonstandard fields. */
     private final ObjectMapper objectMapper = new ObjectMapper()
         .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 

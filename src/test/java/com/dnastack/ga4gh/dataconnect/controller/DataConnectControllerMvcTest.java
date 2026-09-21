@@ -8,8 +8,8 @@ import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobExc
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoNoSuchCatalogException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUnexpectedHttpResponseException;
 import com.dnastack.ga4gh.dataconnect.model.*;
-import com.dnastack.ga4gh.dataconnect.tenancy.TenantMirrorResolver;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
+import com.dnastack.ga4gh.dataconnect.tenancy.TenantMirrorResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.zonky.test.db.AutoConfigureEmbeddedDatabase;
 import org.hamcrest.Matchers;
@@ -20,10 +20,10 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.DatabaseProvider.ZONKY;
+import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.DatabaseProvider.EMBEDDED;
 import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.RefreshMode.AFTER_EACH_TEST_METHOD;
 import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,12 +43,10 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@AutoConfigureEmbeddedDatabase(provider = ZONKY, refresh = AFTER_EACH_TEST_METHOD, type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
+@AutoConfigureEmbeddedDatabase(provider = EMBEDDED, refresh = AFTER_EACH_TEST_METHOD, type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.MOCK,
@@ -72,21 +70,17 @@ public class DataConnectControllerMvcTest {
     private TrinoDataConnectAdapter trinoDataConnectAdapter;
 
     @MockitoBean
-    private Jdbi jdbi; // Mock the JDBI instance if used
+    private Jdbi jdbi;
 
-    // The request boundary asks the resolver whether the request's tenant can be served, and the real one reads
-    // the mocked Jdbi.
     @MockitoBean
     private TenantMirrorResolver tenantResolver;
 
 
     private TablesList sampleTablesList;
-    private String sampleCatalog = "test_catalog";
-    private String sampleSchema = "test_schema";
-    private String sampleTable = "table1";
-    private String sampleQualifiedTableName = sampleCatalog + "." + sampleSchema + "." + sampleTable;
-    private String sampleCredentialsHeader = "Bearer abc";
-    private Map<String, String> expectedCredentialsMap = Map.of("Authorization", sampleCredentialsHeader);
+    private final String sampleCatalog = "test_catalog";
+    private final String sampleSchema = "test_schema";
+    private final String sampleTable = "table1";
+    private final String sampleQualifiedTableName = sampleCatalog + "." + sampleSchema + "." + sampleTable;
 
     @Before
     public void setUp() {
@@ -198,10 +192,8 @@ public class DataConnectControllerMvcTest {
         String queryJobId = "20260902_203359_48519_fnmag";
         String tenantId = "8e5f2a1c-0d3b-4e6a-9c7f-1b2d3e4f5a6b";
 
-        ResultActions resultActions = mockMvc.perform(
-                delete("/tenants/" + tenantId + "/search/" + page).param("queryJobId", queryJobId));
-
-        resultActions.andExpect(status().isNoContent());
+        mockMvc.perform(delete("/tenants/" + tenantId + "/search/" + page).param("queryJobId", queryJobId))
+                .andExpect(status().isNoContent());
 
         // The tenant is already bound to the request by this point, and this service offers Trino the page alone.
         verify(trinoDataConnectAdapter).deleteQueryJob(eq(page), eq(queryJobId), any());

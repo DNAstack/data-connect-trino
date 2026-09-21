@@ -51,7 +51,8 @@ app:
   query-cleanup:
     cron-interval: "*/10 * * ? * *" # Every 10 seconds
     timeout-in-seconds: 120
-    # A query that will not cancel is retried every sweep until it has been idle this long, then written off.
+    # A query that has been idle for this long must have failed many cancellation attempts. This is our threshold for
+    # giving up so the cleanup queue doesn't get clogged with queries that can never be cleaned up.
     # Must exceed timeout-in-seconds: both are measured from the query's last activity.
     give-up-after-seconds: 900 # 15 minutes
   query-job-cleanup:
@@ -59,10 +60,11 @@ app:
     deletion-timeout-in-days: 7
   tenancy:
     # LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT. This default sits at the bottom of the ladder: a
-    # tenantless token passes, and a mismatch only gets logged. An environment raises it without a rebuild.
+    # tenantless token passes, and a mismatch only gets logged.
     enforcement: LOG_ONLY
 
-# The poller that mirrors wallet's tenant directory. Off until an environment turns it on.
+# The poller that maintains our local mirror of wallet's tenant directory. Must be enabled for requests targeting a
+# tenant to succeed.
 tenant-lifecycle:
   enabled: false
   wallet-uri: http://localhost:8081
