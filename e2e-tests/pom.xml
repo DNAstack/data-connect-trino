@@ -38,7 +38,7 @@
 	<repositories>
 		<repository>
 			<id>github</id>
-			<name>DNAstack Public Github Packages</name>
+			<name>Github DNAstack Maven Packages</name>
 			<url>https://maven.pkg.github.com/DNAstack/dnastack-packages</url>
 		</repository>
 	</repositories>

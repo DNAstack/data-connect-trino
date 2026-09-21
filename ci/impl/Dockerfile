@@ -23,10 +23,15 @@ ADD target/pom.xml /build/pom.xml
 ADD target/src /build/src
 ADD target/.mvn/ /build/.mvn/
 ADD target/mvnw /build/mvnw
+# Allows us to pass settings.xml configured on local machine or CI server to access private Maven repositories
+ADD --chown=build:build target/.m2 /build/.m2
 
 RUN ./mvnw -B de.qaware.maven:go-offline-maven-plugin:resolve-dependencies
 RUN ./mvnw -B versions:set -DnewVersion=${APP_VERSION}
 RUN ./mvnw -B -X package
+
+# Delete settings*.xml files that contain GitHub credentials
+RUN rm /build/.m2/settings*.xml
 
 ##
 ## Stage 2: Package the runnable image

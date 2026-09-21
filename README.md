@@ -14,6 +14,8 @@ Get started in 30s.
 ### Prerequisites
 - Java 21+
 - A trino server you can access anonymously over HTTP(S).
+- Maven credentials for DNAstack's GitHub Packages repository. See
+  [Maven Repository Credentials](#maven-repository-credentials).
 
 ### Build
 
@@ -44,6 +46,47 @@ CREATE DATABASE dataconnecttrino OWNER dataconnecttrino;
 ```bash
 mvn clean spring-boot:run
 ```
+
+# Maven Repository Credentials
+
+This project's parent POM (`com.dnastack.starter:spring-boot-parent`) and its multi-tenancy libraries
+(`com.dnastack:spring-boot-tenancy-*`) are published to
+`https://maven.pkg.github.com/DNAstack/dnastack-packages`. GitHub Packages requires an authenticated
+identity to read a Maven package, so the build cannot resolve them anonymously and fails while reading
+the POM, before it compiles anything.
+
+Put a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+with `read:packages` in your `~/.m2/settings.xml`. The repository and the server must share an id.
+
+```xml
+<profiles>
+    <profile>
+        <id>github</id>
+        <repositories>
+            <repository>
+                <id>github</id>
+                <name>Github DNAstack Maven Packages</name>
+                <url>https://maven.pkg.github.com/DNAstack/dnastack-packages</url>
+            </repository>
+        </repositories>
+    </profile>
+</profiles>
+<servers>
+    <server>
+        <id>github</id>
+        <username>$GITHUB_USERNAME</username>
+        <password>$PERSONAL_ACCESS_TOKEN</password>
+    </server>
+</servers>
+<activeProfiles>
+    <activeProfile>github</activeProfile>
+</activeProfiles>
+```
+
+The `ci/build-docker-*` scripts copy `~/.m2/*.xml` into the Docker build context so that the Maven runs
+inside each image build resolve against the same credentials. Every Dockerfile that receives the file
+deletes it once dependencies are resolved, and the stage holding it is discarded before the shipped
+image is assembled.
 
 # Configuring (Advanced)
 
