@@ -21,15 +21,17 @@ target_image_name=$(validate_arg "target image name" ${1})
 app_name=$(validate_arg "app name" ${2})
 app_version=$(validate_arg "app version" ${3})
 
-# Pre-deploy jobs (mostly liquibase update).
-cp src/main/resources/db/changelog/db.changelog-master.yaml ci/predeploy/db.changelog-master.yaml
+# This script assembles the changelogs that liquibase runs before the app is deployed: this service's own
+# master changelog, and the tenant-lifecycle changelog that ships inside the spring-boot-tenancy library.
 
-# The tenant-lifecycle changelog ships inside the library jar.
-tenancy_version=$(./mvnw -q -B help:evaluate -Dexpression=spring-boot-tenancy.version -DforceStdout | tail -1)
-./mvnw -q -B dependency:unpack \
-  -Dartifact=com.dnastack:spring-boot-tenancy-lifecycle:${tenancy_version} \
-  -Dincludes='db/changelog/db.changelog-tenant-lifecycle-setup.yaml' \
-  -DoutputDirectory=ci/predeploy
+# This script does all its staging in a directory called target for easy cleanup and effective .gitignore.
+docker_context_dir=ci/predeploy/target
+rm -rf ${docker_context_dir}
+mkdir -p ${docker_context_dir}
+# Allows us to pass settings.xml configured on local machine or CI server to access private Maven repositories
+mkdir -p ${docker_context_dir}/.m2
+cp -rp .mvn mvnw pom.xml ${docker_context_dir}
+cp ~/.m2/*.xml ${docker_context_dir}/.m2
+cp src/main/resources/db/changelog/db.changelog-master.yaml ${docker_context_dir}/db.changelog-master.yaml
 
 (cd ci/predeploy && docker build -t ${target_image_name} .)
-
