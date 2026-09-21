@@ -21,25 +21,27 @@ public class DataConnectControllerTest {
 
     private static final String TENANT = "8e5f2a1c-0d3b-4e6a-9c7f-1b2d3e4f5a6b";
 
+    /**
+     * Every tenant-scoped request mapping in this service writes "/tenants/{tenantId}" to optimize for readability
+     * and to make it easy to grep for. This test ensures that the tenancy library's constant matches that inlined
+     * name, so the library can read the tenant from the request path.
+     */
     @Test
-    public void tenantPathVariable_should_beTheOneEveryMappingSpells() {
-        // Every tenant-scoped mapping in this service writes "/tenants/{tenantId}" out in full, so that a grep
-        // finds every path this service serves. That spelling has to agree with the
-        // name the tenancy library reads the tenant out of, and nothing but this says so.
+    public void tenantLibraryPathVariable_should_matchTheInlinedTenantIdNameWeUse() {
         assertThat(TenantIdentitySource.TENANT_PATH_VARIABLE)
-            .as("the path variable the tenancy library resolves the request's tenant from")
+            .as("the tenancy library's TENANT_PATH_VARIABLE")
             .isEqualTo("tenantId");
     }
 
     @Test
-    public void relayedPagePath_should_readThePage_when_givenARequestUri() {
+    public void relayedPagePath_should_readThePage_when_requestPathHasNoTenant() {
         assertThat(relayedPagePath("/search/" + PAGE))
             .as("the page read from a request URI")
             .isEqualTo(PAGE);
     }
 
     @Test
-    public void relayedPagePath_should_readThePage_when_theRequestUriAddressesATenant() {
+    public void relayedPagePath_should_readThePage_when_requestPathHasATenant() {
         assertThat(relayedPagePath("/tenants/" + TENANT + "/search/" + PAGE))
             .as("the page read from a tenant-addressed request URI")
             .isEqualTo(PAGE);
