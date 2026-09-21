@@ -24,9 +24,12 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Verifies how the request's tenant reaches Trino: as an extra credential of its own, which the Trino plugins scope
- * their authorization decisions to. It is sent separately from the caller's {@code userToken} because an anonymous
- * request supplies no token at all and its policy evaluation still has to be tenant-scoped.
+ * Verifies that the {@code tenantId} extra credential is propagated correctly to Trino based on the tenant specified
+ * in the inbound request to data-connect-trino. As with all services, the requested tenant ID is sent explicitly and
+ * is not necessarily the same as the tenantId claim in the caller's {@code userToken}. This allows anonymous requests
+ * (no userToken) and administrative requests (management-scoped userToken) to reach any tenancy. The only difference
+ * from other Publisher services is that data-connect-trino is a proxy to Trino, so the tenantId cannot be a path
+ * parameter in the request to Trino; it must be sent as an extra credential instead.
  */
 public class TrinoHttpClientTenantRelayTest {
 
@@ -34,6 +37,7 @@ public class TrinoHttpClientTenantRelayTest {
         "{\"id\":\"20260903_000000_00000_aaaaa\",\"columns\":[],\"data\":[],\"stats\":{\"state\":\"FINISHED\"}}";
 
     private MockWebServer trino;
+    private OpenTelemetrySdk otel;
     private Tracer tracer;
     private final TenantContextAccessor tenantContextAccessor = new TenantContextAccessor();
 
@@ -45,7 +49,7 @@ public class TrinoHttpClientTenantRelayTest {
             .setHeader("Content-Type", "application/json")
             .setBody(QUERY_RESPONSE));
 
-        OpenTelemetrySdk otel = OpenTelemetrySdk.builder()
+        otel = OpenTelemetrySdk.builder()
             .setTracerProvider(SdkTracerProvider.builder().build())
             .build();
         tracer = new OtelTracer(otel.getTracer("test"), new OtelCurrentTraceContext(), event -> {});
@@ -53,6 +57,7 @@ public class TrinoHttpClientTenantRelayTest {
 
     @After
     public void tearDown() throws IOException {
+        otel.close();
         trino.shutdown();
     }
 
@@ -84,18 +89,18 @@ public class TrinoHttpClientTenantRelayTest {
     }
 
     @Test
-    public void trinoQuery_should_replaceATenantTheCallerAsserted() throws Exception {
+    public void trinoQuery_should_useTheContextTenant_when_theIncomingRequestHasTenantIdInExtraCredentials() throws Exception {
         UUID requestTenant = UUID.randomUUID();
         UUID assertedTenant = UUID.randomUUID();
 
-        // Extra credentials reach us from the caller through the GA4GH-Search-Authorization header, so a caller can
-        // put anything in one — including a tenant that is not the one it was authorized for.
+        // Extra credentials reach us from the caller through the GA4GH-Search-Authorization header, so a caller could
+        // pre-fill a different tenantId there than the validated one in our current tenancy context holder.
         tenantContextAccessor.runAs(requestTenant,
             () -> trinoHttpClient().query("SELECT 1", Map.of("tenantId", assertedTenant.toString())));
 
         RecordedRequest recorded = trino.takeRequest();
         assertThat(recorded.getHeaders().values("X-Trino-Extra-Credential"))
-            .as("the extra credentials of a query whose caller asserted a tenant of its own")
+            .as("the onward request's X-Trino-Extra-Credential")
             .contains("tenantId=" + requestTenant)
             .doesNotContain("tenantId=" + assertedTenant);
     }

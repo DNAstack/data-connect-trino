@@ -104,14 +104,15 @@ SPRING_SECURITY_USER_PASSWORD={some-password}
 
 Every API path has a tenant-scoped form alongside it: `/tenants/{tenantId}/search`, `/tenants/{tenantId}/tables`,
 and so on. The un-prefixed paths remain, and act as the management tenant, so callers that predate tenancy are
-unaffected. `service-info` and the actuator endpoints are public and have no tenant.
+unaffected. `service-info` and the actuator endpoints are instance-scoped so they have no tenant.
 
-The tenant a request names is resolved at the request boundary against `tenant_mirror`, a local copy of wallet's
-tenant directory kept current by the tenant-lifecycle poller; an unknown or disabled tenant gets a 404 before any
-handler runs. Query jobs are scoped to the tenant they were created in, links this service generates keep the
-prefix the caller used, and the tenant travels to Trino as a `tenantId` extra credential.
+Using the spring-boot-tenancy-lifecycle library, this service maintains a local copy of wallet's tenant directory
+and keeps it current by polling Wallet's tenant changefeed endpoint. This service rejects requests for unknown and
+disabled tenants with a 404 before invoking any controller methods.
 
-Two switches, both shipped off, move an environment along:
+This service uses the validated `tenantId` to scope queries, and to propagate the requested tenant in onward calls.
+
+Two switches, both disabled by default, control the behavior of the service with respect to tenancy.
 
 ```bash
 # LOG_ONLY -> ACCEPT_TENANTLESS -> REQUIRE_TENANT

@@ -22,15 +22,20 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Verifies how a query cancellation addresses Trino. One method serves both callers that hold a page as this
- * service handed it out and callers that hold the absolute {@code next_page_url} a query job stored, so it has to
- * accept either form and reach the same place.
+ * Verifies how we relay query cancellation requests to Trino. There are two use cases:
+ * <ol>
+ *     <li>callers with a relative {@code next_page_url} (as returned in the pagination section of a previous response)
+ *     <li>callers with an absolute URL (as stored in query job table)
+ * </ol>
+ * The method under test, {@link TrinoHttpClient#cancelQuery(String, Map)}, must do the same thing given either form
+ * of next-page URL.
  */
 public class TrinoHttpClientCancellationTest {
 
     private static final String PAGE_PATH = "/v1/statement/executing/20260903_000000_00000_aaaaa/slug/2";
 
     private MockWebServer trino;
+    private OpenTelemetrySdk otel;
     private Tracer tracer;
     private final TenantContextAccessor tenantContextAccessor = new TenantContextAccessor();
 
@@ -39,7 +44,7 @@ public class TrinoHttpClientCancellationTest {
         trino = new MockWebServer();
         trino.start();
 
-        OpenTelemetrySdk otel = OpenTelemetrySdk.builder()
+        otel = OpenTelemetrySdk.builder()
             .setTracerProvider(SdkTracerProvider.builder().build())
             .build();
         tracer = new OtelTracer(otel.getTracer("test"), new OtelCurrentTraceContext(), event -> {});
@@ -47,6 +52,7 @@ public class TrinoHttpClientCancellationTest {
 
     @After
     public void tearDown() throws IOException {
+        otel.close();
         trino.shutdown();
     }
 
@@ -63,9 +69,8 @@ public class TrinoHttpClientCancellationTest {
         int status = trinoHttpClient().cancelQuery(trino.url(PAGE_PATH).toString(), Map.of());
 
         RecordedRequest recorded = trino.takeRequest();
-        assertThat(recorded.getMethod()).as("the method of the cancellation").isEqualTo("DELETE");
-        assertThat(recorded.getPath()).as("the path a cancellation by absolute URL reached").isEqualTo(PAGE_PATH);
-        assertThat(status).as("the status reported for the cancellation").isEqualTo(204);
+        assertThat(requestLine(recorded)).as("HTTP request to trino").isEqualTo("DELETE " + PAGE_PATH);
+        assertThat(status).as("HTTP response code from data-connect-trino back to caller").isEqualTo(204);
     }
 
     @Test
@@ -75,16 +80,20 @@ public class TrinoHttpClientCancellationTest {
         int status = trinoHttpClient().cancelQuery(PAGE_PATH.substring(1), Map.of());
 
         RecordedRequest recorded = trino.takeRequest();
-        assertThat(recorded.getPath()).as("the path a cancellation by relative page reached").isEqualTo(PAGE_PATH);
-        assertThat(status).as("the status reported for the cancellation").isEqualTo(204);
+        assertThat(requestLine(recorded)).as("HTTP request to trino").isEqualTo("DELETE " + PAGE_PATH);
+        assertThat(status).as("HTTP response code from data-connect-trino back to caller").isEqualTo(204);
     }
 
     @Test
-    public void cancelQuery_should_reportTheStatusTrinoAnswered() {
+    public void cancelQuery_should_passThroughTrinosResponseStatus() {
         trino.enqueue(new MockResponse().setResponseCode(404));
 
         int status = trinoHttpClient().cancelQuery(PAGE_PATH.substring(1), Map.of());
 
         assertThat(status).as("the status reported for a page Trino does not recognize").isEqualTo(404);
+    }
+
+    private static String requestLine(RecordedRequest request) {
+        return request.getMethod() + " " + request.getPath();
     }
 }
