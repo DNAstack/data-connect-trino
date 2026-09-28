@@ -117,28 +117,17 @@ public class TrinoHttpClient implements TrinoClient {
     }
 
     /**
-     * The URL a page addresses on this client's Trino. A page reaches us either as the path this service handed a
-     * caller, or as the absolute URL a query job stored (what Trino's own response held, replayed later by the
-     * cleanup sweep -- see {@code QueryCleanupManager}). Either way this resolves the page against the configured
-     * Trino server rather than trusting a scheme and host the page itself might carry: a page relayed from an
-     * inbound request is caller-controlled, and honoring an attacker-supplied host would let a caller redirect this
-     * client's authenticated outbound request anywhere. A trusted absolute URL from our own storage names this same
-     * Trino server anyway, so resolving by path only changes nothing for that caller.
+     * The URL a page addresses on this client's Trino. A page reaches us only ever as a path: every caller (the
+     * adapter relaying an inbound request, and the query cleanup sweep replaying a stored {@code next_page_url})
+     * already strips any scheme and host before calling in here. This client trusts none of them to have done so
+     * correctly -- an absolute-looking page would mean honoring a host the page itself names, which is exactly the
+     * SSRF this rejects -- so it always resolves against the configured Trino server and refuses anything else.
      */
     private String pageUrl(String page) {
-        String path = stripScheme(page);
-        return stripTrailingSlashes(this.trinoServer) + (path.startsWith("/") ? path : "/" + path);
-    }
-
-    /**
-     * Strips a {@code scheme://authority} prefix from an absolute page URL, keeping only its path (and query).
-     */
-    private static String stripScheme(String page) {
         if (page.startsWith("http://") || page.startsWith("https://")) {
-            int pathStart = page.indexOf('/', page.indexOf("://") + 3);
-            return pathStart < 0 ? "" : page.substring(pathStart);
+            throw new IllegalArgumentException("Expected a page path relative to the Trino server, but got an absolute URL: " + page);
         }
-        return page;
+        return stripTrailingSlashes(this.trinoServer) + (page.startsWith("/") ? page : "/" + page);
     }
 
     private static String stripTrailingSlashes(String url) {

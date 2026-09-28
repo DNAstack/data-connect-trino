@@ -272,7 +272,7 @@ public class TrinoDataConnectAdapter {
     ) {
         String rewrittenQuery = applyQueryRewrites(query);
         TrinoDataPage response = client.query(rewrittenQuery, extraCredentials);
-        QueryJob queryJob = createQueryJob(response.id(), query, dataModel, response.nextUri());
+        QueryJob queryJob = createQueryJob(response.id(), query, dataModel, pathOnly(response.nextUri()));
         return toTableData(response, queryJob, request);
     }
 
@@ -738,19 +738,29 @@ public class TrinoDataConnectAdapter {
             log.debug("generatePagination: ***** BEGIN with nextUri *****");
             final String rawTrinoResponseUri = trinoPage.nextUri();
             log.debug("generatePagination: rawTrinoResponseUri => {}", rawTrinoResponseUri);
-            final String rawTrinoRelayedPath = URI.create(rawTrinoResponseUri).getPath().replaceFirst("^/+", "");
+            final String rawTrinoRelayedPath = pathOnly(rawTrinoResponseUri);
             log.debug("generatePagination: rawTrinoRelayedPath => {}", rawTrinoRelayedPath);
             final String localForwardedPath = String.format("/search/%s", rawTrinoRelayedPath);
             log.debug("generatePagination: localForwardedPath => {}", localForwardedPath);
 
             nextPageUri = URI.create(callbackBaseUrl(request) + localForwardedPath);
             log.debug("generatePagination: nextPageUri => {}", nextPageUri);
-            trinoNextPageUri = UriComponentsBuilder.fromHttpUrl(rawTrinoResponseUri).build().toUri();
+            trinoNextPageUri = URI.create(rawTrinoRelayedPath);
             log.debug("generatePagination: trinoNextPageUri => {}", trinoNextPageUri);
             log.debug("generatePagination: ***** END *****");
         }
 
         return new Pagination(queryJob.getId(), nextPageUri, trinoNextPageUri);
+    }
+
+    /**
+     * The path of a Trino-issued URL, with its scheme and host stripped. Trino hands back an absolute URL, but this
+     * service only ever needs the path -- for relaying back to a caller, or for storing as a query job's
+     * {@code next_page_url} -- and never the host, so nothing downstream (not even {@link TrinoHttpClient}) accepts
+     * or has to account for an absolute one.
+     */
+    private static String pathOnly(String trinoUrl) {
+        return trinoUrl == null ? null : URI.create(trinoUrl).getPath().replaceFirst("^/+", "");
     }
 
     /**

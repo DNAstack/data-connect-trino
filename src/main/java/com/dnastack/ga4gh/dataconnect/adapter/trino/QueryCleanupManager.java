@@ -104,7 +104,7 @@ public class QueryCleanupManager {
      */
     private boolean cancelQuery(QueryJob queryJob) {
         try {
-            int status = client.cancelQuery(queryJob.getNextPageUrl(), Map.of());
+            int status = client.cancelQuery(pathOnly(queryJob.getNextPageUrl()), Map.of());
             // This compares the status as a range rather than through HttpStatus, which rejects a status it does
             // not know: an intermediary is free to answer 520, and that is a refusal to retry, not a bad status.
             if ((status >= 200 && status <= 299) || status == HttpStatus.NOT_FOUND.value()) {
@@ -118,6 +118,21 @@ public class QueryCleanupManager {
             log.warn("Could not reach Trino to cancel query {}", queryJob.getId(), e);
             return false;
         }
+    }
+
+    /**
+     * Strips a {@code scheme://authority} prefix, keeping only the path (and query), from a stored
+     * {@code next_page_url}. TrinoHttpClient itself only accepts a relative page; this tolerates rows written before
+     * this class started storing the path alone, which may still hold the absolute URL Trino's response originally
+     * held.
+     */
+    private static String pathOnly(String nextPageUrl) {
+        String path = nextPageUrl;
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            int pathStart = path.indexOf('/', path.indexOf("://") + 3);
+            path = pathStart < 0 ? "" : path.substring(pathStart);
+        }
+        return path.replaceFirst("^/+", "");
     }
 
     /** Whether this query has been idle long enough that the sweep stops asking Trino about it. */

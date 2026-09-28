@@ -7,9 +7,7 @@ import io.micrometer.tracing.Span;
 import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
 import okhttp3.OkHttpClient;
-import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -19,6 +17,7 @@ import java.time.Duration;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -70,19 +69,18 @@ public class TrinoHttpClientTest {
     }
 
     @Test
-    public void next_should_resolvePageAgainstTheConfiguredTrinoServer_when_pageIsAnAbsoluteUrl() throws InterruptedException {
+    public void next_should_reject_when_pageIsAnAbsoluteUrl() {
         // An absolute page URL naming a host other than the configured Trino server -- what an attacker relays
-        // through the public /search/** endpoint. (A trusted absolute page also reaches this client, from the query
-        // cleanup sweep -- see QueryCleanupManager -- but that one names this same configured server, so resolving
-        // by path only is indistinguishable from passing it through.)
+        // through the public /search/** endpoint. Every legitimate caller (the adapter, the query cleanup sweep)
+        // strips any scheme and host before calling in here, so this client trusts none of them and refuses an
+        // absolute-looking page outright rather than silently resolving it.
         String attackerPage = attackerServer.url("/v1/statement/executing/fake-query/slug/1").toString();
-        configuredTrinoServer.enqueue(new MockResponse()
-            .setBody("{\"id\": \"fake-query\", \"columns\": [], \"data\": [], \"stats\": {\"state\": \"FINISHED\"}}"));
 
-        client.next(attackerPage, Map.of());
+        assertThatThrownBy(() -> client.next(attackerPage, Map.of()))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining(attackerPage);
 
         assertThat(attackerServer.getRequestCount()).isZero();
-        RecordedRequest requestToTrino = configuredTrinoServer.takeRequest();
-        assertThat(requestToTrino.getPath()).isEqualTo("/v1/statement/executing/fake-query/slug/1");
+        assertThat(configuredTrinoServer.getRequestCount()).isZero();
     }
 }
