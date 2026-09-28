@@ -117,10 +117,13 @@ public class TrinoHttpClient implements TrinoClient {
     }
 
     /**
-     * The URL a page addresses on this client's Trino. A page reaches us as the path this service handed a caller,
-     * always resolved against the configured Trino server -- never against a host the page itself names, since a
-     * page relayed from an inbound request is caller-controlled and an absolute-URL passthrough would let a caller
-     * redirect this client's authenticated outbound request anywhere.
+     * The URL a page addresses on this client's Trino. A page reaches us either as the path this service handed a
+     * caller, or as the absolute URL a query job stored (what Trino's own response held, replayed later by the
+     * cleanup sweep -- see {@code QueryCleanupManager}). Either way this resolves the page against the configured
+     * Trino server rather than trusting a scheme and host the page itself might carry: a page relayed from an
+     * inbound request is caller-controlled, and honoring an attacker-supplied host would let a caller redirect this
+     * client's authenticated outbound request anywhere. A trusted absolute URL from our own storage names this same
+     * Trino server anyway, so resolving by path only changes nothing for that caller.
      */
     private String pageUrl(String page) {
         String path = stripScheme(page);
@@ -128,8 +131,7 @@ public class TrinoHttpClient implements TrinoClient {
     }
 
     /**
-     * Strips a {@code scheme://authority} prefix from an absolute page URL, keeping only its path (and query),
-     * so an absolute page still resolves against the configured Trino server rather than the host it names.
+     * Strips a {@code scheme://authority} prefix from an absolute page URL, keeping only its path (and query).
      */
     private static String stripScheme(String page) {
         if (page.startsWith("http://") || page.startsWith("https://")) {

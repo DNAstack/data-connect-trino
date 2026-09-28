@@ -25,11 +25,6 @@ import static org.mockito.Mockito.when;
 
 public class TrinoHttpClientTest {
 
-    private static final String TRINO_RESPONSE_BODY =
-        """
-        {"id": "fake-query", "columns": [], "data": [], "stats": {"state": "FINISHED"}}
-        """;
-
     private MockWebServer configuredTrinoServer;
     private MockWebServer attackerServer;
     private TrinoHttpClient client;
@@ -75,18 +70,18 @@ public class TrinoHttpClientTest {
     }
 
     @Test
-    public void next_should_resolveAnAbsoluteUrlPage_againstTheConfiguredTrinoServer_notThePageItself() throws InterruptedException {
+    public void next_should_resolvePageAgainstTheConfiguredTrinoServer_when_pageIsAnAbsoluteUrl() throws InterruptedException {
         // An absolute page URL naming a host other than the configured Trino server -- what an attacker relays
-        // through the public /search/** endpoint. Trino itself only ever hands back a page under its
-        // own host, so an absolute page naming a different host can only be attacker-controlled.
+        // through the public /search/** endpoint. (A trusted absolute page also reaches this client, from the query
+        // cleanup sweep -- see QueryCleanupManager -- but that one names this same configured server, so resolving
+        // by path only is indistinguishable from passing it through.)
         String attackerPage = attackerServer.url("/v1/statement/executing/fake-query/slug/1").toString();
-        configuredTrinoServer.enqueue(new MockResponse().setBody(TRINO_RESPONSE_BODY));
+        configuredTrinoServer.enqueue(new MockResponse()
+            .setBody("{\"id\": \"fake-query\", \"columns\": [], \"data\": [], \"stats\": {\"state\": \"FINISHED\"}}"));
 
         client.next(attackerPage, Map.of());
 
-        assertThat(attackerServer.getRequestCount())
-            .as("the attacker's server should never be contacted, which is also where the service's bearer token would have leaked")
-            .isZero();
+        assertThat(attackerServer.getRequestCount()).isZero();
         RecordedRequest requestToTrino = configuredTrinoServer.takeRequest();
         assertThat(requestToTrino.getPath()).isEqualTo("/v1/statement/executing/fake-query/slug/1");
     }
