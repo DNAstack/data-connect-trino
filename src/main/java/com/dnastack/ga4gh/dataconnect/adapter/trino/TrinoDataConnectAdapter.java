@@ -59,10 +59,13 @@ public class TrinoDataConnectAdapter {
 
     }
 
-    //Matches the given name against the pattern <catalog>.<schema>.<table>, "<catalog>"."<schema>"."<table>", or
-    //"<catalog>.<schema>.<table>".  Note this pattern is permissive and will often allow misquoted names through.
+    // Matches <catalog>.<schema>.<table>: three unquoted Trino identifiers joined by dots, each restricted to the
+    // characters a bare identifier can contain. This is a validation gate ahead of raw string concatenation into
+    // SQL (getTableData, getTableInfo's fallback, attachCommentsToDataModel), so it must reject anything a caller
+    // could use to inject SQL beyond the qualified name -- quotes, commas, parentheses, whitespace -- not just
+    // sanity-check the general shape.
     private static final Pattern qualifiedNameMatcher =
-        Pattern.compile("^\"?[^\"]+\"?\\.\"?[^\"]+\"?\\.\"?[^\"]+\"?$");
+        Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_-]*\\.[a-zA-Z_][a-zA-Z0-9_-]*\\.[a-zA-Z0-9_][a-zA-Z0-9_-]*$");
 
     /**
      * Pattern to match fully-qualified table names (catalog.schema.table) in FROM and JOIN clauses.
@@ -556,6 +559,11 @@ public class TrinoDataConnectAdapter {
     }
 
     public TableData getTableData(String tableName, HttpServletRequest request, Map<String, String> extraCredentials) {
+        if (!isValidTrinoName(tableName)) {
+            //triggers a 404.
+            throw new TrinoBadlyQualifiedNameException("Invalid tablename " + tableName + " -- expected name in format <catalog>.<schema>.<tableName>");
+        }
+
         // Get table JSON schema from tables registry if one exists for this table (for tables from trino-public)
         DataModel dataModel = getDataModelFromSupplier(tableName);
         TableData tableData = search("SELECT * FROM " + tableName, request, extraCredentials, dataModel);
@@ -1058,7 +1066,16 @@ public class TrinoDataConnectAdapter {
             return;
         }
 
-        TableData describeData = searchAll("DESCRIBE " + tableName, request, extraCredentials, null);
+        if (!isValidTrinoName(tableName)) {
+            //triggers a 404.
+            throw new TrinoBadlyQualifiedNameException("Invalid tablename " + tableName + " -- expected name in format <catalog>.<schema>.<tableName>");
+        }
+
+        // DESCRIBE isn't a FROM/JOIN clause, so quoteTableNamesInQuery's rewrite (applied to search()'s query, not
+        // this one) never reaches it; each part is quoted here directly instead.
+        String[] parts = tableName.split("\\.", 3);
+        String quotedTableName = quoteIdentifier(parts[0]) + "." + quoteIdentifier(parts[1]) + "." + quoteIdentifier(parts[2]);
+        TableData describeData = searchAll("DESCRIBE " + quotedTableName, request, extraCredentials, null);
 
         for (Map<String, Object> describeRow : describeData.getData()) {
             final String columnName = (String) describeRow.get("Column");
