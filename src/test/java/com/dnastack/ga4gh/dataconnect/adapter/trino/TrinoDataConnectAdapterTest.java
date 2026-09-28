@@ -3,6 +3,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.trino;
 import com.dnastack.ga4gh.dataconnect.ApplicationConfig;
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobException;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoBadlyQualifiedNameException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoNoSuchCatalogException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUserUnauthorizedException;
 import com.dnastack.ga4gh.dataconnect.model.DataModel;
@@ -298,6 +299,34 @@ public class TrinoDataConnectAdapterTest {
 
         String ga4ghTypeFunctionQuery = "SELECT ga4gh_type(bogusfield, '$ref:http://path/to/whatever.com') FROM tableX";
         assertTrue(TrinoDataConnectAdapter.biFunctionPattern.matcher(ga4ghTypeFunctionQuery).find());
+    }
+
+    @Test
+    public void getTableData_should_reject_aTableNameThatIsNotAQualifiedIdentifier() {
+        // A raw path segment carrying SQL beyond a table name, reachable anonymously via /table/{name}/data.
+        // mockTrinoClient.setResponsePages() is deliberately not called: if this reached Trino, the mock would throw
+        // IllegalStateException instead of TrinoBadlyQualifiedNameException, failing this test for the right reason
+        // to show a validation bypass.
+        String injectionPayload = "memory.default.sqli_base,(VALUES(31337))";
+
+        try {
+            dataConnectAdapter.getTableData(injectionPayload, new MockHttpServletRequest(), Map.of());
+            fail("Expected a table name carrying extra SQL to be rejected");
+        } catch (TrinoBadlyQualifiedNameException expected) {
+            assertThat(expected.getMessage(), containsString(injectionPayload));
+        }
+    }
+
+    @Test
+    public void getTableInfo_should_reject_aTableNameThatIsNotAQualifiedIdentifier() {
+        String injectionPayload = "memory.default.sqli_base,(VALUES(31337))";
+
+        try {
+            dataConnectAdapter.getTableInfo(injectionPayload, new MockHttpServletRequest(), Map.of());
+            fail("Expected a table name carrying extra SQL to be rejected");
+        } catch (TrinoBadlyQualifiedNameException expected) {
+            assertThat(expected.getMessage(), containsString(injectionPayload));
+        }
     }
 
     @Test
