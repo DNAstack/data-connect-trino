@@ -303,6 +303,11 @@ public class TrinoDataConnectAdapter {
         HttpServletRequest request,
         Map<String, String> extraCredentials
     ) {
+        if (!isStatementPageOf(page, queryJobId)) {
+            log.info("getNextSearchPage rejecting args: page {} is not a results page of query job {}", page, queryJobId);
+            throw new InvalidQueryJobException(queryJobId);
+        }
+
         TrinoDataPage response = client.next(page, extraCredentials);
         log.debug("[getNextSearchPage]response = {}", response);
         QueryJob queryJob = getQueryJob(queryJobId);

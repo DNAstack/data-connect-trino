@@ -117,15 +117,26 @@ public class TrinoHttpClient implements TrinoClient {
     }
 
     /**
-     * The URL a page addresses on this client's Trino. A page reaches us either as the path this service handed a
-     * caller, or as the absolute {@code next_page_url} a query job stored, and both name the same page. Exactly one
-     * slash joins the two halves, whether or not the configured Trino URL ends in one.
+     * The URL a page addresses on this client's Trino. A page reaches us as the path this service handed a caller,
+     * always resolved against the configured Trino server -- never against a host the page itself names, since a
+     * page relayed from an inbound request is caller-controlled and an absolute-URL passthrough would let a caller
+     * redirect this client's authenticated outbound request anywhere.
      */
     private String pageUrl(String page) {
+        String path = stripScheme(page);
+        return stripTrailingSlashes(this.trinoServer) + (path.startsWith("/") ? path : "/" + path);
+    }
+
+    /**
+     * Strips a {@code scheme://authority} prefix from an absolute page URL, keeping only its path (and query),
+     * so an absolute page still resolves against the configured Trino server rather than the host it names.
+     */
+    private static String stripScheme(String page) {
         if (page.startsWith("http://") || page.startsWith("https://")) {
-            return page;
+            int pathStart = page.indexOf('/', page.indexOf("://") + 3);
+            return pathStart < 0 ? "" : page.substring(pathStart);
         }
-        return stripTrailingSlashes(this.trinoServer) + (page.startsWith("/") ? page : "/" + page);
+        return page;
     }
 
     private static String stripTrailingSlashes(String url) {

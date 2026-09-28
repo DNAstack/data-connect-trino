@@ -291,6 +291,23 @@ public class TrinoDataConnectAdapterTest {
     }
 
     @Test
+    public void getNextSearchPage_shouldNot_askTrinoForThePage_when_thePageNamesAnotherQuery() {
+        currentQueryJob = QueryJob.builder().id("20260902_203359_48519_fnmag").build();
+        String pageOfAnotherQuery =
+                "v1/statement/executing/20260902_074525_06412_fnmag/yb4d5fc239db718acc29d20a1d38d6522143ae656/6";
+
+        // mockTrinoClient.setResponsePages() is deliberately not called: if Trino were asked for the page, the mock
+        // would throw IllegalStateException instead of InvalidQueryJobException, failing this test for the right
+        // reason to show a page validation bypass.
+        try {
+            dataConnectAdapter.getNextSearchPage(pageOfAnotherQuery, currentQueryJob.getId(), new MockHttpServletRequest(), Map.of());
+            fail("Expected a page belonging to another query to be rejected");
+        } catch (InvalidQueryJobException expected) {
+            assertThat(expected.getQueryJobId(), equalTo(currentQueryJob.getId()));
+        }
+    }
+
+    @Test
     public void biFunctionPattern_should_matchOnlyAGa4ghTypeCall() {
         String jsonFunctionQuery = "select id, phenopacket from sample_phenopackets.ga4gh_tables.gecco_phenopackets " +
                 "where json_extract_scalar(pp.phenopacket, '$.subject.sex') = 'MALE' limit 3";
@@ -338,7 +355,8 @@ public class TrinoDataConnectAdapterTest {
 
         // When I try to get table data
         dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
-        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage(
+                "v1/statement/executing/fake-req-1/slug/1", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
         assertThat("Ensure that the field is not empty",
@@ -385,7 +403,8 @@ public class TrinoDataConnectAdapterTest {
 
         // When I try to get table data
         dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
-        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage(
+                "v1/statement/executing/fake-req-1/slug/1", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
         assertThat("Ensure that the field is null",
@@ -435,7 +454,8 @@ public class TrinoDataConnectAdapterTest {
 
         // When I try to get table data
         dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
-        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage(
+                "v1/statement/executing/fake-req-1/slug/1", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
         Map<?, ?> valueCountsRow = (Map<?, ?>) tableData.getData().getFirst().get("value_counts");
@@ -486,7 +506,8 @@ public class TrinoDataConnectAdapterTest {
 
         // When I try to get table data
         dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
-        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage(
+                "v1/statement/executing/fake-req-1/slug/1", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
         assertThat("The row value should be null",
@@ -517,7 +538,8 @@ public class TrinoDataConnectAdapterTest {
 
         // When I try to get table data
         dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
-        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage(
+                "v1/statement/executing/fake-req-1/slug/1", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
         assertThat("Adapter should not have found a row of data (this tests that we've mocked Trino correctly)",
@@ -552,7 +574,8 @@ public class TrinoDataConnectAdapterTest {
 
         // When I try to get table data
         dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
-        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage(
+                "v1/statement/executing/fake-req-1/slug/1", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
         assertThat("Adapter should have found a row of data (this tests that we've mocked Trino correctly)",
@@ -588,7 +611,8 @@ public class TrinoDataConnectAdapterTest {
 
         // When I try to get table data
         dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
-        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage(
+                "v1/statement/executing/fake-req-1/slug/1", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
         assertThat("Adapter should have found a row of data (this tests that we've mocked Trino correctly)",
@@ -621,7 +645,8 @@ public class TrinoDataConnectAdapterTest {
 
         // When I try to get table data
         dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
-        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage(
+                "v1/statement/executing/fake-req-1/slug/1", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
         assertThat("Adapter should not have found a row of data (this tests that we've mocked Trino correctly)",
@@ -655,7 +680,8 @@ public class TrinoDataConnectAdapterTest {
 
         // When I try to get table data
         dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
-        TableData tableData = dataConnectAdapter.getNextSearchPage("", "fake-req-1", new MockHttpServletRequest(), Map.of());
+        TableData tableData = dataConnectAdapter.getNextSearchPage(
+                "v1/statement/executing/fake-req-1/slug/1", "fake-req-1", new MockHttpServletRequest(), Map.of());
 
         // Then
         assertThat("Adapter should not have found a row of data (this tests that we've mocked Trino correctly)",
