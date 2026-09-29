@@ -20,15 +20,13 @@ import java.io.IOException;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Verifies how we relay query cancellation requests to Trino. There are two use cases:
- * <ol>
- *     <li>callers with a relative {@code next_page_url} (as returned in the pagination section of a previous response)
- *     <li>callers with an absolute URL (as stored in query job table)
- * </ol>
- * The method under test, {@link TrinoHttpClient#cancelQuery(String, Map)}, must do the same thing given either form
- * of next-page URL.
+ * Verifies how we relay query cancellation requests to Trino. {@link TrinoHttpClient#cancelQuery(String, Map)} only
+ * ever accepts a page relative to the configured Trino server: callers that might hold an absolute URL (the query
+ * cleanup sweep, replaying a stored {@code next_page_url}) strip it to a path themselves before calling in here, so
+ * this client can refuse to honor a host any caller supplies.
  */
 public class TrinoHttpClientCancellationTest {
 
@@ -62,15 +60,14 @@ public class TrinoHttpClientCancellationTest {
     }
 
     @Test
-    public void cancelQuery_should_addressAPageGivenAsAnAbsoluteUrl() throws Exception {
-        trino.enqueue(new MockResponse().setResponseCode(204));
+    public void cancelQuery_should_reject_when_pageIsAnAbsoluteUrl() {
+        String absolutePage = trino.url(PAGE_PATH).toString();
 
-        // The sweep cancels from the next_page_url the query job stored, the absolute URI Trino handed back.
-        int status = trinoHttpClient().cancelQuery(trino.url(PAGE_PATH).toString(), Map.of());
+        assertThatThrownBy(() -> trinoHttpClient().cancelQuery(absolutePage, Map.of()))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining(absolutePage);
 
-        RecordedRequest recorded = trino.takeRequest();
-        assertThat(requestLine(recorded)).as("HTTP request to trino").isEqualTo("DELETE " + PAGE_PATH);
-        assertThat(status).as("HTTP response code from data-connect-trino back to caller").isEqualTo(204);
+        assertThat(trino.getRequestCount()).isZero();
     }
 
     @Test

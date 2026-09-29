@@ -22,6 +22,7 @@ public class Pagination {
     @JsonProperty("next_page_url")
     private URI nextPageUrl;
 
+    /** The path (never a host) of the next page Trino itself issued -- see TrinoDataConnectAdapter#pathOnly. */
     @JsonIgnore
     private URI trinoNextPageUrl;
 

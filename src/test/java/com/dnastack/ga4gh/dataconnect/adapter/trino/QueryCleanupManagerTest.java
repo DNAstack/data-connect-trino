@@ -48,8 +48,12 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("no-auth")
 public class QueryCleanupManagerTest {
 
+    // Stored as the absolute URL Trino's response originally held -- what a row written before this class started
+    // storing only the path would still have -- to prove the sweep strips it before ever calling TrinoClient.
     private static final String UNREACHABLE_PAGE = "http://trino.example.com/v1/statement/executing/unreachable/s/1";
     private static final String REACHABLE_PAGE = "http://trino.example.com/v1/statement/executing/reachable/s/1";
+    private static final String UNREACHABLE_PAGE_PATH = "v1/statement/executing/unreachable/s/1";
+    private static final String REACHABLE_PAGE_PATH = "v1/statement/executing/reachable/s/1";
 
     @Autowired
     private QueryCleanupManager queryCleanupManager;
@@ -89,7 +93,7 @@ public class QueryCleanupManagerTest {
     public void terminateOldQueries_should_markEveryQueryFinished() {
         abandonedQueryJob("query-a", REACHABLE_PAGE);
         abandonedQueryJob("query-b", REACHABLE_PAGE);
-        when(trinoClient.cancelQuery(eq(REACHABLE_PAGE), anyMap())).thenReturn(204);
+        when(trinoClient.cancelQuery(eq(REACHABLE_PAGE_PATH), anyMap())).thenReturn(204);
 
         queryCleanupManager.terminateOldQueries();
 
@@ -101,9 +105,9 @@ public class QueryCleanupManagerTest {
     public void terminateOldQueries_should_sweepOnPast_when_trinoWillNotAnswerForOneQuery() {
         abandonedQueryJob("query-unreachable", UNREACHABLE_PAGE);
         abandonedQueryJob("query-reachable", REACHABLE_PAGE);
-        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap()))
+        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE_PATH), anyMap()))
                 .thenThrow(new TrinoIOException("Trino is unreachable", new IOException("connection refused")));
-        when(trinoClient.cancelQuery(eq(REACHABLE_PAGE), anyMap())).thenReturn(204);
+        when(trinoClient.cancelQuery(eq(REACHABLE_PAGE_PATH), anyMap())).thenReturn(204);
 
         queryCleanupManager.terminateOldQueries();
 
@@ -118,7 +122,7 @@ public class QueryCleanupManagerTest {
         // The sweep leaves the row unfinished on purpose, so the next sweep tries it again rather than leaving
         // the query running in Trino.
         abandonedQueryJob("query-unreachable", UNREACHABLE_PAGE);
-        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap()))
+        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE_PATH), anyMap()))
                 .thenThrow(new TrinoIOException("Trino is unreachable", new IOException("connection refused")));
 
         queryCleanupManager.terminateOldQueries();
@@ -134,7 +138,7 @@ public class QueryCleanupManagerTest {
         // The page relayed here is the one Trino handed back and this service stored, so Trino not knowing it
         // means the query has already ended. Asking again would 404 for as long as the row lives.
         abandonedQueryJob("query-already-over", REACHABLE_PAGE);
-        when(trinoClient.cancelQuery(eq(REACHABLE_PAGE), anyMap())).thenReturn(404);
+        when(trinoClient.cancelQuery(eq(REACHABLE_PAGE_PATH), anyMap())).thenReturn(404);
 
         queryCleanupManager.terminateOldQueries();
 
@@ -149,7 +153,7 @@ public class QueryCleanupManagerTest {
         // Trino answers, but not with a cancellation: the query may well still be running, so the row stays
         // open for the next sweep rather than being recorded as something it is not.
         abandonedQueryJob("query-refused", UNREACHABLE_PAGE);
-        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap())).thenReturn(503);
+        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE_PATH), anyMap())).thenReturn(503);
 
         queryCleanupManager.terminateOldQueries();
 
@@ -164,7 +168,7 @@ public class QueryCleanupManagerTest {
         // Without this, a query Trino will never cancel would be retried every sweep until the row is purged days
         // later. Trino ages its own queries out, so writing it off here concedes little.
         abandonedQueryJob("query-zombie", UNREACHABLE_PAGE, Duration.ofMinutes(20));
-        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap()))
+        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE_PATH), anyMap()))
                 .thenThrow(new TrinoIOException("Trino is unreachable", new IOException("connection refused")));
 
         queryCleanupManager.terminateOldQueries();
@@ -178,7 +182,7 @@ public class QueryCleanupManagerTest {
     @Test
     public void terminateOldQueries_should_keepAskingAboutAQueryUntilTheGiveUpTimeout() {
         abandonedQueryJob("query-recently-idle", UNREACHABLE_PAGE, Duration.ofMinutes(5));
-        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE), anyMap()))
+        when(trinoClient.cancelQuery(eq(UNREACHABLE_PAGE_PATH), anyMap()))
                 .thenThrow(new TrinoIOException("Trino is unreachable", new IOException("connection refused")));
 
         queryCleanupManager.terminateOldQueries();
@@ -192,11 +196,11 @@ public class QueryCleanupManagerTest {
     @Test
     public void terminateOldQueries_should_relayNoCallerCredentials() {
         abandonedQueryJob("query-a", REACHABLE_PAGE);
-        when(trinoClient.cancelQuery(eq(REACHABLE_PAGE), anyMap())).thenReturn(204);
+        when(trinoClient.cancelQuery(eq(REACHABLE_PAGE_PATH), anyMap())).thenReturn(204);
 
         queryCleanupManager.terminateOldQueries();
 
-        verify(trinoClient).cancelQuery(REACHABLE_PAGE, Map.of());
+        verify(trinoClient).cancelQuery(REACHABLE_PAGE_PATH, Map.of());
     }
 
     @Test
