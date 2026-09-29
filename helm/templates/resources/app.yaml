@@ -41,6 +41,11 @@ spec:
       secretKeyRef:
         name: data-connect-trino-client-credentials
         key: clientSecret
+    - credentialId: rotation-backup
+      syncMode: CREATE_ONLY
+      secretKeyRef:
+        name: data-connect-trino-client-credentials
+        key: clientSecret
   data:
     id: data-connect-trino
     name: "OAuth Client representing data-connect-trino"
