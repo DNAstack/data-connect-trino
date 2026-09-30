@@ -41,6 +41,11 @@ spec:
       secretKeyRef:
         name: data-connect-trino-e2e-test-client-credentials
         key: clientSecret
+    - credentialId: rotation-backup
+      syncMode: CREATE_ONLY
+      secretKeyRef:
+        name: data-connect-trino-e2e-test-client-credentials
+        key: clientSecret
   data:
     id: data-connect-trino-e2e-test
     name: "Client for end-to-end testing of data-connect-trino"
