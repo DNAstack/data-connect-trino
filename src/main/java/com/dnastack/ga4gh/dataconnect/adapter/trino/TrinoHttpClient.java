@@ -283,9 +283,11 @@ public class TrinoHttpClient implements TrinoClient {
                 .size());
             Response response = httpClient.newCall(r).execute();
             log.info("GET "+r.url()+" returned "+response.code());
-            if(response != null && !response.isSuccessful()){
+            if(!response.isSuccessful()){
+                // peekBody reads a copy without consuming the real body, which callers such as getQueryResults
+                // still need to read; response.body().string() here would leave it closed for them.
                 log.debug("GET "+r.url()+" gave unsuccessful response "+response.code()+": "+
-                          ((response.body() == null) ? "null" : response.body().string()));
+                          response.peekBody(8192).string());
             }
             return response;
         }
