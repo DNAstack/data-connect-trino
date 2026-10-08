@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.client.collectionservice;
 
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.model.DataModel;
+import com.dnastack.tenancy.context.TenantId;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CollectionServiceDataModelSupplier implements DataModelSupplier {
 
     private final CollectionServiceClient client;
+    private final TenantCollectionServiceClient tenantClient;
     private final ObjectMapper objectMapper = new ObjectMapper()
         .registerModule(new JavaTimeModule())
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -23,13 +25,15 @@ public class CollectionServiceDataModelSupplier implements DataModelSupplier {
 
     public CollectionServiceDataModelSupplier(
             @NonNull CollectionServiceClient client,
+            @NonNull TenantCollectionServiceClient tenantClient,
             @NonNull String collectionsCatalogName) {
         this.client = client;
+        this.tenantClient = tenantClient;
         this.collectionsCatalogName = collectionsCatalogName;
     }
 
     @Override
-    public DataModel supply(String fullyQualifiedTableName) {
+    public DataModel supply(TenantId tenantId, String fullyQualifiedTableName) {
         String[] tableNameParts = fullyQualifiedTableName.split("\\.", 3);
         String catalogName = tableNameParts[0]; // must match this.collectionsCatalogName
         String schemaName = tableNameParts[1];  // the collection's dbSchemaName
@@ -42,7 +46,10 @@ public class CollectionServiceDataModelSupplier implements DataModelSupplier {
 
         final CollectionItem collectionItem;
         try {
-            collectionItem = client.getItem(schemaName, tableName);
+            // The management tenant keeps the path without a tenant prefix, as before.
+            collectionItem = tenantId.isManagement()
+                ? client.getItem(schemaName, tableName)
+                : tenantClient.getItem(tenantId.asString(), schemaName, tableName);
             log.debug("{} CollectionItem is {}", fullyQualifiedTableName, collectionItem);
             return collectionItem.getJsonSchema();
         } catch (FeignException e) {
