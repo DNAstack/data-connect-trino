@@ -1,6 +1,7 @@
 package com.dnastack.ga4gh.dataconnect.client.collectionservice;
 
 import com.dnastack.ga4gh.dataconnect.model.DataModel;
+import com.dnastack.oauth.client.TokenExchangeException;
 import com.dnastack.tenancy.context.TenantId;
 import com.dnastack.tenancy.context.TestTenantIds;
 import org.junit.Test;
@@ -55,5 +56,14 @@ public class CollectionServiceDataModelSupplierTest {
         assertThat(supplier.supply(tenantId, "other_catalog.my_collection.my_table")).isNull();
         verify(tenantClient, never()).getItem(any(), any(), any());
         verify(managementClient, never()).getItem(any(), any());
+    }
+
+    @Test
+    public void supply_should_returnNull_when_noTokenCanBeObtainedForTheTenant() {
+        TenantId tenantId = TestTenantIds.of(UUID.randomUUID());
+        when(tenantClient.getItem(tenantId.asString(), "my_collection", "my_table"))
+            .thenThrow(new TokenExchangeException("wallet refused the token request"));
+
+        assertThat(supplier.supply(tenantId, CATALOG + ".my_collection.my_table")).isNull();
     }
 }

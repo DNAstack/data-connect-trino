@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.client.collectionservice;
 
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.model.DataModel;
+import com.dnastack.oauth.client.TokenExchangeException;
 import com.dnastack.tenancy.context.TenantId;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -52,7 +53,7 @@ public class CollectionServiceDataModelSupplier implements DataModelSupplier {
                 : tenantClient.getItem(tenantId.asString(), schemaName, tableName);
             log.debug("{} CollectionItem is {}", fullyQualifiedTableName, collectionItem);
             return collectionItem.getJsonSchema();
-        } catch (FeignException e) {
+        } catch (FeignException | TokenExchangeException e) {
             log.warn("Failed to fetch collection item for {} -- returning null data model", fullyQualifiedTableName, e);
             return null;
         }
