@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.client.indexingservice;
 
 import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.model.DataModel;
+import com.dnastack.tenancy.context.TenantId;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -25,7 +26,7 @@ public class IndexingServiceDataModelSupplier implements DataModelSupplier {
     }
 
     @Override
-    public DataModel supply(String tableName) {
+    public DataModel supply(TenantId tenantId, String tableName) {
         String jsonSchemaAsString;
         if (publisherDataCatalogName != null && tableName.startsWith(publisherDataCatalogName + ".") ) {
             tableName = tableName.substring(publisherDataCatalogName.length() + 1);

@@ -36,11 +36,34 @@ public class CollectionServiceClientConfiguration {
             .target(CollectionServiceClient.class, configuration.getBaseUri());
     }
 
+    @Bean("tenantCollectionServiceClient")
+    @ConditionalOnProperty(name = {"app.collection-service.enabled"}, havingValue = "true")
+    public TenantCollectionServiceClient tenantCollectionServiceClient(
+        OAuthClientFactoryConfiguration oAuthClientFactoryConfiguration,
+        CollectionServiceConfiguration configuration,
+        ObservationRegistry observationRegistry
+    ) {
+        log.info("Initializing the tenant-scoped collection-service API client...");
+        OkHttpClient httpClient = OkHttpClients.buildOkHttpClient(
+            "collection-service", observationRegistry, TenantCollectionServiceClient.class);
+        feign.okhttp.OkHttpClient feignClient = new feign.okhttp.OkHttpClient(httpClient);
+        return FeignClients.newBuilder(
+                oAuthClientFactoryConfiguration.getDefaultConfig().withOverrides(configuration.getOauthClient()),
+                TokenTenantPolicy.tenantFromRequestPath(),
+                feignClient,
+                feignClient)
+            .target(TenantCollectionServiceClient.class, configuration.getBaseUri());
+    }
+
     @Bean
-    @ConditionalOnBean(CollectionServiceClient.class)
-    public DataModelSupplier collectionServiceDataModelSupplier(CollectionServiceClient client, CollectionServiceConfiguration configuration) {
+    @ConditionalOnBean({CollectionServiceClient.class, TenantCollectionServiceClient.class})
+    public DataModelSupplier collectionServiceDataModelSupplier(
+        CollectionServiceClient client,
+        TenantCollectionServiceClient tenantClient,
+        CollectionServiceConfiguration configuration
+    ) {
         log.info("Initializing a collection-service data model supplier for catalog {}", configuration.getCollectionsCatalogName());
-        return new CollectionServiceDataModelSupplier(client, configuration.getCollectionsCatalogName());
+        return new CollectionServiceDataModelSupplier(client, tenantClient, configuration.getCollectionsCatalogName());
     }
 
 }

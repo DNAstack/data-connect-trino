@@ -1110,7 +1110,7 @@ public class TrinoDataConnectAdapter {
     private DataModel getDataModelFromSupplier(String tableName) {
         for (DataModelSupplier dataModelSupplier : dataModelSuppliers) {
             log.debug("Trying to get data model for {} from {}", tableName, dataModelSupplier.getClass());
-            final var dataModel = dataModelSupplier.supply(tableName);
+            final var dataModel = dataModelSupplier.supply(tenantContextAccessor.getTenantId(), tableName);
             if (dataModel != null) {
                 log.debug("Using data model from {}", dataModelSupplier.getClass());
                 return dataModel;

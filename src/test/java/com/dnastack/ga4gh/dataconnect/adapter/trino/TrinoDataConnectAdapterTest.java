@@ -162,7 +162,7 @@ public class TrinoDataConnectAdapterTest {
                 null,
                 Map.of(),
                 null);
-        DataModelSupplier dataModelSupplier = tableName -> fakeDataModel;
+        DataModelSupplier dataModelSupplier = (tenantId, tableName) -> fakeDataModel;
 
         mockApplicationConfig = mock(ApplicationConfig.class);
         when(mockApplicationConfig.getHiddenCatalogs()).thenReturn(Collections.emptySet()); // Default: no hidden catalogs
