@@ -65,6 +65,10 @@ ENV DIRECT_MEMORY_PERCENT="1"
 ENV BYTES_TO_MB_FACTOR="1048576"
 ENV MIN_DIRECT_MEMORY_MB="100"
 ENV DEFAULT_LOADED_CLASSES="20000"
+# Loaded-class count the image build derives from the service's observed jvm.loaded_classes in Datadog; empty for
+# local builds. The default class count is the larger of this and the floor; ESTIMATED_LOADED_CLASSES overrides both.
+ARG DERIVED_LOADED_CLASSES
+ENV DERIVED_LOADED_CLASSES="${DERIVED_LOADED_CLASSES}"
 ENV DEFAULT_THREADS="50"
 ENV DEFAULT_HEAD_ROOM="10"
 CMD container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memory/memory.limit_in_bytes") ; \
@@ -73,9 +77,12 @@ CMD container_mem=$(cat "/sys/fs/cgroup/memory.max" || cat "/sys/fs/cgroup/memor
     direct_mem_mb=$((direct_mem_mb < MIN_DIRECT_MEMORY_MB ? MIN_DIRECT_MEMORY_MB : direct_mem_mb)); \
     echo "Calculated direct memory: ${direct_mem_mb}MB from ${effective_mem} bytes total memory (${DIRECT_MEMORY_PERCENT}%, min ${MIN_DIRECT_MEMORY_MB}MB)"; \
     direct_mem_option="-XX:MaxDirectMemorySize=${direct_mem_mb}M"; \
+    derived_loaded_classes="${DERIVED_LOADED_CLASSES:-0}"; \
+    loaded_classes="${ESTIMATED_LOADED_CLASSES:-$(( derived_loaded_classes > DEFAULT_LOADED_CLASSES ? derived_loaded_classes : DEFAULT_LOADED_CLASSES ))}"; \
+    echo "Loaded class count: $loaded_classes (ESTIMATED_LOADED_CLASSES=${ESTIMATED_LOADED_CLASSES:-unset}, derived ${DERIVED_LOADED_CLASSES:-none}, floor $DEFAULT_LOADED_CLASSES)"; \
     exec java $(/java-buildpack-memory-calculator \
     --total-memory=${effective_mem}B \
-    --loaded-class-count="${ESTIMATED_LOADED_CLASSES:-$DEFAULT_LOADED_CLASSES}" \
+    --loaded-class-count="$loaded_classes" \
     --thread-count="${ESTIMATED_THREADS:-$DEFAULT_THREADS}" \
     --head-room="${HEAD_ROOM:-$DEFAULT_HEAD_ROOM}" \
     --jvm-options="${JAVA_OPTS} ${direct_mem_option}") ${JAVA_OPTS} \
