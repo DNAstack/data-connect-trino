@@ -248,7 +248,7 @@ spec:
             - name: TENANTLIFECYCLE_OAUTH_TOKENURI
               value: '{{- include "dnastack.wallet.internalUrl" . -}}/oauth/token'
             - name: TENANTLIFECYCLE_OAUTH_RESOURCE
-              value: '{{- include "dnastack.wallet.externalUrl" . }}'
+              value: '{{- include "dnastack.wallet.resourceUrl" . }}/tenants/'
             - name: TENANTLIFECYCLE_OAUTH_CLIENTID
               valueFrom:
                 secretKeyRef:
