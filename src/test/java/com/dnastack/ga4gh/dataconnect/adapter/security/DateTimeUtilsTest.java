@@ -5,6 +5,7 @@ import org.joda.time.DateTimeZone;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class DateTimeUtilsTest {
 
@@ -50,7 +51,8 @@ public class DateTimeUtilsTest {
 
     @Test
     public void testIso8601TimestampWithoutZone_whenItFallsInTheDefaultZonesDaylightSavingGap() {
-        // 2026-03-08 02:00 does not exist in America/Toronto: clocks jump from 02:00 to 03:00.
+        // 2026-03-08 02:00 does not exist in America/Toronto: clocks jump from 02:00 to 03:00. Joda's default zone is
+        // process-wide, so this test must not run in parallel with others in the same JVM; it restores the zone after.
         DateTimeZone original = DateTimeZone.getDefault();
         DateTimeZone.setDefault(DateTimeZone.forID("America/Toronto"));
         try {
@@ -69,7 +71,7 @@ public class DateTimeUtilsTest {
 
     @Test
     public void testIso8601TimestampWithoutZone_whenNull() {
-        assertEquals(null, DateTimeUtils.convertToIso8601Timestamp("null"));
+        assertNull(DateTimeUtils.convertToIso8601Timestamp("null"));
     }
 
     @Test
