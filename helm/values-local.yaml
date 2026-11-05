@@ -1,0 +1,57 @@
+# Local override for `dnaservice wallet-render` (CU-86bcx1v6d). Not used by alpha/beta/prod.
+# Each key here is the direct resourceUrl/externalUrl/internalUrl override publisher-helm-library's
+# dnastack.<service>.<kind> helpers read before falling back to the computed
+# https://<appName>.<spaceDnsName> form — see helm/templates/_urls.tpl in publisher-helm-library.
+#
+# `publisherData` is an opaque audience identifier (alternate name for collection-service), not a
+# real listening URL — matching the existing mini-cluster convention
+# (dnastack-development-tools/mini-cluster/config/wallet/access-policies/*/publisher-data.json)
+# so this is a drop-in replacement, not a new value.
+#
+# trino.resourceUrl is likewise opaque -- it's only ever used as the APP_AUTH_TRINOOAUTHCLIENT_AUDIENCE
+# OAuth audience this service requests a token for (see deployment.yaml), not a URL anything connects
+# to. application.yml already defaults that property to http://trino.local for local/default dev, and
+# the mini-cluster's historical grant (wallet/grants/data-connect-trino/trino.json) issues exactly that
+# audience, so this has to match or Wallet returns "No grant for requested audience [http://trino.local]"
+# and the app fails to start. trino.internalUrl is unrelated: it's the real JDBC endpoint this service
+# connects to (TRINO_DATASOURCE_URL), so it stays a real listening URL.
+wallet:
+  externalUrl: http://localhost:8081
+  internalUrl: http://localhost:8081
+  resourceUrl: http://localhost:8081
+trino:
+  internalUrl: http://localhost:8091
+  resourceUrl: http://trino.local
+indexingService:
+  internalUrl: http://localhost:8094
+  resourceUrl: http://localhost:8094
+collectionService:
+  internalUrl: http://localhost:8093
+  resourceUrl: http://localhost:8093
+dataConnectTrino:
+  externalUrl: http://localhost:8089
+  internalUrl: http://localhost:8089
+  resourceUrl: http://localhost:8089
+# No trailing slash: this is used as an OAuth audience, which downstream services (e.g.
+# collection-service, see its application.yml "Do not add trailing slash" comment) exact-match.
+publisherData:
+  resourceUrl: http://localhost:8095
+
+# --- Deployment-pipeline required values, unrelated to Wallet CRDs ---
+# These charts guard several fields with Helm's `required`, even though nothing here deploys a
+# real pod or database locally -- dnaservice wallet-render only needs `helm template` to succeed so
+# it can extract the Wallet CRD blocks above. Any non-empty placeholder satisfies the guard.
+image:
+  repository: placeholder/not-used-locally
+app:
+  configVersion: local
+database:
+  postgresVersion: "17"
+  postgresInstance: local
+cloud:
+  clusterNamespace: local
+  clusterName: local
+  spaceDnsName: local.dnastack.com
+test:
+  showSchemaForCatalogName: data_lake
+  showTableForCatalogSchemaName: public
