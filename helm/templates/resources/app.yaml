@@ -120,6 +120,7 @@ spec:
           - data-connect:data
           - data-connect:query
           - data-connect:manage
+          - data-connect:manage-catalogs
         resources:
           - uri: "{{- include "dnastack.publisherData.resourceUrl" . }}/data-connect/table/"
       - principals:
