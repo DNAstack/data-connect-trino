@@ -4,7 +4,7 @@
 ## Stage 1: Extract the tenant-lifecycle changelog, which ships inside the library jar
 ##
 
-FROM amazoncorretto:21-alpine@sha256:fda60fd7965970ce7ed7ce789b18418647b56ac6112fc17df006337bdc6355c4 AS build
+FROM amazoncorretto:21-alpine@sha256:e37320b8ccdb61ed4272edf1f3c9836ca4ea660b37f048dbb6858901d5322145 AS build
 WORKDIR /build
 
 ADD target/pom.xml ./
