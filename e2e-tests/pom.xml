@@ -32,7 +32,7 @@
 		<assertj.version>3.27.7</assertj.version>
 		<guava.version>33.5.0-jre</guava.version>
 		<google-oauth-lib.version>1.39.1</google-oauth-lib.version>
-		<commons-validator.version>1.10.0</commons-validator.version>
+		<commons-validator.version>1.11.0</commons-validator.version>
 	</properties>
 
 	<repositories>
