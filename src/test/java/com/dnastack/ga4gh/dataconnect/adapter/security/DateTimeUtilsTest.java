@@ -1,9 +1,11 @@
 package com.dnastack.ga4gh.dataconnect.adapter.security;
 
 import com.dnastack.ga4gh.dataconnect.adapter.trino.DateTimeUtils;
+import org.joda.time.DateTimeZone;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class DateTimeUtilsTest {
 
@@ -45,6 +47,31 @@ public class DateTimeUtilsTest {
     public void testIso8601TimestampWithoutZone() {
         String converted = DateTimeUtils.convertToIso8601Timestamp("2020-05-27 12:22:27.000");
         assertEquals(converted, "2020-05-27T12:22:27.000");
+    }
+
+    @Test
+    public void testIso8601TimestampWithoutZone_whenItFallsInTheDefaultZonesDaylightSavingGap() {
+        // 2026-03-08 02:00 does not exist in America/Toronto: clocks jump from 02:00 to 03:00. Joda's default zone is
+        // process-wide, so this test must not run in parallel with others in the same JVM; it restores the zone after.
+        DateTimeZone original = DateTimeZone.getDefault();
+        DateTimeZone.setDefault(DateTimeZone.forID("America/Toronto"));
+        try {
+            assertEquals("2026-03-08T02:00:00.000", DateTimeUtils.convertToIso8601Timestamp("2026-03-08 02:00:00.000"));
+            assertEquals("2026-03-08T02:30:15.000", DateTimeUtils.convertToIso8601Timestamp("2026-03-08 2:30:15"));
+            assertEquals("2026-11-01T01:30:00.000", DateTimeUtils.convertToIso8601Timestamp("2026-11-01 01:30:00.000"));
+        } finally {
+            DateTimeZone.setDefault(original);
+        }
+    }
+
+    @Test
+    public void testIso8601TimestampWithoutZone_whenOnlyADateIsGiven() {
+        assertEquals("2020-05-27T00:00:00.000", DateTimeUtils.convertToIso8601Timestamp("2020-05-27"));
+    }
+
+    @Test
+    public void testIso8601TimestampWithoutZone_whenNull() {
+        assertNull(DateTimeUtils.convertToIso8601Timestamp("null"));
     }
 
     @Test

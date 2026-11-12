@@ -116,11 +116,13 @@ class DataConnectE2eTest extends BaseE2eTest {
 
     /**
      * What the suite asks for on publisher-data, the resource Trino's access control asks collection-service about.
-     * Creating and dropping this run's catalog needs authority over the data, which is why this list has
-     * {@code data-connect:manage} and {@link #dataConnectScopes} does not.
+     * Creating and dropping this run's catalog takes {@code data-connect:manage-catalogs}, and creating its schemas and
+     * tables takes {@code data-connect:manage}. Both are authority over the data, which is why this list has them and
+     * {@link #dataConnectScopes} does not.
      */
-    private static final List<String> publisherDataScopes =
-            List.of("data-connect:query", "data-connect:data", "data-connect:info", "data-connect:manage");
+    private static final List<String> publisherDataScopes = List.of(
+            "data-connect:query", "data-connect:data", "data-connect:info", "data-connect:manage",
+            "data-connect:manage-catalogs");
 
     /**
      * When this test run started. It names the run's catalog, so that a later run can tell how long ago a leftover

@@ -43,9 +43,9 @@ when it finishes. Trino drops a catalog's schemas and tables along with it, so a
 needs no cleanup of its own.
 
 Two things follow from the catalog being the run's own. It has to be created, which is why the suite asks
-for `data-connect:manage` on publisher-data and why the chart grants it. And nobody registers a connector
-for a catalog named after the moment it was created, so no indexer sees these tables — which matters
-because an indexed table would compete with the library entry
+for `data-connect:manage-catalogs` and `data-connect:manage` on publisher-data and why the chart grants
+them. And nobody registers a connector for a catalog named after the moment it was created, so no indexer
+sees these tables — which matters because an indexed table would compete with the library entry
 `getTableInfo_should_returnCustomSchema_from_indexingService` registers for a table of its own.
 
 A run that is killed leaves its catalog behind. The timestamp in the name is what lets the next run

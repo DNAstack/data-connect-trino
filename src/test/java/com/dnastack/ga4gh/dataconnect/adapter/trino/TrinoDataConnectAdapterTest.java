@@ -802,7 +802,7 @@ public class TrinoDataConnectAdapterTest {
                 """
                         {
                             "id": "catalog-req-1",
-                            "columns": [ { "name": "catalog_name", "typeSignature": { "rawType": "varchar" } } ],
+                            "columns": [ { "name": "Catalog", "typeSignature": { "rawType": "varchar" } } ],
                             "data": []
                         }
                         """
@@ -828,7 +828,7 @@ public class TrinoDataConnectAdapterTest {
                 """
                         {
                             "id": "catalog-req",
-                            "columns": [ { "name": "catalog_name", "typeSignature": { "rawType": "varchar" } } ],
+                            "columns": [ { "name": "Catalog", "typeSignature": { "rawType": "varchar" } } ],
                             "data": [ ["catalog1"], ["catalog2"] ]
                         }
                         """,
@@ -887,7 +887,7 @@ public class TrinoDataConnectAdapterTest {
                 """
                         {
                             "id": "catalog-req",
-                            "columns": [ { "name": "catalog_name", "typeSignature": { "rawType": "varchar" } } ],
+                            "columns": [ { "name": "Catalog", "typeSignature": { "rawType": "varchar" } } ],
                             "data": [ ["catalog1"], ["catalog2"] ],
                             "stats": { "state": "FINISHED" }
                         }
@@ -955,7 +955,7 @@ public class TrinoDataConnectAdapterTest {
                 """
                         {
                             "id": "catalog-req",
-                            "columns": [ { "name": "catalog_name", "typeSignature": { "rawType": "varchar" } } ],
+                            "columns": [ { "name": "Catalog", "typeSignature": { "rawType": "varchar" } } ],
                             "data": [ ["catalog1"] ]
                         }
                         """,
@@ -1007,7 +1007,7 @@ public class TrinoDataConnectAdapterTest {
                 """
                         {
                             "id": "catalog-req",
-                            "columns": [ { "name": "catalog_name", "typeSignature": { "rawType": "varchar" } } ],
+                            "columns": [ { "name": "Catalog", "typeSignature": { "rawType": "varchar" } } ],
                             "data": [ ["other_catalog"] ]
                         }
                         """
@@ -1031,7 +1031,7 @@ public class TrinoDataConnectAdapterTest {
                 """
                         {
                             "id": "catalog-req",
-                            "columns": [ { "name": "catalog_name", "typeSignature": { "rawType": "varchar" } } ],
+                            "columns": [ { "name": "Catalog", "typeSignature": { "rawType": "varchar" } } ],
                             "data": [ ["catalog1"] ]
                         }
                         """,
@@ -1063,7 +1063,7 @@ public class TrinoDataConnectAdapterTest {
                 """
                         {
                             "id": "catalog-req",
-                            "columns": [ { "name": "catalog_name", "typeSignature": { "rawType": "varchar" } } ],
+                            "columns": [ { "name": "Catalog", "typeSignature": { "rawType": "varchar" } } ],
                             "data": [ ["catalog1"] ]
                         }
                         """,
@@ -1095,7 +1095,7 @@ public class TrinoDataConnectAdapterTest {
                 """
                 {
                     "id": "catalog-req",
-                    "columns": [ { "name": "catalog_name",
+                    "columns": [ { "name": "Catalog",
                                    "typeSignature": { "rawType": "varchar" } } ],
                     "data": [ ["catalog1"] ]
                 }
@@ -1232,7 +1232,7 @@ public class TrinoDataConnectAdapterTest {
         return """
                 {
                     "id": "catalog-req",
-                    "columns": [ { "name": "catalog_name", "typeSignature": { "rawType": "varchar" } } ],
+                    "columns": [ { "name": "Catalog", "typeSignature": { "rawType": "varchar" } } ],
                     "data": [ %s ],
                     "stats": { "state": "FINISHED" }
                 }

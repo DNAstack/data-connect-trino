@@ -1009,10 +1009,10 @@ public class TrinoDataConnectAdapter {
      * @return A List of Strings, where each String is the name of the catalog.
      */
     private Set<String> getTrinoCatalogsNoCache(HttpServletRequest request, Map<String, String> extraCredentials) {
-        TableData catalogs = searchAll("select catalog_name FROM system.metadata.catalogs ORDER BY catalog_name", request, extraCredentials, null);
+        TableData catalogs = searchAll("SHOW CATALOGS", request, extraCredentials, null);
         Set<String> catalogSet = new LinkedHashSet<>();
         for (Map<String, Object> row : catalogs.getData()) {
-            String catalog = (String) row.get("catalog_name");
+            String catalog = (String) row.get("Catalog");
             if (applicationConfig.getHiddenCatalogs().contains(catalog.toLowerCase())) {
                 log.debug("Ignoring catalog {}", catalog);
                 continue;

@@ -80,17 +80,18 @@ public class DateTimeUtils {
      * For example: {@code "2020-05-27 12:22:27.000"} is parsed to
      * {@code 2020-05-27T12:22:27.000}.
      * </p>
-     * @return iso8601 form of timestamp with timezone.
+     * <p>
+     * Parsed as a local date-time: placing it in the JVM's default zone would reject times in a daylight-saving gap.
+     * </p>
+     * @return iso8601 form of timestamp without timezone.
      */
     public static String convertToIso8601Timestamp(String timestamp) {
         if (timestamp.equalsIgnoreCase("null")) {
             return null;
         }
-        String ts = TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER
-                .parseDateTime(timestamp)
-                .toDateTimeISO()
-                .toLocalDateTime().toString();
-        return ts;
+        return TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER
+                .parseLocalDateTime(timestamp)
+                .toString();
     }
 
 
