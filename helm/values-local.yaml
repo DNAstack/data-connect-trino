@@ -53,5 +53,5 @@ cloud:
   clusterName: local
   spaceDnsName: local.dnastack.com
 test:
-  showSchemaForCatalogName: data_lake
+  showSchemaForCatalogName: publisher
   showTableForCatalogSchemaName: public
