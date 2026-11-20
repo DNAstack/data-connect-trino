@@ -2,6 +2,7 @@ package com.dnastack.ga4gh.dataconnect.adapter.shared;
 
 import io.micrometer.tracing.Tracer;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUnknownTenantException;
 import com.dnastack.ga4gh.dataconnect.model.DataConnectErrorResponse;
 import com.dnastack.ga4gh.dataconnect.model.TableError;
 import com.dnastack.tenancy.context.UnknownTenantException;
@@ -39,6 +40,11 @@ public class GlobalControllerExceptionHandler {
             // The fault is in the request, so there is no stack trace here worth reading, and nothing for an
             // error dashboard to count: a caller sending a bad request is this service working as intended.
             log.info("Answering {} to a request this service will not serve: {}", error.getStatus(), error);
+        } else if (throwable.getCause() instanceof TrinoUnknownTenantException) {
+            // Expected for a poll interval after a tenant is created, and passes on its own: worth seeing in the log,
+            // but with no stack trace to read and no error for a dashboard to count.
+            log.warn("Answering {} while a service this query depends on hasn't learned of the tenant: {}",
+                error.getStatus(), error);
         } else {
             log.error("Generating response with error that escaped controller: {}", error, throwable);
         }
