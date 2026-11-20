@@ -50,7 +50,7 @@ public class CollectionServiceDataModelSupplier implements DataModelSupplier {
             // The management tenant keeps the path without a tenant prefix, as before.
             collectionItem = tenantId.isManagement()
                 ? client.getItem(schemaName, tableName)
-                : tenantClient.getItem(tenantId.asString(), schemaName, tableName);
+                : tenantClient.getItem(tenantId, schemaName, tableName);
             log.debug("{} CollectionItem is {}", fullyQualifiedTableName, collectionItem);
             return collectionItem.getJsonSchema();
         } catch (FeignException | TokenExchangeException e) {

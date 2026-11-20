@@ -1,5 +1,6 @@
 package com.dnastack.ga4gh.dataconnect.client.collectionservice;
 
+import com.dnastack.tenancy.context.TenantId;
 import feign.Param;
 import feign.RequestLine;
 
@@ -9,7 +10,7 @@ import feign.RequestLine;
 public interface TenantCollectionServiceClient {
     @RequestLine("GET /tenants/{tenantId}/collection/{collectionIdOrSlugNameOrDbSchemaName}/item/{itemIdOrDisplayName}")
     CollectionItem getItem(
-            @Param("tenantId") String tenantId,
+            @Param("tenantId") TenantId tenantId,
             @Param("collectionIdOrSlugNameOrDbSchemaName") String collectionIdOrSlugNameOrDbSchemaName,
             @Param("itemIdOrDisplayName") String itemIdOrDisplayName);
 }
