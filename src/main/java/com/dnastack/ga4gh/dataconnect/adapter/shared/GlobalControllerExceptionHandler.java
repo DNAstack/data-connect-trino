@@ -4,6 +4,8 @@ import io.micrometer.tracing.Tracer;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
 import com.dnastack.ga4gh.dataconnect.model.DataConnectErrorResponse;
 import com.dnastack.ga4gh.dataconnect.model.TableError;
+import com.dnastack.tenancy.context.UnknownTenantException;
+import com.dnastack.tenancy.model.Tenants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -47,6 +49,19 @@ public class GlobalControllerExceptionHandler {
 
         return ResponseEntity.status(error.getStatus())
             .body(DataConnectErrorResponse.of(error));
+    }
+
+    /**
+     * In Data Connect's error format, so a caller reading {@code errors} can tell a tenant this service hasn't learned
+     * of yet from any other 404.
+     */
+    @ExceptionHandler(UnknownTenantException.class)
+    public ResponseEntity<DataConnectErrorResponse> handleUnknownTenantException(UnknownTenantException e) {
+        TableError error = new TableError();
+        error.setStatus(HttpStatus.NOT_FOUND.value());
+        error.setTitle(e.getMessage());
+        error.setType(Tenants.UNKNOWN_TENANT_PROBLEM_TYPE.toString());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(DataConnectErrorResponse.of(error));
     }
 
     /** Whether the status blames the caller rather than this service. */

@@ -3,6 +3,7 @@ package com.dnastack.ga4gh.dataconnect.model;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.AuthRequiredException;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.DataConnectAuthRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.*;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,12 @@ public class TableError {
     private int status; // HTTP status
     private String title;
     private String details;
+    /**
+     * Not in the Data Connect specification: the RFC 9457 problem type of an error that callers need to recognize,
+     * such as {@code Tenants.UNKNOWN_TENANT_PROBLEM_TYPE}. Absent for other errors.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String type;
 
     public static TableError fromThrowable(final Throwable throwable, final String catalogName) {
         log.debug("Converting this exception to a TableError", throwable);
