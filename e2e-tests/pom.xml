@@ -20,7 +20,7 @@
 		<reportsDirectory/>
 		<actuator-e2e-test.version>1.0.5</actuator-e2e-test.version>
 		<jupiter.version>5.13.4</jupiter.version>
-		<jackson.version>2.20.0</jackson.version>
+		<jackson.version>2.22.4</jackson.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<logback-extensions.version>1.0.1</logback-extensions.version>
 		<logback.contrib.version>0.1.5</logback.contrib.version>
@@ -30,7 +30,7 @@
 		<lombok.version>1.18.42</lombok.version>
 		<awaitility.version>4.3.0</awaitility.version>
 		<assertj.version>3.27.7</assertj.version>
-		<guava.version>33.5.0-jre</guava.version>
+		<guava.version>33.7.2-jre</guava.version>
 		<google-oauth-lib.version>1.39.1</google-oauth-lib.version>
 		<commons-validator.version>1.10.0</commons-validator.version>
 	</properties>
