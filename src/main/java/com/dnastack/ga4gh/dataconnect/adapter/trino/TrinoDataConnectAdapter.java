@@ -702,6 +702,8 @@ public class TrinoDataConnectAdapter {
             throw new TrinoNoSuchTableException(trinoError);
         } else if (trinoError.getErrorName().equals("COLUMN_NOT_FOUND")) {
             throw new TrinoNoSuchColumnException(trinoError);
+        } else if (trinoError.getErrorName().equals(TrinoUnknownTenantException.TRINO_ERROR_NAME)) {
+            throw new TrinoUnknownTenantException(trinoError);
         } else if (trinoError.getErrorType().equals("USER_ERROR")) {
             if (trinoError.getErrorName().equals("PERMISSION_DENIED")) {
                 if (trinoError.getMessage().contains("Access Denied: HTTP 500")) {

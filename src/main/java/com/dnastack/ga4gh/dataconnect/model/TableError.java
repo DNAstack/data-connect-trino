@@ -3,6 +3,7 @@ package com.dnastack.ga4gh.dataconnect.model;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.AuthRequiredException;
 import com.dnastack.ga4gh.dataconnect.adapter.shared.DataConnectAuthRequest;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.*;
+import com.dnastack.tenancy.model.Tenants;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +59,10 @@ public class TableError {
         } else if (throwable instanceof TrinoInvalidQueryException && throwable.getMessage() != null && throwable.getMessage().endsWith("USER_CANCELED")) {
             error.setTitle("Query was canceled");
             error.setDetails(throwable.getMessage());
+        } else if (throwable instanceof TrinoUnknownTenantException) {
+            error.setTitle("A service this query depends on hasn't learned of the tenant yet");
+            error.setDetails(throwable.getMessage());
+            error.setType(Tenants.UNKNOWN_TENANT_PROBLEM_TYPE.toString());
         } else if (throwable instanceof TrinoErrorException) {
             error.setTitle("Trino error");
             error.setDetails(throwable.getMessage());

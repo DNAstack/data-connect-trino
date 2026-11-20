@@ -7,7 +7,9 @@ import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.core.read.ListAppender;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.MalformedClientSuppliedCredentialsException;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoError;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TableApiErrorException;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUnknownTenantException;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
@@ -26,7 +28,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * Covers how {@link GlobalControllerExceptionHandler} logs exceptions that escape controller methods: exceptions that
- * map to a 4xx response are logged at INFO with no stack trace, and those that map to 5xx log at ERROR with one.
+ * map to a 4xx response are logged at INFO with no stack trace, and those that map to 5xx log at ERROR with one, except
+ * a tenant a service behind Trino hasn't learned of yet, which is expected and logs at WARN with no stack trace.
  */
 public class GlobalControllerExceptionHandlerTest {
 
@@ -127,6 +130,24 @@ public class GlobalControllerExceptionHandlerTest {
             .isNotNull()
             .extracting(IThrowableProxy::getClassName)
             .isEqualTo(TableApiErrorException.class.getName());
+    }
+
+    private static TrinoUnknownTenantException unknownTenant() {
+        TrinoError trinoError = new TrinoError();
+        trinoError.setMessage("POST http://collection-service/tenants/t/access-check/resources does not know the request's tenant");
+        trinoError.setErrorName("UNKNOWN_TENANT");
+        trinoError.setErrorType("EXTERNAL");
+        return new TrinoUnknownTenantException(trinoError);
+    }
+
+    @Test
+    public void handleTableApiErrorException_should_logAtWarnWithoutAStackTrace_when_trinoReportsUnknownTenant() {
+        handle(unknownTenant());
+
+        ILoggingEvent event = theOnlyLoggedEvent();
+        assertThat(event.getLevel()).as("the level an unknown tenant behind Trino is reported at").isEqualTo(Level.WARN);
+        assertThat(event.getThrowableProxy()).as("the throwable attached to it").isNull();
+        assertThat(event.getFormattedMessage()).as("what it is reported as").contains("503");
     }
 
     @Test
