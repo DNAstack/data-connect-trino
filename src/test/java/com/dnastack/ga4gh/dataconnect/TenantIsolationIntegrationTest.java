@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -125,7 +126,8 @@ public class TenantIsolationIntegrationTest {
         UUID otherTenant = enabledTenant();
 
         mockMvc.perform(get("/tenants/" + otherTenant + "/search/" + PAGE).param("queryJobId", QUERY_ID))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errors[0].type").doesNotExist());
     }
 
     @Test
@@ -135,7 +137,8 @@ public class TenantIsolationIntegrationTest {
         UUID otherTenant = enabledTenant();
 
         mockMvc.perform(delete("/tenants/" + otherTenant + "/search/" + PAGE).param("queryJobId", QUERY_ID))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errors[0].type").doesNotExist());
 
         verify(trinoClient, never()).cancelQuery(anyString(), anyMap());
         assertThat(queryJobIn(owningTenant)).get()
@@ -158,7 +161,8 @@ public class TenantIsolationIntegrationTest {
         mockMvc.perform(post("/tenants/" + UUID.randomUUID() + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"query\": \"SELECT 1\"}"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errors[0].type").value("urn:dnastack:tenancy:unknown-tenant"));
 
         verify(trinoClient, never()).query(anyString(), anyMap());
     }
@@ -168,7 +172,8 @@ public class TenantIsolationIntegrationTest {
         mockMvc.perform(post("/tenants/" + disabledTenant() + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"query\": \"SELECT 1\"}"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errors[0].type").value("urn:dnastack:tenancy:unknown-tenant"));
 
         verify(trinoClient, never()).query(anyString(), anyMap());
     }
@@ -176,7 +181,8 @@ public class TenantIsolationIntegrationTest {
     @Test
     public void request_should_returnNotFound_when_theTenantIsNotAUuid() throws Exception {
         mockMvc.perform(get("/tenants/not-a-uuid/search/" + PAGE).param("queryJobId", QUERY_ID))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errors[0].type").value("urn:dnastack:tenancy:unknown-tenant"));
     }
 
     @Test
