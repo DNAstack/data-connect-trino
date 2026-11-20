@@ -5,6 +5,7 @@ import com.dnastack.ga4gh.dataconnect.DataModelSupplier;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.InvalidQueryJobException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoBadlyQualifiedNameException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoNoSuchCatalogException;
+import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUnknownTenantException;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.exception.TrinoUserUnauthorizedException;
 import com.dnastack.ga4gh.dataconnect.model.DataModel;
 import com.dnastack.ga4gh.dataconnect.model.TableData;
@@ -792,6 +793,51 @@ public class TrinoDataConnectAdapterTest {
 
             // and the exception should contain the text of the underlying Trino error message
             assertThat(e.getMessage(), containsString("The Token has expired on 2024-10-08T00:51:16Z."));
+        }
+    }
+
+    /** The access-control plugin raises UNKNOWN_TENANT when collection-service doesn't know the query's tenant. */
+    @Test
+    public void getTableData_should_throwTrinoUnknownTenantException_when_trinoReportsUnknownTenant() {
+        mockTrinoClient.setResponsePages(List.of(
+                //language=json
+                """
+                        {
+                          "id" : "20261120_201808_00007_abcde",
+                          "nextUri" : null,
+                          "error" : {
+                            "failureInfo" : {
+                              "type" : "io.trino.spi.TrinoException",
+                              "message" : "GET http://localhost:8093/tenants/64edd538-ca11-4d34-8b50-8388917a45b5/access-check/resources does not know the request's tenant, possibly because it hasn't learned of it yet",
+                              "errorInfo" : {
+                                "code" : "228917248",
+                                "name" : "UNKNOWN_TENANT",
+                                "type" : "EXTERNAL"
+                              },
+                              "cause" : null,
+                              "suppressed" : [ ],
+                              "stack" : [ ]
+                            },
+                            "message" : "GET http://localhost:8093/tenants/64edd538-ca11-4d34-8b50-8388917a45b5/access-check/resources does not know the request's tenant, possibly because it hasn't learned of it yet",
+                            "errorCode" : 228917248,
+                            "errorName" : "UNKNOWN_TENANT",
+                            "errorType" : "EXTERNAL"
+                          },
+                          "columns" : null,
+                          "data" : null,
+                          "stats" : {
+                            "state" : "FAILED"
+                          }
+                        }
+                        """
+        ));
+        fakeDataModel = null;
+
+        try {
+            dataConnectAdapter.getTableData("collections.c1.t1", new MockHttpServletRequest(), Map.of());
+            fail("Should have thrown a TrinoUnknownTenantException");
+        } catch (TrinoUnknownTenantException e) {
+            assertThat(e.getHttpStatus(), equalTo(HttpStatus.SERVICE_UNAVAILABLE));
         }
     }
 
