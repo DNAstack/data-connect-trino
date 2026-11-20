@@ -28,7 +28,7 @@ public class CollectionServiceDataModelSupplierTest {
     public void supply_should_lookUpTheDataModelInTheRequestTenant_when_theTenantIsNotManagement() {
         TenantId tenantId = TestTenantIds.of(UUID.randomUUID());
         DataModel tenantDataModel = new DataModel();
-        when(tenantClient.getItem(tenantId.asString(), "my_collection", "my_table"))
+        when(tenantClient.getItem(tenantId, "my_collection", "my_table"))
             .thenReturn(CollectionItem.builder().jsonSchema(tenantDataModel).build());
 
         DataModel supplied = supplier.supply(tenantId, CATALOG + ".my_collection.my_table");
@@ -61,7 +61,7 @@ public class CollectionServiceDataModelSupplierTest {
     @Test
     public void supply_should_returnNull_when_noTokenCanBeObtainedForTheTenant() {
         TenantId tenantId = TestTenantIds.of(UUID.randomUUID());
-        when(tenantClient.getItem(tenantId.asString(), "my_collection", "my_table"))
+        when(tenantClient.getItem(tenantId, "my_collection", "my_table"))
             .thenThrow(new TokenExchangeException("wallet refused the token request"));
 
         assertThat(supplier.supply(tenantId, CATALOG + ".my_collection.my_table")).isNull();
