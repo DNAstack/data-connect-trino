@@ -12,8 +12,8 @@
       <env name="E2E_GLOBAL_METHOD_SECURITY_ENABLED" value="true" />
       <env name="E2E_INDEXING_SERVICE_ENABLED" value="true" />
       <env name="E2E_SCOPE_CHECKING_ENABLED" value="true" />
-      <env name="E2E_SHOW_SCHEMA_FOR_CATALOG_NAME" value="data_lake" />
-      <env name="E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME" value="data_lake.public" />
+      <env name="E2E_SHOW_SCHEMA_FOR_CATALOG_NAME" value="publisher" />
+      <env name="E2E_SHOW_TABLE_FOR_CATALOG_SCHEMA_NAME" value="publisher.public" />
     </envs>
     <method v="2">
       <option name="Make" enabled="true" />
