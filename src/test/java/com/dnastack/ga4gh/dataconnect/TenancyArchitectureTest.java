@@ -31,6 +31,22 @@ public class TenancyArchitectureTest {
         THIS_SERVICE.check();
     }
 
+    /**
+     * Opt-in, not part of {@link TenancyCheck#check()}: see {@link TenancyRules#runAsOnlyFromAProvenSystemEntryPoint()}.
+     */
+    @Test
+    public void runAs_should_onlyBeCalledFromAProvenSystemEntryPoint() {
+        TenancyRules.runAsOnlyFromAProvenSystemEntryPoint().check(THIS_SERVICE.classes());
+    }
+
+    /**
+     * Opt-in, not part of {@link TenancyCheck#check()}: see {@link TenancyRules#systemScopedOnlyCalledFromProvenSystemEntryPoints()}.
+     */
+    @Test
+    public void systemScopedMethods_should_onlyBeCalledFromProvenSystemEntryPoints() {
+        TenancyRules.systemScopedOnlyCalledFromProvenSystemEntryPoints().check(THIS_SERVICE.classes());
+    }
+
     @Test
     public void tenantTakingMethods_should_takeTheTenantFirst() {
         tenantTakingMethodsTakeTheTenantFirst().check(THIS_SERVICE.classes());
