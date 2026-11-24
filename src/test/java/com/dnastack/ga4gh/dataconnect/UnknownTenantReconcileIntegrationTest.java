@@ -5,7 +5,7 @@ import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoDataPage;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
 import com.dnastack.ga4gh.dataconnect.tenancy.TenantMirrorLifecycleHandler;
-import com.dnastack.tenancy.context.TenantCatchUp;
+import com.dnastack.tenancy.context.UnknownTenantReconciler;
 import com.dnastack.tenancy.lifecycle.model.TenantSnapshot;
 import com.dnastack.tenancy.lifecycle.model.TenantStatus;
 import io.zonky.test.db.AutoConfigureEmbeddedDatabase;
@@ -21,7 +21,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -29,15 +28,16 @@ import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.DatabaseProvider.EM
 import static io.zonky.test.db.AutoConfigureEmbeddedDatabase.RefreshMode.AFTER_EACH_TEST_METHOD;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * A request for a tenant this service has not mirrored yet, with a catch-up standing in for the tenant lifecycle's:
- * the request is served when the catch-up brings the tenant in, and refused with a retry hint when it cannot.
+ * A request for a tenant this service has not mirrored yet, with a reconcile standing in for the tenant lifecycle's:
+ * the request is served when the reconcile brings the tenant in, and refused as unknown when it does not.
  */
 @AutoConfigureEmbeddedDatabase(provider = EMBEDDED, refresh = AFTER_EACH_TEST_METHOD, type = AutoConfigureEmbeddedDatabase.DatabaseType.POSTGRES)
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -48,7 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 )
 @AutoConfigureMockMvc
 @ActiveProfiles("no-auth")
-public class TenantCatchUpIntegrationTest {
+public class UnknownTenantReconcileIntegrationTest {
 
     private static final String QUERY_ID = "20260903_120000_00001_abcde";
     private static final String PAGE = "v1/statement/executing/" + QUERY_ID + "/y5bb5cace5500a2cf109b1c50c648b009c40a142f/2";
@@ -63,7 +63,7 @@ public class TenantCatchUpIntegrationTest {
     private TenantMirrorLifecycleHandler lifecycleHandler;
 
     @MockitoBean
-    private TenantCatchUp tenantCatchUp;
+    private UnknownTenantReconciler unknownTenantReconciler;
 
     @MockitoBean
     private TrinoClient trinoClient;
@@ -75,13 +75,13 @@ public class TenantCatchUpIntegrationTest {
     }
 
     @Test
-    public void getNextPage_should_serveTheTenant_when_theCatchUpBringsItIn() throws Exception {
+    public void getNextPage_should_serveTheTenant_when_theReconcileBringsItIn() throws Exception {
         UUID created = UUID.randomUUID();
-        when(tenantCatchUp.catchUp()).thenAnswer(invocation -> {
+        doAnswer(invocation -> {
             lifecycleHandler.onTenantEnabled(
                     TenantSnapshot.builder().id(created).name("tenant-" + created).status(TenantStatus.ENABLED).build());
-            return new TenantCatchUp.CaughtUp();
-        });
+            return null;
+        }).when(unknownTenantReconciler).reconcile();
         Instant now = Instant.now();
         jdbi.useExtension(QueryJobDao.class, dao -> dao.create(QueryJob.builder()
                 .id(QUERY_ID)
@@ -97,12 +97,10 @@ public class TenantCatchUpIntegrationTest {
     }
 
     @Test
-    public void request_should_sayRetryAfter_when_theCatchUpCannotConfirmTheTenant() throws Exception {
-        when(tenantCatchUp.catchUp()).thenReturn(new TenantCatchUp.RetryLater(Duration.ofSeconds(4)));
-
+    public void request_should_answerNotFound_when_theTenantIsStillUnknownAfterReconcileing() throws Exception {
         mockMvc.perform(get("/tenants/" + UUID.randomUUID() + "/search/" + PAGE).param("queryJobId", QUERY_ID))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.errors[0].type").value("urn:dnastack:tenancy:unknown-tenant"))
-                .andExpect(header().string("Retry-After", "4"));
+                .andExpect(jsonPath("$.errors[0].type").value("urn:dnastack:tenancy:unknown-tenant"));
+        verify(unknownTenantReconciler).reconcile();
     }
 }
