@@ -9,7 +9,6 @@ import com.dnastack.tenancy.context.UnknownTenantException;
 import com.dnastack.tenancy.model.Tenants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -68,10 +67,7 @@ public class GlobalControllerExceptionHandler {
         error.setStatus(HttpStatus.NOT_FOUND.value());
         error.setTitle(e.getMessage());
         error.setType(Tenants.UNKNOWN_TENANT_PROBLEM_TYPE.toString());
-        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.NOT_FOUND);
-        e.getRetryAfterSeconds()
-            .ifPresent(seconds -> response.header(HttpHeaders.RETRY_AFTER, Long.toString(seconds)));
-        return response.body(DataConnectErrorResponse.of(error));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(DataConnectErrorResponse.of(error));
     }
 
     /** Whether the status blames the caller rather than this service. */

@@ -37,7 +37,6 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -159,13 +158,11 @@ public class TenantIsolationIntegrationTest {
 
     @Test
     public void request_should_returnNotFound_when_theTenantIsUnknown() throws Exception {
-        // The tenant lifecycle is disabled here, as in a single-tenant install, so nothing catches up on a miss.
         mockMvc.perform(post("/tenants/" + UUID.randomUUID() + "/search")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"query\": \"SELECT 1\"}"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.errors[0].type").value("urn:dnastack:tenancy:unknown-tenant"))
-                .andExpect(header().doesNotExist("Retry-After"));
+                .andExpect(jsonPath("$.errors[0].type").value("urn:dnastack:tenancy:unknown-tenant"));
 
         verify(trinoClient, never()).query(anyString(), anyMap());
     }
