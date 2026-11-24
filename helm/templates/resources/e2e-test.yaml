@@ -1,3 +1,4 @@
+{{- if eq (include "dataConnectTrino.e2eTestEnabled" .) "true" }}
 # ==============================================================================
 # data-connect-trino-e2e-test client
 # ==============================================================================
@@ -91,3 +92,4 @@ spec:
           - token
         scopes:
           - name: "full_access"
+{{- end }}
