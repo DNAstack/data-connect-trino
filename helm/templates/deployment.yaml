@@ -243,6 +243,10 @@ spec:
               value: "{{ ((.Values.global).tenancy).enforcement | default "LOG_ONLY" }}"
             - name: TENANTLIFECYCLE_ENABLED
               value: "{{ ((.Values.global).tenancy).lifecycleEnabled | default false }}"
+            {{- with ((.Values.global).tenancy).pollInterval }}
+            - name: TENANTLIFECYCLE_POLLINTERVAL
+              value: {{ . | quote }}
+            {{- end }}
             - name: TENANTLIFECYCLE_WALLETURI
               value: '{{- include "dnastack.wallet.internalUrl" . }}'
             - name: TENANTLIFECYCLE_OAUTH_TOKENURI
