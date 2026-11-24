@@ -3,6 +3,7 @@ package com.dnastack.ga4gh.dataconnect.tenancy;
 import com.dnastack.ga4gh.dataconnect.adapter.trino.TrinoClient;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJob;
 import com.dnastack.ga4gh.dataconnect.repository.QueryJobDao;
+import com.dnastack.tenancy.context.SystemScoped;
 import com.dnastack.tenancy.context.TenantContextAccessor;
 import com.dnastack.tenancy.context.TenantId;
 import com.dnastack.tenancy.lifecycle.TenantLifecycleHandler;
@@ -50,6 +51,8 @@ public class TenantMirrorLifecycleHandler implements TenantLifecycleHandler {
     }
 
     @Override
+    @SystemScoped(reason = "Only reachable from spring-boot-tenancy-lifecycle's TenantReconciler, driven by the "
+        + "@Scheduled TenantLifecyclePoller -- never from a tenant-authenticated request.")
     public void onTenantDeleted(UUID tenantId) {
         tenantContextAccessor.runAs(tenantId, () -> {
             TenantId tenant = tenantContextAccessor.getTenantId();
