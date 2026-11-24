@@ -99,6 +99,7 @@ spec:
     id: data-connect-trino-access-policy
     name: Access Policy for Data Connect Trino
     statements:
+{{- if eq (include "dataConnectTrino.e2eTestEnabled" .) "true" }}
       - principals:
           - type: service
             id: data-connect-trino-e2e-test
@@ -131,6 +132,7 @@ spec:
           - ins:library:write
         resources:
           - uri: "{{- include "dnastack.indexingService.resourceUrl" . }}/library/"
+{{- end }}
       - principals:
           - type: service
             id: data-connect-trino

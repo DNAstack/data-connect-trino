@@ -66,6 +66,11 @@ cloud:
   clusterName: # Name of K8s cluster this application is being deployed into e.g. "dnastack-us-central-cluster"
   spaceDnsName: # DNS domain being used for applications in this cluster e.g. helm-sandbox.dnastack.com
 
+e2etest:
+  # Whether this install supports the e2e tests: the e2e Wallet client and its permissions, and the helm test that runs
+  # them. Off unless this or global.e2etest.enabled is true.
+  enabled:
+
 test:
   showSchemaForCatalogName: publisher # Name of a catalog that's expected to contain at least one schema
   showTableForCatalogSchemaName: publisher.public # Name of a catalog.schema that's expected to contain at least one table

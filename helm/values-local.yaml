@@ -55,3 +55,7 @@ cloud:
 test:
   showSchemaForCatalogName: publisher
   showTableForCatalogSchemaName: public
+
+# The e2e client and its permissions, for dnaservice test.
+e2etest:
+  enabled: true
