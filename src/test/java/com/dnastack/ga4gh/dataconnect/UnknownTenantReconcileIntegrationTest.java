@@ -97,7 +97,7 @@ public class UnknownTenantReconcileIntegrationTest {
     }
 
     @Test
-    public void request_should_answerNotFound_when_theTenantIsStillUnknownAfterReconcileing() throws Exception {
+    public void request_should_answerNotFound_when_theTenantIsStillUnknownAfterReconciling() throws Exception {
         mockMvc.perform(get("/tenants/" + UUID.randomUUID() + "/search/" + PAGE).param("queryJobId", QUERY_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errors[0].type").value("urn:dnastack:tenancy:unknown-tenant"));
