@@ -34,7 +34,7 @@
     <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- Other -->
-    <version.okhttp>4.12.0</version.okhttp>
+    <version.okhttp>4.12.1</version.okhttp>
     <version.trino>359</version.trino>
     <version.guava>33.4.8-jre</version.guava>
     <version.nimbus>9.48</version.nimbus>
