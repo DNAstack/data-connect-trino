@@ -9,7 +9,7 @@ on:
 jobs:
   build-and-test-java-app:
     name: Build & Test Java App
-    uses: DNAstack/dnastack-development-tools/.github/workflows/build-test-java-app.yml@945ddc20e0baa715095f63b282d81da7df57dd0b
+    uses: DNAstack/dnastack-development-tools/.github/workflows/build-test-java-app.yml@e68cb5e385366429e80cee2f7343a6ec712ae5c4
     with:
       java-version: 21
     secrets:
@@ -17,7 +17,7 @@ jobs:
 
   sast:
     name: SAST (SonarQube)
-    uses: DNAstack/dnastack-development-tools/.github/workflows/sast.yml@945ddc20e0baa715095f63b282d81da7df57dd0b
+    uses: DNAstack/dnastack-development-tools/.github/workflows/sast.yml@e68cb5e385366429e80cee2f7343a6ec712ae5c4
     with:
       with-frontend: false
       java-version: 21
@@ -29,7 +29,7 @@ jobs:
 
   sca:
     name: SCA (Trivy)
-    uses: DNAstack/dnastack-development-tools/.github/workflows/sca.yml@945ddc20e0baa715095f63b282d81da7df57dd0b
+    uses: DNAstack/dnastack-development-tools/.github/workflows/sca.yml@e68cb5e385366429e80cee2f7343a6ec712ae5c4
     with:
       java-version: 21
     secrets:
@@ -37,6 +37,6 @@ jobs:
 
   secrets-detection:
     name: Secrets Detection (Gitleaks)
-    uses: DNAstack/dnastack-development-tools/.github/workflows/secrets-detection.yml@945ddc20e0baa715095f63b282d81da7df57dd0b
+    uses: DNAstack/dnastack-development-tools/.github/workflows/secrets-detection.yml@e68cb5e385366429e80cee2f7343a6ec712ae5c4
     secrets:
       gitleaks-license: ${{ secrets.GITLEAKS_LICENSE }}
